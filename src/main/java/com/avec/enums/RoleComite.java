@@ -2,26 +2,20 @@ package com.avec.enums;
 
 public enum RoleComite {
 
-    PRESIDENT("Président"),
-    SECRETAIRE("Secrétaire"),
-    TRESORIER("Trésorier"),
-    COMPTEUR("Compteur"),
-    AUCUN("Aucun rôle");
+	PRESIDENT("Président"), SECRETAIRE("Secrétaire"), TRESORIER("Trésorier"), COMPTEUR("Compteur"), AUCUN("Aucun rôle");
 
-    private String description;
-    RoleComite( String description )
-    {
-        this.description = description;
-    }
+	private String description;
 
-    public String getDescription()
-    {
-        return description;
-    }
+	RoleComite(String description) {
+		this.description = description;
+	}
 
-    @Override
-    public String toString()
-    {
-        return description;
-    }
+	public String getDescription() {
+		return description;
+	}
+
+	@Override
+	public String toString() {
+		return description;
+	}
 }

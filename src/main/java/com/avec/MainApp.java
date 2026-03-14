@@ -1,41 +1,38 @@
 package com.avec;
 
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.Statement;
-
-import com.avec.config.DBConnection;
-
+import com.avec.view.LoginView;
 import javafx.application.Application;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 public class MainApp extends Application {
-	
-	
-
-	public void start(Stage stage) {
-		
-		Button btn = new Button("start");
-		
-		VBox vb = new VBox();
-		
-		vb.getChildren().add(btn);
-		
-		Scene scene = new Scene(vb,500,500);
-		stage.setScene(scene);
-		insert();
-		
-		stage.show();
-
-	}
-
-	public static void main(String[] args) {
-
-		launch(args);
-	}
-	
-	
+    
+    private Stage primaryStage;
+    
+    @Override
+    public void start(Stage primaryStage) {
+        this.primaryStage = primaryStage;
+        this.primaryStage.setTitle("Système de Gestion AVEC");
+        this.primaryStage.setResizable(true);
+        
+        // Afficher la vue de connexion
+        showLoginView();
+        
+        primaryStage.show();
+    }
+    
+    public void showLoginView() {
+        LoginView loginView = new LoginView(this);
+        Scene scene = new Scene(loginView.getRoot(), 450, 350);
+        primaryStage.setScene(scene);
+        primaryStage.centerOnScreen();
+    }
+    
+    public Stage getPrimaryStage() {
+        return primaryStage;
+    }
+    
+    public static void main(String[] args) {
+        launch(args);
+    }
 }
