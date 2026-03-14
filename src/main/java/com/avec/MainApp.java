@@ -14,7 +14,7 @@ public class MainApp extends Application {
 		
 		VBox vb = new VBox();
 		
-		vb.getChildren().add(vb);
+		vb.getChildren().add(btn);
 		
 		Scene scene = new Scene(vb,500,500);
 		stage.setScene(scene);
