@@ -129,7 +129,17 @@ public class DashboardView {
         // Menu
         VBox menuBox = new VBox(5);
         menuBox.setPadding(new Insets(20, 0, 0, 0));
-        
+//        menuBox.getChildren().addAll(
+//                createMenuButton(ICONE_TABLEAU_BORD, "Tableau de bord", this::showDashboard),
+//                createMenuButton(ICONE_MEMBRES, "Gestion des Membres", this::showMembreView),
+//                createMenuButton(ICONE_PRETS, "Gestion des Prêts", this::showPretView),
+//                createMenuButton(ICONE_REUNIONS, "Gestion des Réunions", this::showReunionView),
+//                createMenuButton(ICONE_CYCLES, "Gestion des Cycles", this::showCycleView),
+//                createMenuButton(ICONE_ACHATS, "Achats de Parts", this::showAchatPartView),
+//                createMenuButton(ICONE_REGLES, "Règles AVEC", this::showRegleView),
+//                createMenuButton(ICONE_VISITES, "Visites de terrain", this::showVisiteView)
+//            );
+            
         
         
         sidebar.getChildren().addAll(profileBox, menuBox);
@@ -242,6 +252,41 @@ public class DashboardView {
     private void showDashboard() {
         root.setCenter(createCenterContent());
     }
+    
+//    private void showMembreView() {
+//        MembreView membreView = new MembreView(mainApp, utilisateur);
+//        root.setCenter(membreView.getRoot());
+//    }
+//    
+//    private void showPretView() {
+//        PretView pretView = new PretView(mainApp, utilisateur);
+//        root.setCenter(pretView.getRoot());
+//    }
+//    
+//    private void showReunionView() {
+//        ReunionView reunionView = new ReunionView(mainApp, utilisateur);
+//        root.setCenter(reunionView.getRoot());
+//    }
+//    
+//    private void showCycleView() {
+//        CycleView cycleView = new CycleView(mainApp, utilisateur);
+//        root.setCenter(cycleView.getRoot());
+//    }
+//    
+//    private void showAchatPartView() {
+//        AchatPartView achatPartView = new AchatPartView(mainApp, utilisateur);
+//        root.setCenter(achatPartView.getRoot());
+//    }
+//    
+//    private void showRegleView() {
+//        RegleView regleView = new RegleView(mainApp, utilisateur);
+//        root.setCenter(regleView.getRoot());
+//    }
+//    
+//    private void showVisiteView() {
+//        VisiteView visiteView = new VisiteView(mainApp, utilisateur);
+//        root.setCenter(visiteView.getRoot());
+//    }
     
     public BorderPane getRoot() {
         return root;
