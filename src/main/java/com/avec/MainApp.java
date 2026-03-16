@@ -23,7 +23,7 @@ public class MainApp extends Application {
     
     public void showLoginView() {
         LoginView loginView = new LoginView(this);
-        Scene scene = new Scene(loginView.getRoot(), 450, 350);
+        Scene scene = new Scene(loginView.getRoot(), 400, 500);
         primaryStage.setScene(scene);
         primaryStage.centerOnScreen();
     }
