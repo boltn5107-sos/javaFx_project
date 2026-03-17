@@ -23,4 +23,6 @@ public class AgentVillageois extends Utilisateur {
 		
 	}
 
+//	public void setSuperviseurId(long supId) {
+//	}
 }

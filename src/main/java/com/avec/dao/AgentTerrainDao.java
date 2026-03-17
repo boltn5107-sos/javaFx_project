@@ -1,11 +1,13 @@
 package com.avec.dao;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import com.avec.config.DBConnection;
@@ -140,6 +142,49 @@ public class AgentTerrainDao {
         }
         
         return new AgentTerrain(utilisateur);
+    }
+
+
+
+
+    public AgentTerrain findAgentTerrainById(Long id) throws SQLException {
+        String sql = "SELECT * FROM agents_terrain WHERE id = ?";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setLong(1, id);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    AgentTerrain agent = new AgentTerrain();
+
+                    // Propriétés de base
+                    agent.setId(rs.getLong("id"));
+                    agent.setNom(rs.getString("nom"));
+                    agent.setEmail(rs.getString("email"));
+                    agent.setMotDePasse(rs.getString("mot_de_passe"));
+                    agent.setTelephone(rs.getString("telephone"));
+                   // agent.setActif(rs.getBoolean("actif"));
+
+//                    Date dateCreation = rs.getDate("date_creation");
+//                    if (dateCreation != null) {
+//                        agent.setDateCreation(dateCreation.toLocalDate());
+//                    }
+//
+//                    Date derniereConnexion = rs.getDate("derniere_connexion");
+//                    if (derniereConnexion != null) {
+//                        agent.setDerniereConnexion(derniereConnexion.toLocalDate());
+//                    }
+
+                    // Propriétés spécifiques
+                    //agent.setZoneIntervention(rs.getString("zone_intervention"));
+
+                    return agent;
+                }
+            }
+        }
+        return null;
     }
 }
 

@@ -11,7 +11,7 @@ public class Reunion {
     private LocalDate date;
     private TypeReunion type;
     private List<AchatPart> achatParts;
-    private List<Remboursement> remboursements;
+    //private List<Remboursement> remboursements;
     private List<DecaissementPret> decaissements;
 
     public Reunion() {}
@@ -54,19 +54,19 @@ public class Reunion {
         this.achatParts = achatParts;
     }
 
-    public List<Remboursement> getRemboursements() {
-        return remboursements;
-    }
-
-    public void setRemboursements(List<Remboursement> remboursements) {
-        this.remboursements = remboursements;
-    }
-
-    public List<DecaissementPret> getDecaissements() {
-        return decaissements;
-    }
-
-    public void setDecaissements(List<DecaissementPret> decaissements) {
-        this.decaissements = decaissements;
-    }
+//    public List<Remboursement> getRemboursements() {
+//        return remboursements;
+//    }
+//
+//    public void setRemboursements(List<Remboursement> remboursements) {
+//        this.remboursements = remboursements;
+//    }
+//
+//    public List<DecaissementPret> getDecaissements() {
+//        return decaissements;
+//    }
+//
+//    public void setDecaissements(List<DecaissementPret> decaissements) {
+//        this.decaissements = decaissements;
+//    }
 }

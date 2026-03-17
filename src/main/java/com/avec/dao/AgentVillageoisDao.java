@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import com.avec.config.DBConnection;
@@ -209,5 +210,51 @@ public class AgentVillageoisDao {
 
 		return agent;
 	}
+
+    public AgentVillageois findAgentVillageoisById(Long agentVillageoisId) throws SQLException {
+		String sql = "SELECT * FROM agentVillageois WHERE id = ? ";
+
+		try( Connection conn= DBConnection.getConnection();PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+			// Remplacer le premier paramètre (?) par l'id fourni
+			stmt.setLong(1,agentVillageoisId);
+
+			// execution de la requete
+			try(ResultSet rs = stmt.executeQuery()){
+				// si un resultat est trouve
+				if(rs.next()){
+					//transforme le resultat en objet agentVillageois
+					return mapResultsetToAgentVillageois(rs);
+				}
+			}
+		}
+
+		// Aucun résultat trouvé
+        return null;
+    }
+
+
+	/**
+	 * Méthode utilitaire pour convertir un ResultSet en objet AgentVillageois
+	 */
+
+	private AgentVillageois mapResultSsetToAgentVillageois(ResultSet rs )throws SQLException{
+		AgentVillageois agent = new AgentVillageois();
+		// Remplir les propriétés de base (héritées de Utilisateur)
+		agent.setId(rs.getLong("id"));
+		agent.setNom(rs.getString("nom"));
+		agent.setPrenom(rs.getString("prenom"));
+		agent.setEmail(rs.getString("email"));
+		agent.setMotDePasse(rs.getString("motDePasse"));
+		agent.setTelephone(rs.getString("telephone"));
+
+		// Remplir les propriétés spécifiques à AgentVillageois
+
+//		long supId = rs.getLong("superviseur_id");
+//		if (!rs.wasNull()) {
+//			agent.setSuperviseurId(supId);
+//		}
+        return agent;
+    }
 
 }

@@ -51,4 +51,6 @@ public class AchatPart {
         this.reunion = reunion;
     }
 
+    public void setMembreId(Long id) {
+    }
 }

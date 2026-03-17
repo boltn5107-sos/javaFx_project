@@ -1,17 +1,16 @@
 package com.avec.enums;
 
 /**
- * Statut d'un membre dans l'AVEC
+ * Statuts possibles pour un cycle
  */
-public enum StatutMembre {
-    ACTIF("Actif"),
-    INACTIF("Inactif"),
-    SUSPENDU("Suspendu"),
-    RADIE("Radié");
+public enum StatutCycle {
+    PREVU("Prévu"),
+    EN_COURS("En cours"),
+    TERMINE("Terminé");
 
     private final String libelle;
 
-    StatutMembre(String libelle) {
+    StatutCycle(String libelle) {
         this.libelle = libelle;
     }
 
