@@ -14,200 +14,314 @@ import com.avec.model.AgentVillageois;
 import com.avec.model.Utilisateur;
 
 public class AgentVillageoisDao {
-
-	private UtilisateurDao utilisateurDao;
-	private AgentTerrainDao agentTerrainDao;
-
-	public AgentVillageoisDao() {
-		this.utilisateurDao = new UtilisateurDao();
-		this.agentTerrainDao = new AgentTerrainDao();
-	}
-
-	// Créé agent villageois
-
-	public boolean enregistrer(AgentVillageois agentVillageois) {
-		// D'baord sauvegarder dans l'utilisateur
-		if (!utilisateurDao.ajouter(agentVillageois)) {
-			return false;
-		}
-
-		// Ensuite dans AgentVillageois
-
-		String sql = "INSERT INTO agentvillageois(id, agentTerrain_id) VALUES (?,?)";
-
-		try (Connection con = DBConnection.getConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
-
-			ps.setLong(1, agentVillageois.getId());
-			ps.setLong(2, agentVillageois.getAgentTerrain().getId());
-
-			return ps.executeUpdate() > 0;
-
-		} catch (SQLException e) {
-			System.err.println("Erreur lors de la sauvegarde de l'agent villageois: " + e.getMessage());
-			e.printStackTrace();
-		}
-		return false;
-	}
-
-	// Chercher par l'id
-
-	public AgentVillageois chercherId(Long id) {
-
-		String sql = "SELECT * FROM agentvillageois WHERE id = ?";
-
-		try (Connection con = DBConnection.getConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
-
-			ps.setLong(1, id);
-			ResultSet rs = ps.executeQuery();
-
-			while (rs.next()) {
-				return mapResultsetToAgentVillageois(rs);
-			}
-
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return null;
-	}
-
-	// Lire tout
-
-	public List<AgentVillageois> lister() {
-
-		List<AgentVillageois> agents = new ArrayList<>();
-
-		String sql = "SELECT * FROM agentvillageois";
-
-		try (Connection con = DBConnection.getConnection();
-				Statement st = con.createStatement();
-				ResultSet rs = st.executeQuery(sql)) {
-
-			while (rs.next()) {
-				agents.add(mapResultsetToAgentVillageois(rs));
-			}
-
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-
-		return agents;
-
-	}
-
-	// Chercher par en fonction de l'AT
-
-	public List<AgentVillageois> chercherParAt(Long agentTerrain_id) {
-
-		List<AgentVillageois> agents = new ArrayList<>();
-		String sql = "SELECT * FROM agentvillageois WHERE agentTerrain_id = ?";
-
-		try (Connection con = DBConnection.getConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
-
-			ps.setLong(1, agentTerrain_id);
-			ResultSet rs = ps.executeQuery();
-
-			while (rs.next()) {
-				agents.add(mapResultsetToAgentVillageois(rs));
-			}
-
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return agents;
-	}
-
-	// Modifier un AV
-
-	public boolean modifier(AgentVillageois agentVillageois) {
-		// Mettre à jour d'abord table utilisateur
-		if (!utilisateurDao.modifier(agentVillageois)) {
-			return false;
-		}
-
-		// Mettre à jour AV
-
-		String sql = "UDPDATE agentvillageois SET agentTerrain_id =? WHERE id = ?";
-
-		try (Connection con = DBConnection.getConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
-
-			ps.setLong(1, agentVillageois.getAgentTerrain().getId());
-			ps.setLong(2, agentVillageois.getId());
-			
-			return ps.executeUpdate() > 0;
-
-		} catch (SQLException e) {
-			
-			e.printStackTrace();
-		}
-		return false;
-	}
-	
-	
-	// Supprimer un AV
-    public boolean supprimer(Long id) {
-        // Supprimer d'abord de AgentVillageois
-        String sql = "DELETE FROM agentvillageois WHERE id = ?";
+    
+    private AgentTerrainDao agentTerrainDao;
+    
+    public AgentVillageoisDao() {
+        this.agentTerrainDao = new AgentTerrainDao();
+    }
+    
+    // ENREGISTRER (Créer un nouvel agent villageois)
+    public boolean enregistrer(AgentVillageois agent) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
         
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try {
+            conn = DBConnection.getConnection();
             
-            stmt.setLong(1, id);
-            boolean deleted = stmt.executeUpdate() > 0;
+            // 1. Insérer dans Utilisateur
+            String sqlUser = "INSERT INTO Utilisateur (nom, prenom, email, motDePasse, telephone) VALUES (?, ?, ?, ?, ?)";
+            pstmt = conn.prepareStatement(sqlUser, Statement.RETURN_GENERATED_KEYS);
+            pstmt.setString(1, agent.getNom());
+            pstmt.setString(2, agent.getPrenom());
+            pstmt.setString(3, agent.getEmail());
+            pstmt.setString(4, agent.getMotDePasse());
+            pstmt.setString(5, agent.getTelephone());
             
-            // Puis supprimer de Utilisateur
-            if (deleted) {
-                return utilisateurDao.spprimer(id);
+            int rows = pstmt.executeUpdate();
+            if (rows == 0) return false;
+            
+            // Récupérer l'ID généré
+            rs = pstmt.getGeneratedKeys();
+            if (rs.next()) {
+                agent.setId(rs.getLong(1));
             }
+            rs.close();
+            pstmt.close();
+            
+            // 2. Insérer dans AgentVillageois
+            String sqlAgent = "INSERT INTO AgentVillageois (id, agentTerrain_id) VALUES (?, ?)";
+            pstmt = conn.prepareStatement(sqlAgent);
+            pstmt.setLong(1, agent.getId());
+            pstmt.setLong(2, agent.getAgentTerrain().getId());
+            
+            return pstmt.executeUpdate() > 0;
+            
         } catch (SQLException e) {
+            System.err.println("Erreur dans enregistrer(): " + e.getMessage());
             e.printStackTrace();
+            return false;
+        } finally {
+            try {
+                if (rs != null) rs.close();
+                if (pstmt != null) pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
-        return false;
+    }
+    
+    // CHERCHER PAR ID
+    public AgentVillageois chercherId(Long id) {
+        if (id == null) return null;
+        
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        
+        try {
+            conn = DBConnection.getConnection();
+            
+            String sql = "SELECT av.id, av.agentTerrain_id, " +
+                         "u.nom, u.prenom, u.email, u.telephone, u.motDePasse " +
+                         "FROM AgentVillageois av " +
+                         "JOIN Utilisateur u ON av.id = u.id " +
+                         "WHERE av.id = ?";
+            
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setLong(1, id);
+            rs = pstmt.executeQuery();
+            
+            if (rs.next()) {
+                Utilisateur utilisateur = new Utilisateur();
+                utilisateur.setId(rs.getLong("id"));
+                utilisateur.setNom(rs.getString("nom"));
+                utilisateur.setPrenom(rs.getString("prenom"));
+                utilisateur.setEmail(rs.getString("email"));
+                utilisateur.setTelephone(rs.getString("telephone"));
+                utilisateur.setMotDePasse(rs.getString("motDePasse"));
+                
+                AgentVillageois agent = new AgentVillageois(utilisateur);
+                
+                Long agentTerrainId = rs.getLong("agentTerrain_id");
+                if (agentTerrainId != null && agentTerrainId > 0) {
+                    // Utiliser le DAO d'agent terrain pour chercher
+                    AgentTerrain agentTerrain = agentTerrainDao.chercherId(agentTerrainId);
+                    agent.setAgentTerrain(agentTerrain);
+                }
+                
+                return agent;
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("Erreur dans chercherId(): " + e.getMessage());
+            e.printStackTrace();
+        } finally {
+            try {
+                if (rs != null) rs.close();
+                if (pstmt != null) pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+        
+        return null;
+    }
+    
+    // LISTER tous les agents villageois
+    public List<AgentVillageois> lister() {
+        List<AgentVillageois> agents = new ArrayList<>();
+        Connection conn = null;
+        Statement stmt = null;
+        ResultSet rs = null;
+        
+        try {
+            conn = DBConnection.getConnection();
+            
+            // Récupérer d'abord tous les IDs
+            String sqlIds = "SELECT id FROM AgentVillageois";
+            stmt = conn.createStatement();
+            rs = stmt.executeQuery(sqlIds);
+            
+            List<Long> ids = new ArrayList<>();
+            while (rs.next()) {
+                ids.add(rs.getLong("id"));
+            }
+            rs.close();
+            stmt.close();
+            
+            // Puis pour chaque ID, chercher l'agent complet
+            for (Long id : ids) {
+                AgentVillageois agent = chercherId(id);
+                if (agent != null) {
+                    agents.add(agent);
+                }
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("Erreur dans lister(): " + e.getMessage());
+            e.printStackTrace();
+        } finally {
+            try {
+                if (rs != null) rs.close();
+                if (stmt != null) stmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+        
+        return agents;
+    }
+    
+    // CHERCHER PAR AGENT TERRAIN
+    public List<AgentVillageois> chercherParAt(Long agentTerrainId) {
+        List<AgentVillageois> agents = new ArrayList<>();
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        
+        try {
+            conn = DBConnection.getConnection();
+            
+            String sql = "SELECT id FROM AgentVillageois WHERE agentTerrain_id = ?";
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setLong(1, agentTerrainId);
+            rs = pstmt.executeQuery();
+            
+            List<Long> ids = new ArrayList<>();
+            while (rs.next()) {
+                ids.add(rs.getLong("id"));
+            }
+            rs.close();
+            pstmt.close();
+            
+            for (Long id : ids) {
+                AgentVillageois agent = chercherId(id);
+                if (agent != null) {
+                    agents.add(agent);
+                }
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("Erreur dans chercherParAt(): " + e.getMessage());
+            e.printStackTrace();
+        } finally {
+            try {
+                if (rs != null) rs.close();
+                if (pstmt != null) pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+        
+        return agents;
+    }
+    
+    // MODIFIER
+    public boolean modifier(AgentVillageois agent) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        
+        try {
+            conn = DBConnection.getConnection();
+            
+            // 1. Mettre à jour Utilisateur
+            String sqlUser = "UPDATE Utilisateur SET nom = ?, prenom = ?, email = ?, telephone = ? WHERE id = ?";
+            pstmt = conn.prepareStatement(sqlUser);
+            pstmt.setString(1, agent.getNom());
+            pstmt.setString(2, agent.getPrenom());
+            pstmt.setString(3, agent.getEmail());
+            pstmt.setString(4, agent.getTelephone());
+            pstmt.setLong(5, agent.getId());
+            
+            boolean userUpdated = pstmt.executeUpdate() > 0;
+            pstmt.close();
+            
+            // 2. Mettre à jour AgentVillageois
+            String sqlAgent = "UPDATE AgentVillageois SET agentTerrain_id = ? WHERE id = ?";
+            pstmt = conn.prepareStatement(sqlAgent);
+            pstmt.setLong(1, agent.getAgentTerrain().getId());
+            pstmt.setLong(2, agent.getId());
+            
+            return pstmt.executeUpdate() > 0 && userUpdated;
+            
+        } catch (SQLException e) {
+            System.err.println("Erreur dans modifier(): " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        } finally {
+            try {
+                if (pstmt != null) pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+    
+    // SUPPRIMER
+    public boolean supprimer(Long id) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        
+        try {
+            conn = DBConnection.getConnection();
+            
+            // 1. Supprimer d'AgentVillageois
+            String sqlAgent = "DELETE FROM AgentVillageois WHERE id = ?";
+            pstmt = conn.prepareStatement(sqlAgent);
+            pstmt.setLong(1, id);
+            pstmt.executeUpdate();
+            pstmt.close();
+            
+            // 2. Supprimer d'Utilisateur
+            String sqlUser = "DELETE FROM Utilisateur WHERE id = ?";
+            pstmt = conn.prepareStatement(sqlUser);
+            pstmt.setLong(1, id);
+            
+            return pstmt.executeUpdate() > 0;
+            
+        } catch (SQLException e) {
+            System.err.println("Erreur dans supprimer(): " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        } finally {
+            try {
+                if (pstmt != null) pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
     }
     
     // COMPTER
     public int compter() {
-        String sql = "SELECT COUNT(*) FROM agentvillageois";
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
         
-        try (Connection conn = DBConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+        try {
+            conn = DBConnection.getConnection();
+            String sql = "SELECT COUNT(*) FROM AgentVillageois";
+            pstmt = conn.prepareStatement(sql);
+            rs = pstmt.executeQuery();
             
             if (rs.next()) {
                 return rs.getInt(1);
             }
+            
         } catch (SQLException e) {
+            System.err.println("Erreur dans compter(): " + e.getMessage());
             e.printStackTrace();
+        } finally {
+            try {
+                if (rs != null) rs.close();
+                if (pstmt != null) pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
+        
         return 0;
     }
-    
-
-	// Mapping ResultSet -> agentVillageois
-	private AgentVillageois mapResultsetToAgentVillageois(ResultSet rs) throws SQLException {
-
-		Long id = rs.getLong("id");
-
-		// Récupérer les informations de base depuis utilisateur
-		Utilisateur utilisateur = utilisateurDao.chercherId(id);
-
-		if (utilisateur == null) {
-			return null;
-		}
-
-		AgentVillageois agent = new AgentVillageois(utilisateur);
-
-		// Récupérer l'agent de terrain associé
-
-		Long agentTerrainId = rs.getLong("agentTerrain_id");
-
-		if (agentTerrainId != null) {
-
-			AgentTerrain agentTerrain = agentTerrainDao.chercherId(agentTerrainId);
-
-			agent.setAgentTerrain(agentTerrain);
-		}
-
-		return agent;
-	}
-
 }

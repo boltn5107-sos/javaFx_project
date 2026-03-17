@@ -129,7 +129,10 @@ public class DashboardView {
         // Menu
         VBox menuBox = new VBox(5);
         menuBox.setPadding(new Insets(20, 0, 0, 0));
-//        menuBox.getChildren().addAll(
+        
+        Button agentTerrainBtn = createMenuButton("🏞️", "Agents Terrain", this::showAgentTerrainView);
+        Button agentVillageoisBtn = createMenuButton("🌾", "Agents Villageois", this::showAgentVillageoisView);
+       menuBox.getChildren().addAll(
 //                createMenuButton(ICONE_TABLEAU_BORD, "Tableau de bord", this::showDashboard),
 //                createMenuButton(ICONE_MEMBRES, "Gestion des Membres", this::showMembreView),
 //                createMenuButton(ICONE_PRETS, "Gestion des Prêts", this::showPretView),
@@ -138,7 +141,8 @@ public class DashboardView {
 //                createMenuButton(ICONE_ACHATS, "Achats de Parts", this::showAchatPartView),
 //                createMenuButton(ICONE_REGLES, "Règles AVEC", this::showRegleView),
 //                createMenuButton(ICONE_VISITES, "Visites de terrain", this::showVisiteView)
-//            );
+    		   agentTerrainBtn,agentVillageoisBtn
+           );
             
         
         
@@ -287,6 +291,16 @@ public class DashboardView {
 //        VisiteView visiteView = new VisiteView(mainApp, utilisateur);
 //        root.setCenter(visiteView.getRoot());
 //    }
+    
+    private void showAgentTerrainView() {
+        AgentTerrainView agentTerrainView = new AgentTerrainView(mainApp, utilisateur);
+        root.setCenter(agentTerrainView.getRoot());
+    }
+
+    private void showAgentVillageoisView() {
+        AgentVillageoisView agentVillageoisView = new AgentVillageoisView(mainApp, utilisateur);
+        root.setCenter(agentVillageoisView.getRoot());
+    }
     
     public BorderPane getRoot() {
         return root;

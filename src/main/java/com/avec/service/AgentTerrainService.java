@@ -26,8 +26,8 @@ public class AgentTerrainService {
         return agentTerrainDao.chercherId(id);
     }
     
-    public List<AgentTerrain> listerAgentVillageois() {
-        return agentTerrainDao.lister();
+    public List<AgentTerrain> listerAgentTerrain() {
+        return agentTerrainDao.listerSimple();
     }
     
     public boolean modifierAgentTerrain(AgentTerrain agent) {
