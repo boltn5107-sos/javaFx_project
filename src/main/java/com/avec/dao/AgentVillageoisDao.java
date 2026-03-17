@@ -383,24 +383,7 @@ public class AgentVillageoisDao {
 	 * Méthode utilitaire pour convertir un ResultSet en objet AgentVillageois
 	 */
 
-	private AgentVillageois mapResultSsetToAgentVillageois(ResultSet rs )throws SQLException{
-		AgentVillageois agent = new AgentVillageois();
-		// Remplir les propriétés de base (héritées de Utilisateur)
-		agent.setId(rs.getLong("id"));
-		agent.setNom(rs.getString("nom"));
-		agent.setPrenom(rs.getString("prenom"));
-		agent.setEmail(rs.getString("email"));
-		agent.setMotDePasse(rs.getString("motDePasse"));
-		agent.setTelephone(rs.getString("telephone"));
-
-		// Remplir les propriétés spécifiques à AgentVillageois
-
-//		long supId = rs.getLong("superviseur_id");
-//		if (!rs.wasNull()) {
-//			agent.setSuperviseurId(supId);
-//		}
-        return agent;
-    }
+	
 
 }
 
