@@ -138,7 +138,8 @@ public class UtilisateurDao {
 
 		String sql = "DELETE FROM utilisateur WHERE id = ?";
 
-		try (Connection con = DBConnection.getConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
+		try (Connection con = DBConnection.getConnection();
+			 PreparedStatement ps = con.prepareStatement(sql)) {
 
 			ps.setLong(1, id);
 

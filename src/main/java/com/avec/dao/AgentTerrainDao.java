@@ -1,11 +1,13 @@
 package com.avec.dao;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import com.avec.config.DBConnection;
@@ -183,59 +185,105 @@ public class AgentTerrainDao {
         return agents;
     }
 
-	// Mettre à jour AT
-	public boolean modifier(AgentTerrain agentTerrain) {
-		// Mettre à jour Utilisateur seulement car AgentTerrain n'a pas d'autres champs
-		return utilisateurDao.modifier(agentTerrain);
-	}
+    
+    // Mettre à jour AT
+    public boolean modifier(AgentTerrain agentTerrain) {
+        // Mettre à jour Utilisateur seulement car AgentTerrain n'a pas d'autres champs
+        return utilisateurDao.modifier(agentTerrain);
+    }
+    
+    // Supprimer
+    public boolean supprimer(Long id) {
+        // Supprimer d'abord de AgentTerrain
+        String sql = "DELETE FROM agentterrain WHERE id = ?";
+        
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setLong(1, id);
+            boolean deleted = stmt.executeUpdate() > 0;
+            
+            // Puis supprimer de Utilisateur
+            if (deleted) {
+                return utilisateurDao.spprimer(id);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+    
+    // COUNT
+    public int compter() {
+        String sql = "SELECT COUNT(*) FROM agentterrain";
+        
+        try (Connection conn = DBConnection.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+    
+    // Mapping ResultSet -> AgentTerrain
+    private AgentTerrain mapResultSetToAgentTerrain(ResultSet rs) throws SQLException {
+        Long id = rs.getLong("id");
+        
+        // Récupérer les informations de base depuis Utilisateur
+        Utilisateur utilisateur = utilisateurDao.chercherId(id);
+        if (utilisateur == null) {
+            return null;
+        }
+        
+        return new AgentTerrain(utilisateur);
+    }
 
-	// Supprimer
-	public boolean supprimer(Long id) {
-		// Supprimer d'abord de AgentTerrain
-		String sql = "DELETE FROM agentterrain WHERE id = ?";
 
-		try (Connection conn = DBConnection.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-			stmt.setLong(1, id);
-			boolean deleted = stmt.executeUpdate() > 0;
 
-			// Puis supprimer de Utilisateur
-			if (deleted) {
-				return utilisateurDao.spprimer(id);
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return false;
-	}
+    public AgentTerrain findAgentTerrainById(Long id) throws SQLException {
+        String sql = "SELECT * FROM agents_terrain WHERE id = ?";
 
-	// COUNT
-	public int compter() {
-		String sql = "SELECT COUNT(*) FROM agentterrain";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-		try (Connection conn = DBConnection.getConnection();
-				Statement stmt = conn.createStatement();
-				ResultSet rs = stmt.executeQuery(sql)) {
+            stmt.setLong(1, id);
 
-			if (rs.next()) {
-				return rs.getInt(1);
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return 0;
-	}
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    AgentTerrain agent = new AgentTerrain();
 
-	// Mapping ResultSet -> AgentTerrain
-	private AgentTerrain mapResultSetToAgentTerrain(ResultSet rs) throws SQLException {
-		Long id = rs.getLong("id");
+                    // Propriétés de base
+                    agent.setId(rs.getLong("id"));
+                    agent.setNom(rs.getString("nom"));
+                    agent.setEmail(rs.getString("email"));
+                    agent.setMotDePasse(rs.getString("mot_de_passe"));
+                    agent.setTelephone(rs.getString("telephone"));
+                   // agent.setActif(rs.getBoolean("actif"));
 
-		// Récupérer les informations de base depuis Utilisateur
-		Utilisateur utilisateur = utilisateurDao.chercherId(id);
-		if (utilisateur == null) {
-			return null;
-		}
+//                    Date dateCreation = rs.getDate("date_creation");
+//                    if (dateCreation != null) {
+//                        agent.setDateCreation(dateCreation.toLocalDate());
+//                    }
+//
+//                    Date derniereConnexion = rs.getDate("derniere_connexion");
+//                    if (derniereConnexion != null) {
+//                        agent.setDerniereConnexion(derniereConnexion.toLocalDate());
+//                    }
 
-		return new AgentTerrain(utilisateur);
-	}
+                    // Propriétés spécifiques
+                    //agent.setZoneIntervention(rs.getString("zone_intervention"));
+
+                    return agent;
+                }
+            }
+        }
+        return null;
+    }
+
 }

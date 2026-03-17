@@ -15,9 +15,11 @@ import com.avec.model.Utilisateur;
 
 public class AgentVillageoisDao {
     
+	private UtilisateurDao utilisateurDao;
     private AgentTerrainDao agentTerrainDao;
     
     public AgentVillageoisDao() {
+        this.utilisateurDao = new UtilisateurDao();
         this.agentTerrainDao = new AgentTerrainDao();
     }
     
@@ -324,4 +326,81 @@ public class AgentVillageoisDao {
         
         return 0;
     }
+
+
+	// Mapping ResultSet -> agentVillageois
+	private AgentVillageois mapResultsetToAgentVillageois(ResultSet rs) throws SQLException {
+
+		Long id = rs.getLong("id");
+
+		// Récupérer les informations de base depuis utilisateur
+		Utilisateur utilisateur = utilisateurDao.chercherId(id);
+
+		if (utilisateur == null) {
+			return null;
+		}
+
+		AgentVillageois agent = new AgentVillageois(utilisateur);
+
+		// Récupérer l'agent de terrain associé
+
+		Long agentTerrainId = rs.getLong("agentTerrain_id");
+
+		if (agentTerrainId != null) {
+
+			AgentTerrain agentTerrain = agentTerrainDao.chercherId(agentTerrainId);
+
+			agent.setAgentTerrain(agentTerrain);
+		}
+
+		return agent;
+	}
+
+    public AgentVillageois findAgentVillageoisById(Long agentVillageoisId) throws SQLException {
+		String sql = "SELECT * FROM agentVillageois WHERE id = ? ";
+
+		try( Connection conn= DBConnection.getConnection();PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+			// Remplacer le premier paramètre (?) par l'id fourni
+			stmt.setLong(1,agentVillageoisId);
+
+			// execution de la requete
+			try(ResultSet rs = stmt.executeQuery()){
+				// si un resultat est trouve
+				if(rs.next()){
+					//transforme le resultat en objet agentVillageois
+					return mapResultsetToAgentVillageois(rs);
+				}
+			}
+		}
+
+		// Aucun résultat trouvé
+        return null;
+    }
+
+
+	/**
+	 * Méthode utilitaire pour convertir un ResultSet en objet AgentVillageois
+	 */
+
+	private AgentVillageois mapResultSsetToAgentVillageois(ResultSet rs )throws SQLException{
+		AgentVillageois agent = new AgentVillageois();
+		// Remplir les propriétés de base (héritées de Utilisateur)
+		agent.setId(rs.getLong("id"));
+		agent.setNom(rs.getString("nom"));
+		agent.setPrenom(rs.getString("prenom"));
+		agent.setEmail(rs.getString("email"));
+		agent.setMotDePasse(rs.getString("motDePasse"));
+		agent.setTelephone(rs.getString("telephone"));
+
+		// Remplir les propriétés spécifiques à AgentVillageois
+
+//		long supId = rs.getLong("superviseur_id");
+//		if (!rs.wasNull()) {
+//			agent.setSuperviseurId(supId);
+//		}
+        return agent;
+    }
+
 }
+
