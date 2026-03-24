@@ -61,6 +61,8 @@ public class AvecService {
 
         return avecDAO.insert(avec);
     }
+    
+    
 
     /**
      * Modifie une AVEC existante

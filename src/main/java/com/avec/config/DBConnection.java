@@ -44,9 +44,9 @@ public class DBConnection {
 			}
 		}
 	}
-	
-	  // Cette méthode ne fait rien maintenant - on garde la connexion ouverte
-    public static void releaseConnection(Connection conn) {
-        // Ne rien faire - on garde la même connexion
-    }
+
+	// Cette méthode ne fait rien maintenant - on garde la connexion ouverte
+	public static void releaseConnection(Connection conn) {
+		// Ne rien faire - on garde la même connexion
+	}
 }

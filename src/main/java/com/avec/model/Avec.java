@@ -1,15 +1,27 @@
 package com.avec.model;
 
-import com.avec.config.DBConnection;
-import com.avec.dao.CaisseDAO;
-import com.avec.enums.*;
-
 import java.math.BigDecimal;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Time;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.avec.config.DBConnection;
+import com.avec.dao.CaisseDAO;
+import com.avec.enums.JourReunion;
+import com.avec.enums.PhaseCycle;
+import com.avec.enums.RoleComite;
+import com.avec.enums.RoleDetenteurCle;
+import com.avec.enums.StatutAvec;
+import com.avec.enums.StatutCycle;
+import com.avec.enums.StatutMembre;
+import com.avec.enums.StatutPret;
 
 /**
  * Classe représentant une Association Villageoise d'Épargne et de Crédit (AVEC)

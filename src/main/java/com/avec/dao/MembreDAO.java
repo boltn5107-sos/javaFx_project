@@ -1,16 +1,20 @@
 package com.avec.dao;
 
+import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+
 import com.avec.config.DBConnection;
 import com.avec.enums.RoleComite;
 import com.avec.enums.RoleDetenteurCle;
 import com.avec.enums.StatutMembre;
 import com.avec.model.Membre;
-
-import java.math.BigDecimal;
-import java.sql.*;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * DAO pour la gestion des membres dans la base de données
@@ -351,6 +355,115 @@ public class MembreDAO {
         }
         return membres;
     }
+    /*
+    * Récupère TOUS les membres de toutes les AVEC
+    */
+   public List<Membre> findAll() throws SQLException {
+       List<Membre> membres = new ArrayList<>();
+       String sql = "SELECT * FROM membre ORDER BY nom, prenom";
+
+       try (Connection conn = DBConnection.getConnection();
+    		   Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql)) {
+
+           while (rs.next()) {
+               membres.add(mapResultSetToMembre(rs));
+           }
+       }
+       return membres;
+   }
+
+   /**
+    * Compte le nombre total de membres (toutes AVEC confondues)
+    */
+   public int countAll() throws SQLException {
+       String sql = "SELECT COUNT(*) FROM membre";
+
+       try (Connection conn = DBConnection.getConnection();
+    		   Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql)) {
+
+           if (rs.next()) {
+               return rs.getInt(1);
+           }
+       }
+       return 0;
+   }
+
+   /**
+    * Compte le nombre de membres actifs (toutes AVEC confondues)
+    */
+   public int countActifs() throws SQLException {
+       String sql = "SELECT COUNT(*) FROM membre WHERE statut = 'ACTIF'";
+
+       try (Connection conn = DBConnection.getConnection();
+    		   Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql)) {
+
+           if (rs.next()) {
+               return rs.getInt(1);
+           }
+       }
+       return 0;
+   }
+
+   /**
+    * Calcule le total de l'épargne de tous les membres
+    */
+   public BigDecimal sumTotalEpargne() throws SQLException {
+       String sql = "SELECT COALESCE(SUM(total_epargne), 0) FROM membre";
+
+       try (Connection conn = DBConnection.getConnection();
+    		   Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql)) {
+
+           if (rs.next()) {
+               return rs.getBigDecimal(1);
+           }
+       }
+       return BigDecimal.ZERO;
+   }
+
+   /**
+    * Calcule le total des prêts en cours de tous les membres
+    */
+   public BigDecimal sumTotalPretEnCours() throws SQLException {
+       String sql = "SELECT COALESCE(SUM(total_pret_en_cours), 0) FROM membre";
+
+       try (Connection conn = DBConnection.getConnection();
+    		   Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql)) {
+
+           if (rs.next()) {
+               return rs.getBigDecimal(1);
+           }
+       }
+       return BigDecimal.ZERO;
+   }
+
+   /**
+    * Recherche des membres par nom dans toutes les AVEC
+    */
+   public List<Membre> searchByNomGlobal(String recherche) throws SQLException {
+       List<Membre> membres = new ArrayList<>();
+       String sql = "SELECT * FROM membre WHERE nom LIKE ? OR prenom LIKE ? ORDER BY nom, prenom";
+
+       try (Connection conn = DBConnection.getConnection();
+    		   PreparedStatement stmt = conn.prepareStatement(sql)) {
+           stmt.setString(1, "%" + recherche + "%");
+           stmt.setString(2, "%" + recherche + "%");
+
+           try (ResultSet rs = stmt.executeQuery()) {
+               while (rs.next()) {
+                   membres.add(mapResultSetToMembre(rs));
+               }
+           }
+       }
+       return membres;
+   }
+
+   
+  
 
     /**
      * Map un ResultSet vers un objet Membre

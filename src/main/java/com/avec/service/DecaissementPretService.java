@@ -140,7 +140,7 @@ public class DecaissementPretService {
         }
 
         // Récupérer le prêt associé
-        Pret pret = pretDAO.findPretById(decaissement.getPretId());
+        Pret pret = pretDAO.chercherId(decaissement.getPretId());
         if (pret == null) {
             throw new IllegalStateException("Prêt associé non trouvé");
         }

@@ -4,6 +4,11 @@ public enum TypeReunion {
 
     SAVINGS,
     CREDIT,
-    SHAREOUT
+    SHAREOUT,
+    REPARTITION,
+    FORMATION,
+    EXTRAORDINAIRE,
+    EPARGNE
 
+    
 }

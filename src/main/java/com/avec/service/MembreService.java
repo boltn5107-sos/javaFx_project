@@ -1,18 +1,18 @@
 package com.avec.service;
 
-import com.avec.dao.MembreDAO;
-import com.avec.dao.AvecDAO;
-import com.avec.enums.RoleComite;
-import com.avec.enums.RoleDetenteurCle;
-import com.avec.enums.StatutMembre;
-import com.avec.model.Membre;
-import com.avec.model.Avec;
-import com.avec.utils.ValidationUtils;
-
+import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+
+import com.avec.dao.AvecDAO;
+import com.avec.dao.MembreDAO;
+import com.avec.enums.RoleComite;
+import com.avec.enums.RoleDetenteurCle;
+import com.avec.enums.StatutMembre;
+import com.avec.model.Avec;
+import com.avec.model.Membre;
 
 /**
  * Service pour la gestion des membres
@@ -236,6 +236,53 @@ public class MembreService {
                 membre.getTotalPretEnCours(),
                 nouveauNombreParts
         );
+    }
+    
+    // ==================== NOUVELLES MÉTHODES À AJOUTER ====================
+
+    /**
+     * Récupère TOUS les membres de toutes les AVEC
+     */
+    public List<Membre> getAllMembres() throws SQLException {
+        return membreDAO.findAll();
+    }
+
+    /**
+     * Récupère le nombre total de membres (toutes AVEC confondues)
+     */
+    public int getNombreTotalMembres() throws SQLException {
+        return membreDAO.countAll();
+    }
+
+    /**
+     * Récupère le nombre de membres actifs (toutes AVEC confondues)
+     */
+    public int getNombreMembresActifs() throws SQLException {
+        return membreDAO.countActifs();
+    }
+
+    /**
+     * Récupère le total de l'épargne de tous les membres
+     */
+    public BigDecimal getTotalEpargne() throws SQLException {
+        return membreDAO.sumTotalEpargne();
+    }
+
+    /**
+     * Récupère le total des prêts en cours de tous les membres
+     */
+    public BigDecimal getTotalPretEnCours() throws SQLException {
+        return membreDAO.sumTotalPretEnCours();
+    }
+
+    /**
+     * Recherche des membres par nom dans toutes les AVEC
+     */
+    public List<Membre> rechercherMembresGlobal(String recherche) throws SQLException {
+        if (recherche == null || recherche.trim().isEmpty()) {
+            return getAllMembres();
+        }
+        return membreDAO.searchByNomGlobal(recherche);
     }
 
     /**

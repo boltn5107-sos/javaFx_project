@@ -20,25 +20,23 @@ import java.util.List;
  */
 public class AvecDAO {
 
-    private final DBConnection dbConnection;
+   
 
     public AvecDAO() {
-        this.dbConnection = (DBConnection) DBConnection.getConnection();
+       
     }
 
     /**
      * Insère une nouvelle AVEC
      */
     public Avec insert(Avec avec) throws SQLException {
-        String sql = "INSERT INTO avecs (nom, code_unique, statut, date_creation, " +
-                "nombre_membres_max, prix_part, taux_frais_service_mensuel, " +
-                "phase_courante, date_debut_cycle, date_fin_cycle_prevue, " +
-                "lieu_reunion, jour_reunion, heure_reunion, prochaine_reunion, " +
-                "cotisation_caisse_solidarite, caisse_solidarite_active, " +
-                "agent_villageois_id, agent_terrain_id) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO avec (nom, codeUnique, statut, dateCreation, " +
+                "nombreMembreMax, prixPart, tauxFraisServiceMensuel, " +
+                "phaseCourante,  " +
+                "agentVillageois_id, agentTerrain_id) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-        try (Connection conn = dbConnection.getConnection();
+        try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             stmt.setString(1, avec.getNom());
@@ -85,14 +83,12 @@ public class AvecDAO {
      * Met à jour une AVEC existante
      */
     public boolean update(Avec avec) throws SQLException {
-        String sql = "UPDATE avecs SET nom = ?, code_unique = ?, statut = ?, " +
-                "nombre_membres_max = ?, prix_part = ?, taux_frais_service_mensuel = ?, " +
-                "phase_courante = ?, date_debut_cycle = ?, date_fin_cycle_prevue = ?, " +
-                "lieu_reunion = ?, jour_reunion = ?, heure_reunion = ?, prochaine_reunion = ?, " +
-                "cotisation_caisse_solidarite = ?, caisse_solidarite_active = ?, " +
-                "agent_villageois_id = ?, agent_terrain_id = ? WHERE id = ?";
+        String sql = "UPDATE avec SET nom = ?, codeUnique = ?, statut = ?, " +
+                "nombreMembreMax = ?, prixPart = ?, tauxFraisServiceMensuel = ?, " +
+                "phaseCourante = ?, " +
+                "agentVillageois_id = ?, agentTerrain_id = ? WHERE id = ?";
 
-        try (Connection conn = dbConnection.getConnection();
+        try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, avec.getNom());
@@ -123,14 +119,14 @@ public class AvecDAO {
      */
     public boolean delete(long id) throws SQLException {
         // Supprimer d'abord les dépendances
-        String deleteCaisse = "DELETE FROM caisses WHERE avec_id = ?";
-        String deleteMembres = "DELETE FROM membres WHERE avec_id = ?";
-        String deleteCycles = "DELETE FROM cycles WHERE avec_id = ?";
-        String deleteVisites = "DELETE FROM visites WHERE avec_id = ?";
-        String deleteRegles = "DELETE FROM regles WHERE avec_id = ?";
-        String deleteAvec = "DELETE FROM avecs WHERE id = ?";
+        String deleteCaisse = "DELETE FROM caisse WHERE avec_id = ?";
+        String deleteMembres = "DELETE FROM membre WHERE avec_id = ?";
+        String deleteCycles = "DELETE FROM cycle WHERE avec_id = ?";
+        String deleteVisites = "DELETE FROM visite WHERE avec_id = ?";
+        String deleteRegles = "DELETE FROM regle WHERE avec_id = ?";
+        String deleteAvec = "DELETE FROM avec WHERE id = ?";
 
-        try (Connection conn = dbConnection.getConnection()) {
+        try (Connection conn = DBConnection.getConnection()) {
             conn.setAutoCommit(false);
 
             try (PreparedStatement stmtCaisse = conn.prepareStatement(deleteCaisse);
@@ -174,9 +170,9 @@ public class AvecDAO {
      * Trouve une AVEC par son ID
      */
     public Avec findById(long id) throws SQLException {
-        String sql = "SELECT * FROM avecs WHERE id = ?";
+        String sql = "SELECT * FROM avec WHERE id = ?";
 
-        try (Connection conn = dbConnection.getConnection();
+        try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setLong(1, id);
@@ -194,9 +190,9 @@ public class AvecDAO {
      * Trouve une AVEC par son code unique
      */
     public Avec findByCodeUnique(String codeUnique) throws SQLException {
-        String sql = "SELECT * FROM avecs WHERE code_unique = ?";
+        String sql = "SELECT * FROM avec WHERE code_unique = ?";
 
-        try (Connection conn = dbConnection.getConnection();
+        try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, codeUnique);
@@ -215,9 +211,9 @@ public class AvecDAO {
      */
     public List<Avec> findAll() throws SQLException {
         List<Avec> avecs = new ArrayList<>();
-        String sql = "SELECT * FROM avecs ORDER BY date_creation DESC";
+        String sql = "SELECT * FROM avec ORDER BY date_creation DESC";
 
-        try (Connection conn = dbConnection.getConnection();
+        try (Connection conn = DBConnection.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
 
@@ -233,9 +229,9 @@ public class AvecDAO {
      */
     public List<Avec> findByStatut(StatutAvec statut) throws SQLException {
         List<Avec> avecs = new ArrayList<>();
-        String sql = "SELECT * FROM avecs WHERE statut = ? ORDER BY date_creation DESC";
+        String sql = "SELECT * FROM avec WHERE statut = ? ORDER BY date_creation DESC";
 
-        try (Connection conn = dbConnection.getConnection();
+        try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, statut.name());
@@ -254,9 +250,9 @@ public class AvecDAO {
      */
     public List<Avec> findByPhase(PhaseCycle phase) throws SQLException {
         List<Avec> avecs = new ArrayList<>();
-        String sql = "SELECT * FROM avecs WHERE phase_courante = ? ORDER BY date_creation DESC";
+        String sql = "SELECT * FROM avec WHERE phaseCourante = ? ORDER BY date_creation DESC";
 
-        try (Connection conn = dbConnection.getConnection();
+        try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, phase.name());
@@ -275,9 +271,9 @@ public class AvecDAO {
      */
     public List<Avec> findByAgentVillageoisId(long agentId) throws SQLException {
         List<Avec> avecs = new ArrayList<>();
-        String sql = "SELECT * FROM avecs WHERE agent_villageois_id = ? ORDER BY date_creation DESC";
+        String sql = "SELECT * FROM avec WHERE agentVillageois_id = ? ORDER BY date_creation DESC";
 
-        try (Connection conn = dbConnection.getConnection();
+        try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setLong(1, agentId);
@@ -296,9 +292,9 @@ public class AvecDAO {
      */
     public List<Avec> findByAgentTerrainId(long agentId) throws SQLException {
         List<Avec> avecs = new ArrayList<>();
-        String sql = "SELECT * FROM avecs WHERE agent_terrain_id = ? ORDER BY date_creation DESC";
+        String sql = "SELECT * FROM avec WHERE agentTerrain_id = ? ORDER BY date_creation DESC";
 
-        try (Connection conn = dbConnection.getConnection();
+        try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setLong(1, agentId);
@@ -317,9 +313,9 @@ public class AvecDAO {
      */
     public List<Avec> searchByNom(String recherche) throws SQLException {
         List<Avec> avecs = new ArrayList<>();
-        String sql = "SELECT * FROM avecs WHERE nom LIKE ? ORDER BY nom";
+        String sql = "SELECT * FROM avec WHERE nom LIKE ? ORDER BY nom";
 
-        try (Connection conn = dbConnection.getConnection();
+        try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, "%" + recherche + "%");
@@ -337,9 +333,9 @@ public class AvecDAO {
      * Met à jour la phase d'une AVEC
      */
     public boolean updatePhase(long avecId, PhaseCycle nouvellePhase) throws SQLException {
-        String sql = "UPDATE avecs SET phase_courante = ? WHERE id = ?";
+        String sql = "UPDATE avec SET phaseCourante = ? WHERE id = ?";
 
-        try (Connection conn = dbConnection.getConnection();
+        try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, nouvellePhase.name());
@@ -353,9 +349,9 @@ public class AvecDAO {
      * Met à jour le statut d'une AVEC
      */
     public boolean updateStatut(long avecId, StatutAvec statut) throws SQLException {
-        String sql = "UPDATE avecs SET statut = ? WHERE id = ?";
+        String sql = "UPDATE avec SET statut = ? WHERE id = ?";
 
-        try (Connection conn = dbConnection.getConnection();
+        try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, statut.name());
@@ -369,9 +365,9 @@ public class AvecDAO {
      * Met à jour la prochaine réunion
      */
     public boolean updateProchaineReunion(long avecId, LocalDate date) throws SQLException {
-        String sql = "UPDATE avecs SET prochaine_reunion = ? WHERE id = ?";
+        String sql = "UPDATE avec SET prochaine_reunion = ? WHERE id = ?";
 
-        try (Connection conn = dbConnection.getConnection();
+        try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setDate(1, date != null ? Date.valueOf(date) : null);
@@ -385,9 +381,9 @@ public class AvecDAO {
      * Compte le nombre total d'AVEC
      */
     public int countAll() throws SQLException {
-        String sql = "SELECT COUNT(*) FROM avecs";
+        String sql = "SELECT COUNT(*) FROM avec";
 
-        try (Connection conn = dbConnection.getConnection();
+        try (Connection conn = DBConnection.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
 
@@ -402,9 +398,9 @@ public class AvecDAO {
      * Compte le nombre d'AVEC par statut
      */
     public int countByStatut(StatutAvec statut) throws SQLException {
-        String sql = "SELECT COUNT(*) FROM avecs WHERE statut = ?";
+        String sql = "SELECT COUNT(*) FROM avec WHERE statut = ?";
 
-        try (Connection conn = dbConnection.getConnection();
+        try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, statut.name());
@@ -480,7 +476,7 @@ public class AvecDAO {
      * @throws SQLException En cas d'erreur de base de données
      */
     public Avec findAvecById(Long id) throws SQLException {
-        String sql = "SELECT * FROM avecs WHERE id = ?";
+        String sql = "SELECT * FROM avec WHERE id = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {

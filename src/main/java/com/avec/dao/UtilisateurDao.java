@@ -151,6 +151,37 @@ public class UtilisateurDao {
 
 		return false;
 	}
+	
+	public int getNombreUtilisateur() {
+		
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		
+		try {
+			conn = DBConnection.getConnection();
+			String sql = "SELECT COUNT(*) FROM utilisateur";
+			pstmt = conn.prepareStatement(sql);
+			rs = pstmt.executeQuery();
+			
+			while(rs.next()) {
+				return rs.getInt(1);
+			}
+		}catch(SQLException e ) {
+			System.err.println("Erreur dans getNombreUtilisateur(): " + e.getMessage());
+			e.printStackTrace();
+		}finally {
+			try {
+				if(rs != null) rs.close();
+				if(pstmt != null) pstmt.close();
+			}catch(SQLException e) {
+				e.printStackTrace();
+			}
+		}
+		
+		return 0;
+		
+	}
 
 	// Mapping ResultSet -> Utilisateur
 	private Utilisateur mapResultSetToUtilisateur(ResultSet rs) throws SQLException {

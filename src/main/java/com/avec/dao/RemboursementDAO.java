@@ -84,7 +84,7 @@ public class RemboursementDAO {
 
 			// Récupérerle prêt
 
-			Pret pret = pretDao.findPretById(remboursement.getPretId());
+			Pret pret = pretDao.chercherId(remboursement.getPretId());
 			if (pret == null)
 				return;
 
@@ -387,7 +387,7 @@ public class RemboursementDAO {
 		if (!rs.wasNull()) {
 			remboursement.setPretId(pretId);
 			// Charger le prêt (optionnel - peut-être chargé à la demande)
-			Pret pret = pretDao.findPretById(pretId);
+			Pret pret = pretDao.chercherId(pretId);
 			remboursement.setPret(pret);
 		}
 		

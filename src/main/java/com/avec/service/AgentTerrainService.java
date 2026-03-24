@@ -26,6 +26,12 @@ public class AgentTerrainService {
         return agentTerrainDao.chercherId(id);
     }
     
+    public AgentTerrain login(String email, String motDePasse) {
+        if (email == null || email.trim().isEmpty()) return null;
+        if (motDePasse == null || motDePasse.trim().isEmpty()) return null;
+        return agentTerrainDao.chercherParEmailEtMotDePasse(email, motDePasse);
+    }
+    
     public List<AgentTerrain> listerAgentTerrain() {
         return agentTerrainDao.listerSimple();
     }

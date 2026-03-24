@@ -95,6 +95,51 @@ public class AgentTerrainDao {
 		return agent;
 	}
 
+	public AgentTerrain chercherParEmailEtMotDePasse(String email, String motDePasse) {
+	    Connection conn = null;
+	    PreparedStatement pstmt = null;
+	    ResultSet rs = null;
+	    
+	    try {
+	        conn = DBConnection.getConnection();
+	        
+	        String sql = "SELECT u.id, u.nom, u.prenom, u.email, u.telephone, u.motDePasse " +
+	                     "FROM Utilisateur u " +
+	                     "JOIN AgentTerrain at ON u.id = at.id " +
+	                     "WHERE u.email = ? AND u.motDePasse = ?";
+	        
+	        pstmt = conn.prepareStatement(sql);
+	        pstmt.setString(1, email);
+	        pstmt.setString(2, motDePasse);
+	        rs = pstmt.executeQuery();
+	        
+	        if (rs.next()) {
+	            Utilisateur utilisateur = new Utilisateur();
+	            utilisateur.setId(rs.getLong("id"));
+	            utilisateur.setNom(rs.getString("nom"));
+	            utilisateur.setPrenom(rs.getString("prenom"));
+	            utilisateur.setEmail(rs.getString("email"));
+	            utilisateur.setTelephone(rs.getString("telephone"));
+	            utilisateur.setMotDePasse(rs.getString("motDePasse"));
+	            
+	            return new AgentTerrain(utilisateur);
+	        }
+	        
+	    } catch (SQLException e) {
+	        System.err.println("Erreur chercherParEmailEtMotDePasse: " + e.getMessage());
+	        e.printStackTrace();
+	    } finally {
+	        try {
+	            if (rs != null) rs.close();
+	            if (pstmt != null) pstmt.close();
+	        } catch (SQLException e) {
+	            e.printStackTrace();
+	        }
+	    }
+	    
+	    return null;
+	}
+	
 	// Lister tout
 	public List<AgentTerrain> lister() {
 		List<AgentTerrain> agents = new ArrayList<>();

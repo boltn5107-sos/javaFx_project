@@ -131,6 +131,88 @@ public class AgentVillageoisDao {
         return null;
     }
     
+    /**
+     * CHERCHER UN AGENT VILLAGEOIS PAR EMAIL ET MOT DE PASSE
+     * Pour la connexion des agents villageois
+     */
+    public AgentVillageois chercherParEmailEtMotDePasse(String email, String motDePasse) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        
+        try {
+            conn = DBConnection.getConnection();
+            
+            // D'abord chercher l'utilisateur par email et mot de passe
+            String sqlUser = "SELECT * FROM utilisateur WHERE email = ? AND motDePasse = ?";
+            
+            pstmt = conn.prepareStatement(sqlUser);
+            pstmt.setString(1, email);
+            pstmt.setString(2, motDePasse);
+            rs = pstmt.executeQuery();
+            
+            if (!rs.next()) {
+                return null; // Utilisateur non trouvé
+            }
+         // Récupérer les champs avec les bons noms
+            Long id = rs.getLong("id");
+            String nom = rs.getString("nom");
+            String prenom = rs.getString("prenom");
+            String userEmail = rs.getString("email");
+            String telephone = rs.getString("telephone");
+            String userMotDePasse = rs.getString("motDePasse");
+            
+            rs.close();
+            pstmt.close();
+            
+            // Vérifier que cet utilisateur est un agent villageois
+            String sqlAgent = "SELECT * FROM agentvillageois WHERE id = ?";
+            pstmt = conn.prepareStatement(sqlAgent);
+            pstmt.setLong(1, id);
+            rs = pstmt.executeQuery();
+            
+            if (!rs.next()) {
+                return null;
+            }
+            
+            Long agentTerrainId = rs.getLong("agentTerrain_id");
+            if (rs.wasNull()) {
+                agentTerrainId = null;
+            }
+            
+            // Créer l'utilisateur
+            Utilisateur utilisateur = new Utilisateur();
+            utilisateur.setId(id);
+            utilisateur.setNom(nom);
+            utilisateur.setPrenom(prenom);
+            utilisateur.setEmail(userEmail);
+            utilisateur.setTelephone(telephone);
+            utilisateur.setMotDePasse(userMotDePasse);
+            AgentVillageois agent = new AgentVillageois(utilisateur);
+            
+            // Récupérer l'agent terrain associé
+            if (agentTerrainId != null && agentTerrainId > 0) {
+                AgentTerrain agentTerrain = agentTerrainDao.chercherId(agentTerrainId);
+                agent.setAgentTerrain(agentTerrain);
+            }
+            
+            return agent;
+            
+        } catch (SQLException e) {
+            System.err.println("Erreur chercherParEmailEtMotDePasse: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        } finally {
+            try {
+                if (rs != null) rs.close();
+                if (pstmt != null) pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+    
+    
     // LISTER tous les agents villageois
     public List<AgentVillageois> lister() {
         List<AgentVillageois> agents = new ArrayList<>();

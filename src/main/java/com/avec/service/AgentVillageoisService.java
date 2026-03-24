@@ -27,6 +27,20 @@ public class AgentVillageoisService {
         return agentVillageoisDao.chercherId(id);
     }
     
+    /**
+     * NOUVELLE MÉTHODE : Connexion par email et mot de passe
+     */
+    public AgentVillageois login(String email, String motDePasse) {
+        if (email == null || email.trim().isEmpty()) {
+            return null;
+        }
+        if (motDePasse == null || motDePasse.trim().isEmpty()) {
+            return null;
+        }
+        
+        return agentVillageoisDao.chercherParEmailEtMotDePasse(email, motDePasse);
+    }
+    
     public List<AgentVillageois> listerAgentVillageois() {
         return agentVillageoisDao.lister();
     }
