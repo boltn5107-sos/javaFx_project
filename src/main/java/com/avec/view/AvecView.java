@@ -1,10 +1,12 @@
 package com.avec.view;
 
+import com.avec.MainApp;
+import com.avec.config.Styles;
 import com.avec.enums.PhaseCycle;
 import com.avec.enums.StatutAvec;
-import com.avec.enums.JourReunion;
 import com.avec.model.Avec;
 import com.avec.model.AgentVillageois;
+import com.avec.model.Utilisateur;
 import com.avec.service.AvecService;
 import com.avec.service.AgentVillageoisService;
 import com.avec.utils.AlertUtils;
@@ -13,7 +15,6 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
@@ -24,171 +25,235 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Vue pour la gestion des AVEC
  */
 public class AvecView {
 
-    private final Stage primaryStage;
-    private final AvecService avecService;
-    private final AgentVillageoisService agentVillageoisService;
-    private final Long agentVillageoisId;
+    private MainApp mainApp;
+    private Utilisateur utilisateur;
+    private Stage primaryStage;
+    private AvecService avecService;
+    private AgentVillageoisService agentVillageoisService;
+    private BorderPane root;
+    private TableView<Avec> table;
+    private ObservableList<Avec> avecList;
 
-    private TableView<Avec> tableAvecs;
-    private ObservableList<Avec> avecsObservable;
-    private ComboBox<StatutAvec> filtreStatut;
-    private ComboBox<PhaseCycle> filtrePhase;
-    private TextField rechercheField;
-    private Label lblTotalAvecs;
-    private Label lblEnFormation;
-    private Label lblActives;
+    // Formulaire
+    private TextField nomField;
+    private TextField prixPartField;
+    private TextField tauxFraisField;
+    private TextField nombreMembresField;
+    private ComboBox<StatutAvec> statutCombo;
+    private ComboBox<PhaseCycle> phaseCombo;
+    private ComboBox<AgentVillageois> agentVillageoisCombo;
 
-    public AvecView(Stage primaryStage, Long agentVillageoisId) {
-        this.primaryStage = primaryStage;
-        this.agentVillageoisId = agentVillageoisId;
+    private Button saveButton;
+    private Button cancelButton;
+    private VBox formContainer;
+    private Dialog<ButtonType> avecDialog;
+
+    private Avec avecEnCours;
+
+    // Icônes
+    private static final String ICONE_AJOUTER = "➕";
+    private static final String ICONE_MODIFIER = "✏️";
+    private static final String ICONE_SUPPRIMER = "🗑️";
+    private static final String ICONE_ACTUALISER = "🔄";
+    private static final String ICONE_RECHERCHER = "🔍";
+    private static final String ICONE_CHANGER_PHASE = "🔄";
+
+    public AvecView(MainApp mainApp, Utilisateur utilisateur) {
+        this.mainApp = mainApp;
+        this.utilisateur = utilisateur;
+        this.primaryStage = mainApp.getPrimaryStage();
         this.avecService = new AvecService();
         this.agentVillageoisService = new AgentVillageoisService();
-        this.avecsObservable = FXCollections.observableArrayList();
+        createView();
+        loadAvecs();
+        loadAgentsVillageois();
     }
 
     /**
-     * Crée la scène principale de gestion des AVEC
+     * Crée la structure de la vue
      */
-    public Scene createScene() {
-        BorderPane root = new BorderPane();
-        root.setStyle("-fx-background-color: #f4f6f9;");
+    private void createView() {
+        root = new BorderPane();
+        root.setStyle("-fx-background-color: " + Styles.BLANC + ";");
+
+        // Contenu principal
+        VBox mainContent = createMainContent();
+        root.setCenter(mainContent);
+    }
+
+    /**
+     * Crée le contenu principal
+     */
+    private VBox createMainContent() {
+        VBox mainContent = new VBox(10);
+        mainContent.setPadding(new Insets(20));
+        mainContent.setStyle("-fx-background-color: " + Styles.BLANC + ";");
 
         // En-tête
-        root.setTop(createHeader());
+        HBox header = createHeader();
 
-        // Centre
-        VBox center = new VBox(15);
-        center.setPadding(new Insets(20));
-
-        // Barre de filtres
-        center.getChildren().add(createFilterBar());
+        // Barre d'outils
+        HBox toolbar = createToolbar();
 
         // Tableau des AVEC
-        center.getChildren().add(createTable());
-        VBox.setVgrow(tableAvecs, Priority.ALWAYS);
+        table = createTable();
 
-        // Barre d'actions
-        center.getChildren().add(createActionBar());
+        // Formulaire (sera affiché dans une Dialog)
+        VBox form = createForm();
 
-        root.setCenter(center);
+        // Stocker le formulaire pour la Dialog
+        this.formContainer = form;
 
-        // Charger les données
-        chargerDonnees();
+        mainContent.getChildren().addAll(header, toolbar, table);
+        VBox.setVgrow(table, Priority.ALWAYS);
 
-        return new Scene(root, 1200, 700);
+        return mainContent;
     }
 
     /**
-     * Crée l'en-tête de la vue
+     * Crée l'en-tête
      */
     private HBox createHeader() {
-        HBox header = new HBox(15);
-        header.setPadding(new Insets(20, 20, 0, 20));
+        HBox header = new HBox();
         header.setAlignment(Pos.CENTER_LEFT);
+        header.setPadding(new Insets(0, 0, 10, 0));
+        header.setStyle("-fx-border-color: " + Styles.GRIS_CLAIR + "; -fx-border-width: 0 0 2 0;");
 
-        Label title = new Label("Gestion des AVEC");
-        title.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;");
+        Label iconLabel = new Label("🏘️");
+        iconLabel.setStyle("-fx-font-size: 32px; -fx-padding: 0 10 0 0;");
+
+        Label titleLabel = new Label("Gestion des AVEC");
+        titleLabel.setStyle(Styles.TITRE_PRINCIPAL);
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        // Statistiques rapides
-        lblTotalAvecs = new Label("Total: 0");
-        lblTotalAvecs.setStyle("-fx-font-size: 14px; -fx-padding: 5 15; -fx-background-color: #3498db; -fx-text-fill: white; -fx-background-radius: 5;");
+        HBox statsBox = new HBox(10);
 
-        lblEnFormation = new Label("En formation: 0");
-        lblEnFormation.setStyle("-fx-font-size: 14px; -fx-padding: 5 15; -fx-background-color: #f39c12; -fx-text-fill: white; -fx-background-radius: 5;");
+        Label totalLabel = new Label("Total: 0");
+        totalLabel.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-padding: 5 10; -fx-background-radius: 15;");
 
-        lblActives = new Label("Actives: 0");
-        lblActives.setStyle("-fx-font-size: 14px; -fx-padding: 5 15; -fx-background-color: #27ae60; -fx-text-fill: white; -fx-background-radius: 5;");
+        Label formationLabel = new Label("En formation: 0");
+        formationLabel.setStyle("-fx-background-color: #f39c12; -fx-text-fill: white; -fx-padding: 5 10; -fx-background-radius: 15;");
 
-        header.getChildren().addAll(title, spacer, lblTotalAvecs, lblEnFormation, lblActives);
+        Label activeLabel = new Label("Actives: 0");
+        activeLabel.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-padding: 5 10; -fx-background-radius: 15;");
+
+        statsBox.getChildren().addAll(totalLabel, formationLabel, activeLabel);
+        header.getChildren().addAll(iconLabel, titleLabel, spacer, statsBox);
 
         return header;
     }
 
     /**
-     * Crée la barre de filtres
+     * Crée la barre d'outils
      */
-    private HBox createFilterBar() {
-        HBox filterBar = new HBox(10);
-        filterBar.setPadding(new Insets(10, 0, 10, 0));
+    private HBox createToolbar() {
+        HBox toolbar = new HBox(10);
+        toolbar.setPadding(new Insets(10, 0, 10, 0));
+        toolbar.setAlignment(Pos.CENTER_LEFT);
 
-        // Filtre par statut
-        filtreStatut = new ComboBox<>();
-        filtreStatut.setItems(FXCollections.observableArrayList(StatutAvec.values()));
-        filtreStatut.setPromptText("Filtrer par statut");
-        filtreStatut.setPrefWidth(150);
-        filtreStatut.setOnAction(e -> appliquerFiltres());
+        // Barre de recherche
+        TextField searchField = new TextField();
+        searchField.setPromptText("Rechercher une AVEC...");
+        searchField.setPrefWidth(300);
+        searchField.setStyle(Styles.CHAMP_TEXTE);
 
-        // Filtre par phase
-        filtrePhase = new ComboBox<>();
-        filtrePhase.setItems(FXCollections.observableArrayList(PhaseCycle.values()));
-        filtrePhase.setPromptText("Filtrer par phase");
-        filtrePhase.setPrefWidth(150);
-        filtrePhase.setOnAction(e -> appliquerFiltres());
+        Button searchButton = new Button(ICONE_RECHERCHER);
+        searchButton.setStyle(Styles.BOUTON_PRINCIPAL);
+        searchButton.setOnAction(e -> rechercherAvecs(searchField.getText()));
 
-        // Champ de recherche
-        rechercheField = new TextField();
-        rechercheField.setPromptText("Rechercher par nom...");
-        rechercheField.setPrefWidth(300);
-        rechercheField.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal.length() >= 3 || newVal.isEmpty()) {
-                rechercherAvecs(newVal);
-            }
+        // Filtres
+        ComboBox<StatutAvec> statutFilter = new ComboBox<>();
+        statutFilter.setItems(FXCollections.observableArrayList(StatutAvec.values()));
+        statutFilter.setPromptText("Filtrer par statut");
+        statutFilter.setStyle(Styles.CHAMP_TEXTE);
+        statutFilter.setOnAction(e -> filtrerParStatut(statutFilter.getValue()));
+
+        ComboBox<PhaseCycle> phaseFilter = new ComboBox<>();
+        phaseFilter.setItems(FXCollections.observableArrayList(PhaseCycle.values()));
+        phaseFilter.setPromptText("Filtrer par phase");
+        phaseFilter.setStyle(Styles.CHAMP_TEXTE);
+        phaseFilter.setOnAction(e -> filtrerParPhase(phaseFilter.getValue()));
+
+        // Boutons d'action
+        Button addButton = new Button(ICONE_AJOUTER + " Ajouter");
+        addButton.setStyle(Styles.BOUTON_PRINCIPAL);
+        addButton.setOnAction(e -> afficherDialogAjouter());
+
+        Button editButton = new Button(ICONE_MODIFIER + " Modifier");
+        editButton.setStyle(Styles.BOUTON_SECONDAIRE);
+        editButton.setOnAction(e -> afficherDialogModifier());
+
+        Button phaseButton = new Button(ICONE_CHANGER_PHASE + " Changer phase");
+        phaseButton.setStyle("-fx-background-color: #f39c12; -fx-text-fill: " + Styles.NOIR + "; -fx-cursor: hand; -fx-background-radius: 5; -fx-padding: 8 15;");
+        phaseButton.setOnAction(e -> changerPhase());
+
+        Button deleteButton = new Button(ICONE_SUPPRIMER + " Supprimer");
+        deleteButton.setStyle("-fx-background-color: " + Styles.ROUGE_ERREUR + "; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; -fx-padding: 8 15;");
+        deleteButton.setOnAction(e -> supprimerAvec());
+
+        Button refreshButton = new Button(ICONE_ACTUALISER + " Actualiser");
+        refreshButton.setStyle(Styles.BOUTON_ACCENT);
+        refreshButton.setOnAction(e -> {
+            System.out.println(">>> REFRESH: Bouton actualiser clique");
+            loadAvecs();
+            searchField.clear();
+            statutFilter.setValue(null);
+            phaseFilter.setValue(null);
         });
-
-        // Bouton réinitialiser
-        Button btnReset = new Button("Réinitialiser");
-        btnReset.setStyle("-fx-background-color: #95a5a6; -fx-text-fill: white;");
-        btnReset.setOnAction(e -> resetFiltres());
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        filterBar.getChildren().addAll(filtreStatut, filtrePhase, rechercheField, btnReset, spacer);
+        toolbar.getChildren().addAll(
+                searchField, searchButton, spacer,
+                statutFilter, phaseFilter,
+                addButton, editButton, phaseButton, deleteButton, refreshButton
+        );
 
-        return filterBar;
+        return toolbar;
     }
 
     /**
      * Crée le tableau des AVEC
      */
-    private VBox createTable() {
-        VBox container = new VBox(5);
-        container.setStyle("-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 5);");
+    private TableView<Avec> createTable() {
+        table = new TableView<>();
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        table.setStyle("-fx-background-color: " + Styles.BLANC + ";");
 
-        Label tableTitle = new Label("Liste des AVEC");
-        tableTitle.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #34495e;");
-
-        tableAvecs = new TableView<>();
-        tableAvecs.setItems(avecsObservable);
-        tableAvecs.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        tableAvecs.setRowFactory(tv -> {
+        // Double-clic pour modifier
+        table.setRowFactory(tv -> {
             TableRow<Avec> row = new TableRow<>();
             row.setOnMouseClicked(event -> {
                 if (event.getClickCount() == 2 && !row.isEmpty()) {
-                    afficherDetailsAvec(row.getItem());
+                    Avec rowData = row.getItem();
+                    afficherAvec(rowData);
+                    avecEnCours = rowData;
                 }
             });
             return row;
         });
 
         // Colonnes
+        TableColumn<Avec, Long> colId = new TableColumn<>("ID");
+        colId.setCellValueFactory(new PropertyValueFactory<>("id"));
+        colId.setPrefWidth(60);
+
         TableColumn<Avec, String> colNom = new TableColumn<>("Nom");
         colNom.setCellValueFactory(new PropertyValueFactory<>("nom"));
         colNom.setPrefWidth(200);
 
         TableColumn<Avec, String> colCode = new TableColumn<>("Code");
         colCode.setCellValueFactory(new PropertyValueFactory<>("codeUnique"));
-        colCode.setPrefWidth(120);
+        colCode.setPrefWidth(150);
 
         TableColumn<Avec, StatutAvec> colStatut = new TableColumn<>("Statut");
         colStatut.setCellValueFactory(new PropertyValueFactory<>("statut"));
@@ -202,7 +267,13 @@ public class AvecView {
                     setGraphic(null);
                 } else {
                     Label badge = new Label(item.getLibelle());
-                    badge.getStyleClass().addAll("badge", getStatutBadgeClass(item));
+                    String color = switch (item) {
+                        case EN_FORMATION -> "#f39c12";
+                        case ACTIVE -> "#27ae60";
+                        case EN_PAUSE -> "#e74c3c";
+                        case TERMINE, EN_DISSOLUTION -> "#95a5a6";
+                    };
+                    badge.setStyle("-fx-background-color: " + color + "; -fx-text-fill: white; -fx-padding: 2 8; -fx-background-radius: 3;");
                     setGraphic(badge);
                 }
             }
@@ -220,129 +291,257 @@ public class AvecView {
                     setGraphic(null);
                 } else {
                     Label badge = new Label(item.getLibelle());
-                    badge.getStyleClass().addAll("badge", "badge-info");
+                    badge.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-padding: 2 8; -fx-background-radius: 3;");
                     setGraphic(badge);
                 }
             }
         });
 
-        TableColumn<Avec, Integer> colMembres = new TableColumn<>("Membres");
-        colMembres.setCellValueFactory(new PropertyValueFactory<>("nombreMembresActifs"));
-        colMembres.setPrefWidth(80);
+        TableColumn<Avec, Integer> colMembres = new TableColumn<>("Membres max");
+        colMembres.setCellValueFactory(new PropertyValueFactory<>("nombreMembresMax"));
+        colMembres.setPrefWidth(100);
         colMembres.setStyle("-fx-alignment: CENTER;");
 
-        TableColumn<Avec, String> colEpargne = new TableColumn<>("Épargne");
-        colEpargne.setCellValueFactory(cellData ->
-                new javafx.beans.property.SimpleStringProperty(
-                        FormatUtils.formatCurrency(cellData.getValue().getTotalEpargne())
-                ));
-        colEpargne.setPrefWidth(120);
-        colEpargne.setStyle("-fx-alignment: CENTER-RIGHT;");
-
-        TableColumn<Avec, String> colLieu = new TableColumn<>("Lieu");
-        colLieu.setCellValueFactory(new PropertyValueFactory<>("lieuReunion"));
-        colLieu.setPrefWidth(150);
-
-        TableColumn<Avec, String> colProchReunion = new TableColumn<>("Prochaine réunion");
-        colProchReunion.setCellValueFactory(cellData -> {
-            LocalDate date = cellData.getValue().getProchaineReunion();
-            String dateStr = date != null ? date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "";
-            return new javafx.beans.property.SimpleStringProperty(dateStr);
-        });
-        colProchReunion.setPrefWidth(120);
-
-        TableColumn<Avec, Void> colActions = new TableColumn<>("Actions");
-        colActions.setPrefWidth(200);
-        colActions.setCellFactory(col -> new TableCell<>() {
-            private final Button btnDetails = new Button("Détails");
-            private final Button btnPhase = new Button("Phase");
-            private final Button btnEdit = new Button("Modifier");
-            private final HBox pane = new HBox(5, btnDetails, btnPhase, btnEdit);
-
-            {
-                btnDetails.setOnAction(e -> {
-                    Avec avec = getTableView().getItems().get(getIndex());
-                    afficherDetailsAvec(avec);
-                });
-
-                btnPhase.setOnAction(e -> {
-                    Avec avec = getTableView().getItems().get(getIndex());
-                    changerPhase(avec);
-                });
-
-                btnEdit.setOnAction(e -> {
-                    Avec avec = getTableView().getItems().get(getIndex());
-                    editerAvec(avec);
-                });
-
-                btnDetails.setStyle("-fx-background-color: #3498db; -fx-text-fill: white;");
-                btnPhase.setStyle("-fx-background-color: #f39c12; -fx-text-fill: white;");
-                btnEdit.setStyle("-fx-background-color: #2ecc71; -fx-text-fill: white;");
-            }
-
+        TableColumn<Avec, BigDecimal> colPrixPart = new TableColumn<>("Prix part");
+        colPrixPart.setCellValueFactory(new PropertyValueFactory<>("prixPart"));
+        colPrixPart.setPrefWidth(120);
+        colPrixPart.setCellFactory(col -> new TableCell<>() {
             @Override
-            protected void updateItem(Void item, boolean empty) {
+            protected void updateItem(BigDecimal item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty) {
-                    setGraphic(null);
+                if (empty || item == null) {
+                    setText(null);
                 } else {
-                    setGraphic(pane);
+                    setText(FormatUtils.formatCurrency(item));
                 }
             }
         });
 
-        tableAvecs.getColumns().addAll(
-                colNom, colCode, colStatut, colPhase, colMembres,
-                colEpargne, colLieu, colProchReunion, colActions
-        );
-
-        container.getChildren().addAll(tableTitle, tableAvecs);
-
-        return container;
-    }
-
-    /**
-     * Crée la barre d'actions
-     */
-    private HBox createActionBar() {
-        HBox actionBar = new HBox(10);
-        actionBar.setAlignment(Pos.CENTER_RIGHT);
-        actionBar.setPadding(new Insets(10, 0, 0, 0));
-
-        Button btnNouveau = new Button("Nouvelle AVEC");
-        btnNouveau.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 5;");
-        btnNouveau.setOnAction(e -> creerNouvelleAvec());
-
-        Button btnRefresh = new Button("Actualiser");
-        btnRefresh.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-padding: 10 20; -fx-background-radius: 5;");
-        btnRefresh.setOnAction(e -> chargerDonnees());
-
-        Button btnRapport = new Button("Générer rapport");
-        btnRapport.setStyle("-fx-background-color: #9b59b6; -fx-text-fill: white; -fx-padding: 10 20; -fx-background-radius: 5;");
-//        btnRapport.setOnAction(e -> genererRapport());
-
-        actionBar.getChildren().addAll(btnNouveau, btnRefresh, btnRapport);
-
-        return actionBar;
-    }
-
-    /**
-     * Charge les données initiales
-     */
-    private void chargerDonnees() {
-        try {
-            List<Avec> avecs;
-            if (agentVillageoisId != null) {
-                avecs = avecService.getAvecsByAgentVillageois(agentVillageoisId);
-            } else {
-                avecs = avecService.getAllAvecs();
+        TableColumn<Avec, BigDecimal> colTaux = new TableColumn<>("Taux frais");
+        colTaux.setCellValueFactory(new PropertyValueFactory<>("tauxFraisServiceMensuel"));
+        colTaux.setPrefWidth(100);
+        colTaux.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(BigDecimal item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item + "%");
+                }
             }
+        });
 
-            avecsObservable.setAll(avecs);
+        TableColumn<Avec, LocalDate> colDateCreation = new TableColumn<>("Date création");
+        colDateCreation.setCellValueFactory(new PropertyValueFactory<>("dateCreation"));
+        colDateCreation.setPrefWidth(120);
+        colDateCreation.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(LocalDate item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+                }
+            }
+        });
+
+        table.getColumns().addAll(colId, colNom, colCode, colStatut, colPhase,
+                colMembres, colPrixPart, colTaux, colDateCreation);
+
+        return table;
+    }
+
+    /**
+     * Crée le formulaire
+     */
+    private VBox createForm() {
+        VBox form = new VBox(15);
+        form.setPadding(new Insets(10));
+        form.setStyle("-fx-background-color: " + Styles.GRIS_CLAIR + ";" +
+                "-fx-background-radius: 10;");
+
+        Label formTitle = new Label("Formulaire AVEC");
+        formTitle.setStyle(Styles.TITRE_SECONDAIRE);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(15);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(10, 0, 10, 0));
+
+        int row = 0;
+
+        // Nom
+        grid.add(new Label("Nom:"), 0, row);
+        nomField = new TextField();
+        nomField.setPromptText("Nom de l'AVEC");
+        nomField.setStyle(Styles.CHAMP_TEXTE);
+        nomField.setPrefWidth(300);
+        grid.add(nomField, 1, row);
+        row++;
+
+        // Prix de la part
+        grid.add(new Label("Prix de la part (FCFA):"), 0, row);
+        prixPartField = new TextField();
+        prixPartField.setPromptText("Prix de la part");
+        prixPartField.setStyle(Styles.CHAMP_TEXTE);
+        grid.add(prixPartField, 1, row);
+        row++;
+
+        // Taux des frais
+        grid.add(new Label("Taux des frais (%):"), 0, row);
+        tauxFraisField = new TextField();
+        tauxFraisField.setPromptText("Taux (5-10%)");
+        tauxFraisField.setText("10");
+        tauxFraisField.setStyle(Styles.CHAMP_TEXTE);
+        grid.add(tauxFraisField, 1, row);
+        row++;
+
+        // Nombre max de membres
+        grid.add(new Label("Nombre max de membres:"), 0, row);
+        nombreMembresField = new TextField();
+        nombreMembresField.setPromptText("Entre 15 et 30");
+        nombreMembresField.setText("25");
+        nombreMembresField.setStyle(Styles.CHAMP_TEXTE);
+        grid.add(nombreMembresField, 1, row);
+        row++;
+
+        // Statut
+        grid.add(new Label("Statut:"), 0, row);
+        statutCombo = new ComboBox<>();
+        statutCombo.setItems(FXCollections.observableArrayList(StatutAvec.values()));
+        statutCombo.setStyle(Styles.CHAMP_TEXTE);
+        grid.add(statutCombo, 1, row);
+        row++;
+
+        // Phase
+        grid.add(new Label("Phase:"), 0, row);
+        phaseCombo = new ComboBox<>();
+        phaseCombo.setItems(FXCollections.observableArrayList(PhaseCycle.values()));
+        phaseCombo.setStyle(Styles.CHAMP_TEXTE);
+        grid.add(phaseCombo, 1, row);
+
+        // Agent Villageois
+        grid.add(new Label("Agent Villageois:"), 0, row);
+        agentVillageoisCombo = new ComboBox<>();
+        agentVillageoisCombo.setStyle(Styles.CHAMP_TEXTE);
+        agentVillageoisCombo.setPromptText("Sélectionner un agent");
+        grid.add(agentVillageoisCombo, 1, row);
+        row++;
+
+        form.getChildren().addAll(formTitle, grid);
+
+        return form;
+    }
+
+    /**
+     * Affiche la dialog pour ajouter une nouvelle AVEC
+     */
+    private void afficherDialogAjouter() {
+        avecEnCours = new Avec();
+        viderFormulaire();
+
+        avecDialog = new Dialog<>();
+        avecDialog.setTitle("Nouvelle AVEC");
+        avecDialog.setHeaderText("Créer une nouvelle AVEC");
+        avecDialog.initOwner(primaryStage);
+        avecDialog.getDialogPane().setContent(formContainer);
+
+        // Boutons de la dialog
+        ButtonType saveType = new ButtonType("💾 Enregistrer", ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelType = new ButtonType("❌ Annuler", ButtonBar.ButtonData.CANCEL_CLOSE);
+        avecDialog.getDialogPane().getButtonTypes().addAll(saveType, cancelType);
+
+        // Action du bouton Enregistrer
+        Button saveButton = (Button) avecDialog.getDialogPane().lookupButton(saveType);
+        saveButton.setOnAction(e -> {
+            System.out.println(">>> DIALOG: Bouton Enregistrer clique!");
+            enregistrerAvec();
+            avecDialog.close();
+        });
+
+        // Action du bouton Annuler
+        Button cancelButton = (Button) avecDialog.getDialogPane().lookupButton(cancelType);
+        cancelButton.setOnAction(e -> {
+            annulerFormulaire();
+            avecDialog.close();
+        });
+
+        avecDialog.showAndWait();
+        loadAvecs();
+    }
+
+    /**
+     * Affiche la dialog pour modifier une AVEC
+     */
+    private void afficherDialogModifier() {
+        Avec selected = table.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            AlertUtils.showWarning("Sélection requise", "Veuillez sélectionner une AVEC à modifier.", null);
+            return;
+        }
+
+        avecEnCours = selected;
+        afficherAvec(selected);
+
+        avecDialog = new Dialog<>();
+        avecDialog.setTitle("Modifier AVEC");
+        avecDialog.setHeaderText("Modifier: " + selected.getNom());
+        avecDialog.initOwner(primaryStage);
+        avecDialog.getDialogPane().setContent(formContainer);
+
+        // Boutons de la dialog
+        ButtonType saveType = new ButtonType("💾 Enregistrer", ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelType = new ButtonType("❌ Annuler", ButtonBar.ButtonData.CANCEL_CLOSE);
+        avecDialog.getDialogPane().getButtonTypes().addAll(saveType, cancelType);
+
+        // Action du bouton Enregistrer
+        Button saveButton = (Button) avecDialog.getDialogPane().lookupButton(saveType);
+        saveButton.setOnAction(e -> {
+            System.out.println(">>> DIALOG: Bouton Enregistrer clique!");
+            enregistrerAvec();
+            avecDialog.close();
+        });
+
+        // Action du bouton Annuler
+        Button cancelButton = (Button) avecDialog.getDialogPane().lookupButton(cancelType);
+        cancelButton.setOnAction(e -> {
+            annulerFormulaire();
+            avecDialog.close();
+        });
+
+        avecDialog.showAndWait();
+        loadAvecs();
+    }
+
+    /**
+     * Charge la liste des AVEC
+     */
+    private void loadAvecs() {
+        System.out.println(">>> LOAD: Debut loadAvecs()");
+        try {
+            List<Avec> avecs = avecService.getAllAvecs();
+            System.out.println(">>> LOAD: " + avecs.size() + " AVEC trouvees");
+            avecList = FXCollections.observableArrayList(avecs);
+            table.setItems(avecList);
+            System.out.println(">>> LOAD: Table mise a jour");
             mettreAJourStatistiques(avecs);
-
         } catch (SQLException e) {
+            System.err.println(">>> LOAD ERROR: " + e.getMessage());
             AlertUtils.showError("Erreur", "Impossible de charger les AVEC", e.getMessage());
+        }
+    }
+
+    /**
+     * Charge la liste des agents villageois
+     */
+    private void loadAgentsVillageois() {
+        try {
+            List<AgentVillageois> agents = agentVillageoisService.listerAgentVillageois();
+            agentVillageoisCombo.setItems(FXCollections.observableArrayList(agents));
+        } catch (Exception e) {
+            System.err.println("Erreur chargement agents villageois: " + e.getMessage());
         }
     }
 
@@ -350,339 +549,289 @@ public class AvecView {
      * Met à jour les statistiques
      */
     private void mettreAJourStatistiques(List<Avec> avecs) {
+        VBox mainContent = (VBox) root.getCenter();
+        HBox header = (HBox) mainContent.getChildren().get(0);
+        HBox statsBox = (HBox) header.getChildren().get(3);
+        Label totalLabel = (Label) statsBox.getChildren().get(0);
+        Label formationLabel = (Label) statsBox.getChildren().get(1);
+        Label activeLabel = (Label) statsBox.getChildren().get(2);
+
         long total = avecs.size();
         long enFormation = avecs.stream().filter(a -> a.getStatut() == StatutAvec.EN_FORMATION).count();
-        long actives = avecs.stream().filter(a -> a.getStatut() == StatutAvec.ACTVIE).count();
+        long actives = avecs.stream().filter(a -> a.getStatut() == StatutAvec.ACTIVE).count();
 
-        lblTotalAvecs.setText("Total: " + total);
-        lblEnFormation.setText("En formation: " + enFormation);
-        lblActives.setText("Actives: " + actives);
-    }
-
-    /**
-     * Applique les filtres
-     */
-    private void appliquerFiltres() {
-        try {
-            List<Avec> toutesAvecs;
-            if (agentVillageoisId != null) {
-                toutesAvecs = avecService.getAvecsByAgentVillageois(agentVillageoisId);
-            } else {
-                toutesAvecs = avecService.getAllAvecs();
-            }
-
-            List<Avec> filtered = toutesAvecs.stream()
-                    .filter(a -> filtreStatut.getValue() == null || a.getStatut() == filtreStatut.getValue())
-                    .filter(a -> filtrePhase.getValue() == null || a.getPhaseCourante() == filtrePhase.getValue())
-                    .toList();
-
-            avecsObservable.setAll(filtered);
-
-        } catch (SQLException e) {
-            AlertUtils.showError("Erreur", "Erreur lors du filtrage", e.getMessage());
-        }
-    }
-
-    /**
-     * Réinitialise les filtres
-     */
-    private void resetFiltres() {
-        filtreStatut.setValue(null);
-        filtrePhase.setValue(null);
-        rechercheField.clear();
-        chargerDonnees();
+        totalLabel.setText("Total: " + total);
+        formationLabel.setText("En formation: " + enFormation);
+        activeLabel.setText("Actives: " + actives);
     }
 
     /**
      * Recherche des AVEC
      */
     private void rechercherAvecs(String recherche) {
+        if (recherche == null || recherche.trim().isEmpty()) {
+            loadAvecs();
+            return;
+        }
+
         try {
-            if (recherche == null || recherche.trim().isEmpty()) {
-                chargerDonnees();
-            } else {
-                List<Avec> resultats = avecService.rechercherAvecs(recherche);
-                avecsObservable.setAll(resultats);
-            }
+            List<Avec> resultats = avecService.rechercherAvecs(recherche);
+            table.setItems(FXCollections.observableArrayList(resultats));
         } catch (SQLException e) {
             AlertUtils.showError("Erreur", "Erreur lors de la recherche", e.getMessage());
         }
     }
 
     /**
-     * Crée une nouvelle AVEC - avec dialogue intégré
+     * Filtre par statut
      */
-    private void creerNouvelleAvec() {
-        // Création du dialogue
-        Dialog<Avec> dialog = new Dialog<>();
-        dialog.initOwner(primaryStage);
-        dialog.setTitle("Nouvelle AVEC");
-        dialog.setHeaderText("Création d'une nouvelle AVEC");
+    private void filtrerParStatut(StatutAvec statut) {
+        if (statut == null) {
+            loadAvecs();
+            return;
+        }
 
-        // Boutons
-        ButtonType saveButtonType = new ButtonType("Enregistrer", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
-
-        // Formulaire
-        GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(10);
-        grid.setPadding(new Insets(20));
-
-        TextField nomField = new TextField();
-        nomField.setPromptText("Nom de l'AVEC");
-
-        TextField prixPartField = new TextField();
-        prixPartField.setPromptText("Prix de la part");
-
-        TextField lieuField = new TextField();
-        lieuField.setPromptText("Lieu de réunion");
-
-        ComboBox<JourReunion> jourCombo = new ComboBox<>();
-        jourCombo.setItems(FXCollections.observableArrayList(JourReunion.values()));
-        jourCombo.setPromptText("Jour de réunion");
-
-        TextField tauxField = new TextField();
-        tauxField.setPromptText("Taux des frais (%)");
-        tauxField.setText("10");
-
-        TextField cotisationField = new TextField();
-        cotisationField.setPromptText("Cotisation caisse solidarité");
-        cotisationField.setText("100");
-
-        CheckBox caisseActiveCheck = new CheckBox("Activer la caisse de solidarité");
-        caisseActiveCheck.setSelected(true);
-
-        // Ajout des champs
-        grid.add(new Label("Nom*:"), 0, 0);
-        grid.add(nomField, 1, 0);
-
-        grid.add(new Label("Prix de la part*:"), 0, 1);
-        grid.add(prixPartField, 1, 1);
-
-        grid.add(new Label("Lieu de réunion*:"), 0, 2);
-        grid.add(lieuField, 1, 2);
-
-        grid.add(new Label("Jour de réunion*:"), 0, 3);
-        grid.add(jourCombo, 1, 3);
-
-        grid.add(new Label("Taux des frais (%):"), 0, 4);
-        grid.add(tauxField, 1, 4);
-
-        grid.add(new Label("Cotisation caisse:"), 0, 5);
-        grid.add(cotisationField, 1, 5);
-
-        grid.add(caisseActiveCheck, 0, 6, 2, 1);
-
-        dialog.getDialogPane().setContent(grid);
-
-        // Validation
-        Button saveButton = (Button) dialog.getDialogPane().lookupButton(saveButtonType);
-        saveButton.setDisable(true);
-
-        // Listeners pour validation
-        nomField.textProperty().addListener((obs, old, newVal) ->
-                saveButton.setDisable(newVal.trim().isEmpty() ||
-                        prixPartField.getText().trim().isEmpty() ||
-                        lieuField.getText().trim().isEmpty() ||
-                        jourCombo.getValue() == null));
-
-        prixPartField.textProperty().addListener((obs, old, newVal) ->
-                saveButton.setDisable(newVal.trim().isEmpty() ||
-                        nomField.getText().trim().isEmpty() ||
-                        lieuField.getText().trim().isEmpty() ||
-                        jourCombo.getValue() == null));
-
-        lieuField.textProperty().addListener((obs, old, newVal) ->
-                saveButton.setDisable(newVal.trim().isEmpty() ||
-                        nomField.getText().trim().isEmpty() ||
-                        prixPartField.getText().trim().isEmpty() ||
-                        jourCombo.getValue() == null));
-
-        jourCombo.valueProperty().addListener((obs, old, newVal) ->
-                saveButton.setDisable(newVal == null ||
-                        nomField.getText().trim().isEmpty() ||
-                        prixPartField.getText().trim().isEmpty() ||
-                        lieuField.getText().trim().isEmpty()));
-
-        // Résultat
-        dialog.setResultConverter(dialogButton -> {
-            if (dialogButton == saveButtonType) {
-                try {
-                    Avec nouveau = new Avec();
-                    nouveau.setNom(nomField.getText().trim());
-                    nouveau.setPrixPart(new BigDecimal(prixPartField.getText().trim()));
-                    nouveau.setLieuReunion(lieuField.getText().trim());
-                    nouveau.setJourReunion(jourCombo.getValue());
-                    nouveau.setTauxFraisServiceMensuel(new BigDecimal(tauxField.getText()));
-                    nouveau.setCotisationCaisseSolidarite(new BigDecimal(cotisationField.getText()));
-                    nouveau.setCaisseSolidariteActive(caisseActiveCheck.isSelected());
-                    return nouveau;
-                } catch (NumberFormatException e) {
-                    AlertUtils.showError("Erreur", "Format de nombre invalide", e.getMessage());
-                    return null;
-                }
-            }
-            return null;
-        });
-
-        Optional<Avec> result = dialog.showAndWait();
-        result.ifPresent(this::enregistrerNouvelleAvec);
-    }
-
-    /**
-     * Enregistre une nouvelle AVEC
-     */
-    private void enregistrerNouvelleAvec(Avec nouvelleAvec) {
         try {
-            Avec created = avecService.creerAvec(
-                    nouvelleAvec.getNom(),
-                    nouvelleAvec.getPrixPart(),
-                    nouvelleAvec.getLieuReunion(),
-                    nouvelleAvec.getJourReunion(),
-                    agentVillageoisId != null ? agentVillageoisId : 1L // ID par défaut si null
-            );
-
-            avecsObservable.add(created);
-            AlertUtils.showInfo("Succès", "AVEC créée avec succès",
-                    "Code: " + created.getCodeUnique());
-
-        } catch (SQLException | IllegalArgumentException e) {
-            AlertUtils.showError("Erreur", "Impossible de créer l'AVEC", e.getMessage());
+            List<Avec> avecs = avecService.getAvecsByStatut(statut);
+            table.setItems(FXCollections.observableArrayList(avecs));
+        } catch (SQLException e) {
+            AlertUtils.showError("Erreur", "Erreur lors du filtrage", e.getMessage());
         }
     }
 
     /**
-     * Édite une AVEC existante - avec dialogue intégré
+     * Filtre par phase
      */
-    private void editerAvec(Avec avec) {
-        // Création du dialogue
-        Dialog<Avec> dialog = new Dialog<>();
-        dialog.initOwner(primaryStage);
-        dialog.setTitle("Modifier AVEC");
-        dialog.setHeaderText("Modification de l'AVEC: " + avec.getNom());
+    private void filtrerParPhase(PhaseCycle phase) {
+        if (phase == null) {
+            loadAvecs();
+            return;
+        }
 
-        // Boutons
-        ButtonType saveButtonType = new ButtonType("Enregistrer", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
-
-        // Formulaire
-        GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(10);
-        grid.setPadding(new Insets(20));
-
-        TextField nomField = new TextField(avec.getNom());
-        TextField prixPartField = new TextField(avec.getPrixPart().toString());
-        TextField lieuField = new TextField(avec.getLieuReunion());
-        ComboBox<JourReunion> jourCombo = new ComboBox<>();
-        jourCombo.setItems(FXCollections.observableArrayList(JourReunion.values()));
-        jourCombo.setValue(avec.getJourReunion());
-
-        TextField tauxField = new TextField(avec.getTauxFraisServiceMensuel().toString());
-        TextField cotisationField = new TextField(avec.getCotisationCaisseSolidarite().toString());
-        CheckBox caisseActiveCheck = new CheckBox("Activer la caisse de solidarité");
-        caisseActiveCheck.setSelected(avec.isCaisseSolidariteActive());
-
-        // Ajout des champs
-        grid.add(new Label("Nom*:"), 0, 0);
-        grid.add(nomField, 1, 0);
-
-        grid.add(new Label("Prix de la part*:"), 0, 1);
-        grid.add(prixPartField, 1, 1);
-
-        grid.add(new Label("Lieu de réunion*:"), 0, 2);
-        grid.add(lieuField, 1, 2);
-
-        grid.add(new Label("Jour de réunion*:"), 0, 3);
-        grid.add(jourCombo, 1, 3);
-
-        grid.add(new Label("Taux des frais (%):"), 0, 4);
-        grid.add(tauxField, 1, 4);
-
-        grid.add(new Label("Cotisation caisse:"), 0, 5);
-        grid.add(cotisationField, 1, 5);
-
-        grid.add(caisseActiveCheck, 0, 6, 2, 1);
-
-        dialog.getDialogPane().setContent(grid);
-
-        // Résultat
-        dialog.setResultConverter(dialogButton -> {
-            if (dialogButton == saveButtonType) {
-                try {
-                    avec.setNom(nomField.getText().trim());
-                    avec.setPrixPart(new BigDecimal(prixPartField.getText().trim()));
-                    avec.setLieuReunion(lieuField.getText().trim());
-                    avec.setJourReunion(jourCombo.getValue());
-                    avec.setTauxFraisServiceMensuel(new BigDecimal(tauxField.getText()));
-                    avec.setCotisationCaisseSolidarite(new BigDecimal(cotisationField.getText()));
-                    avec.setCaisseSolidariteActive(caisseActiveCheck.isSelected());
-                    return avec;
-                } catch (NumberFormatException e) {
-                    AlertUtils.showError("Erreur", "Format de nombre invalide", e.getMessage());
-                    return null;
-                }
-            }
-            return null;
-        });
-
-        Optional<Avec> result = dialog.showAndWait();
-        result.ifPresent(avecModifiee -> {
-            try {
-                if (avecService.modifierAvec(avecModifiee)) {
-                    int index = avecsObservable.indexOf(avec);
-                    avecsObservable.set(index, avecModifiee);
-                    AlertUtils.showInfo("Succès", "AVEC modifiée avec succès", null);
-                }
-            } catch (SQLException e) {
-                AlertUtils.showError("Erreur", "Impossible de modifier l'AVEC", e.getMessage());
-            }
-        });
+        try {
+            List<Avec> avecs = avecService.getAvecsByPhase(phase);
+            table.setItems(FXCollections.observableArrayList(avecs));
+        } catch (SQLException e) {
+            AlertUtils.showError("Erreur", "Erreur lors du filtrage", e.getMessage());
+        }
     }
 
     /**
-     * Change la phase d'une AVEC - avec dialogue intégré
+     * Prépare le formulaire pour un nouvel AVEC
      */
-    private void changerPhase(Avec avec) {
-        // Création du dialogue
+    private void nouvelAvec() {
+        avecEnCours = new Avec();
+        viderFormulaire();
+        table.getSelectionModel().clearSelection();
+    }
+
+    /**
+     * Affiche un AVEC dans le formulaire
+     */
+    private void afficherAvec(Avec avec) {
+        nomField.setText(avec.getNom() != null ? avec.getNom() : "");
+        prixPartField.setText(avec.getPrixPart() != null ? avec.getPrixPart().toString() : "");
+        tauxFraisField.setText(avec.getTauxFraisServiceMensuel() != null ? avec.getTauxFraisServiceMensuel().toString() : "10");
+        nombreMembresField.setText(String.valueOf(avec.getNombreMembresMax()));
+        statutCombo.setValue(avec.getStatut());
+        phaseCombo.setValue(avec.getPhaseCourante());
+
+        // Sélectionner l'agent villageois
+        if (avec.getAgentVillageoisId() != null) {
+            for (AgentVillageois agent : agentVillageoisCombo.getItems()) {
+                if (agent.getId().equals(avec.getAgentVillageoisId())) {
+                    agentVillageoisCombo.setValue(agent);
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Vide le formulaire
+     */
+    private void viderFormulaire() {
+        nomField.clear();
+        prixPartField.clear();
+        tauxFraisField.setText("10");
+        nombreMembresField.setText("25");
+        statutCombo.setValue(null);
+        phaseCombo.setValue(null);
+        agentVillageoisCombo.setValue(null);
+    }
+
+    /**
+     * Enregistre l'AVEC
+     */
+    private void enregistrerAvec() {
+        System.out.println(">>> DEBUG: Debut enregistrerAvec()");
+
+        if (avecEnCours == null) {
+            System.out.println(">>> DEBUG: avecEnCours est null!");
+            AlertUtils.showError("Erreur", "Aucune AVEC sélectionnée", "Veuillez cliquer sur 'Ajouter' ou sélectionner une AVEC.");
+            return;
+        }
+
+        System.out.println(">>> DEBUG: Validation des champs...");
+
+        // Validation des champs
+        if (nomField.getText() == null || nomField.getText().trim().isEmpty()) {
+            System.out.println(">>> DEBUG: Nom vide!");
+            AlertUtils.showError("Erreur", "Nom obligatoire", "Le nom de l'AVEC est obligatoire.");
+            return;
+        }
+        if (prixPartField.getText() == null || prixPartField.getText().trim().isEmpty()) {
+            System.out.println(">>> DEBUG: Prix vide!");
+            AlertUtils.showError("Erreur", "Prix de la part obligatoire", "Le prix de la part est obligatoire.");
+            return;
+        }
+
+        try {
+            BigDecimal prixPart = new BigDecimal(prixPartField.getText().trim());
+            BigDecimal tauxFrais = new BigDecimal(tauxFraisField.getText().trim());
+            int nombreMembresMax = Integer.parseInt(nombreMembresField.getText().trim());
+
+            System.out.println(">>> DEBUG: prixPart=" + prixPart + ", tauxFrais=" + tauxFrais);
+
+            // Validation des valeurs
+            if (prixPart.compareTo(BigDecimal.ZERO) <= 0) {
+                System.out.println(">>> DEBUG: Prix invalide!");
+                AlertUtils.showError("Erreur", "Prix invalide", "Le prix de la part doit être positif.");
+                return;
+            }
+            if (tauxFrais.compareTo(BigDecimal.valueOf(5)) < 0 || tauxFrais.compareTo(BigDecimal.valueOf(10)) > 0) {
+                System.out.println(">>> DEBUG: Taux invalide!");
+                AlertUtils.showError("Erreur", "Taux invalide", "Le taux des frais doit être entre 5% et 10%.");
+                return;
+            }
+            if (nombreMembresMax < 15 || nombreMembresMax > 30) {
+                System.out.println(">>> DEBUG: Nombre membres invalide!");
+                AlertUtils.showError("Erreur", "Nombre de membres invalide", "Le nombre de membres doit être entre 15 et 30.");
+                return;
+            }
+
+            // Remplir l'AVEC
+            avecEnCours.setNom(nomField.getText().trim());
+            avecEnCours.setPrixPart(prixPart);
+            avecEnCours.setTauxFraisServiceMensuel(tauxFrais);
+            avecEnCours.setNombreMembresMax(nombreMembresMax);
+
+            if (avecEnCours.getId() == null) {
+                // NOUVELLE AVEC
+                System.out.println(">>> DEBUG: Creation nouvelle AVEC...");
+                String codeUnique = "AVEC-" + System.currentTimeMillis();
+                avecEnCours.setCodeUnique(codeUnique);
+                avecEnCours.setDateCreation(LocalDate.now());
+                avecEnCours.setPhaseCourante(PhaseCycle.PREPARATOIRE);
+                avecEnCours.setStatut(StatutAvec.EN_FORMATION);
+
+                AgentVillageois selectedAgent = agentVillageoisCombo.getValue();
+                System.out.println(">>> DEBUG: Agent selectionne = " + selectedAgent);
+
+                if (selectedAgent == null) {
+                    System.out.println(">>> DEBUG: Agent villageois NULL!");
+                    AlertUtils.showError("Erreur", "Agent villageois requis", "Veuillez sélectionner un agent villageois dans le menu.");
+                    return;
+                }
+                avecEnCours.setAgentVillageoisId(selectedAgent.getId());
+
+                System.out.println(">>> DEBUG: Appel avecService.creerAvec()...");
+                Avec created = avecService.creerAvec(avecEnCours);
+                System.out.println(">>> DEBUG: Resultat = " + created);
+
+                if (created != null) {
+                    System.out.println(">>> DEBUG: SUCCES!");
+                    AlertUtils.showInfo("Succès", "AVEC créée", "Code: " + created.getCodeUnique());
+                    loadAvecs();
+                    annulerFormulaire();
+                } else {
+                    System.out.println(">>> DEBUG: ECHEC - created est null!");
+                    AlertUtils.showError("Erreur", "Échec de la création", null);
+                }
+            } else {
+                // MODIFICATION
+                System.out.println(">>> DEBUG: Mode MODIFICATION");
+                System.out.println(">>> DEBUG: avecEnCours.id = " + avecEnCours.getId());
+
+                if (statutCombo.getValue() != null) {
+                    avecEnCours.setStatut(statutCombo.getValue());
+                }
+                if (phaseCombo.getValue() != null) {
+                    avecEnCours.setPhaseCourante(phaseCombo.getValue());
+                }
+
+                System.out.println(">>> DEBUG: Appel modifierAvec()...");
+                boolean success = avecService.modifierAvec(avecEnCours);
+                System.out.println(">>> DEBUG: Resultat = " + success);
+
+                if (success) {
+                    System.out.println(">>> DEBUG: SUCCES modification!");
+                    AlertUtils.showInfo("Succès", "AVEC modifiée", null);
+                    loadAvecs();
+                    annulerFormulaire();
+                } else {
+                    System.out.println(">>> DEBUG: ECHEC modification!");
+                    AlertUtils.showError("Erreur", "Échec de la modification", null);
+                }
+            }
+
+        } catch (NumberFormatException e) {
+            AlertUtils.showError("Erreur", "Format de nombre invalide", "Vérifiez les champs numériques.");
+        } catch (SQLException | IllegalArgumentException e) {
+            System.err.println("=== ERREUR D'ENREGISTREMENT ===");
+            System.err.println("Message: " + e.getMessage());
+            e.printStackTrace();
+            AlertUtils.showError("Erreur d'enregistrement", e.getClass().getSimpleName(), e.getMessage());
+        } catch (Exception e) {
+            System.err.println("=== ERREUR INATTENDUE ===");
+            System.err.println("Message: " + e.getMessage());
+            e.printStackTrace();
+            AlertUtils.showError("Erreur", "Erreur inattendue", e.getMessage());
+        }
+    }
+
+    /**
+     * Change la phase d'une AVEC
+     */
+    private void changerPhase() {
+        Avec selected = table.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            AlertUtils.showWarning("Sélection requise", "Veuillez sélectionner une AVEC.", null);
+            return;
+        }
+
         Dialog<PhaseCycle> dialog = new Dialog<>();
         dialog.initOwner(primaryStage);
         dialog.setTitle("Changer de phase");
-        dialog.setHeaderText("Changer la phase de l'AVEC: " + avec.getNom());
+        dialog.setHeaderText("Changer la phase de: " + selected.getNom());
 
-        // Boutons
         ButtonType saveButtonType = new ButtonType("Valider", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
 
-        // Formulaire
         VBox content = new VBox(10);
         content.setPadding(new Insets(20));
 
-        Label phaseActuelle = new Label("Phase actuelle: " + avec.getPhaseCourante().getLibelle());
+        Label phaseActuelle = new Label("Phase actuelle: " + selected.getPhaseCourante().getLibelle());
         phaseActuelle.setStyle("-fx-font-weight: bold;");
 
         ComboBox<PhaseCycle> phaseCombo = new ComboBox<>();
         phaseCombo.setItems(FXCollections.observableArrayList(PhaseCycle.values()));
         phaseCombo.setPromptText("Sélectionner la nouvelle phase");
 
-        // Ne proposer que les phases logiques
-        PhaseCycle phaseCourante = avec.getPhaseCourante();
-        if (phaseCourante == PhaseCycle.PREPERATIORE) {
+        PhaseCycle courante = selected.getPhaseCourante();
+        if (courante == PhaseCycle.PREPARATOIRE) {
             phaseCombo.setValue(PhaseCycle.INTENSIVE);
-        } else if (phaseCourante == PhaseCycle.INTENSIVE) {
+        } else if (courante == PhaseCycle.INTENSIVE) {
             phaseCombo.setValue(PhaseCycle.DEVELOPPEMENT);
-        } else if (phaseCourante == PhaseCycle.DEVELOPPEMENT) {
+        } else if (courante == PhaseCycle.DEVELOPPEMENT) {
             phaseCombo.setValue(PhaseCycle.MATURITE);
-        } else if (phaseCourante == PhaseCycle.MATURITE) {
+        } else if (courante == PhaseCycle.MATURITE) {
             phaseCombo.setValue(PhaseCycle.TERMINE);
         }
 
         content.getChildren().addAll(phaseActuelle, new Label("Nouvelle phase:"), phaseCombo);
-
         dialog.getDialogPane().setContent(content);
 
-        // Résultat
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == saveButtonType) {
                 return phaseCombo.getValue();
@@ -690,98 +839,60 @@ public class AvecView {
             return null;
         });
 
-        Optional<PhaseCycle> result = dialog.showAndWait();
-        result.ifPresent(nouvellePhase -> {
-            try {
-                if (avecService.changerPhase(avec.getId(), nouvellePhase)) {
-                    avec.setPhaseCourante(nouvellePhase);
-                    tableAvecs.refresh();
-                    AlertUtils.showInfo("Succès", "Phase changée avec succès",
-                            "Nouvelle phase: " + nouvellePhase.getLibelle());
+        dialog.showAndWait().ifPresent(nouvellePhase -> {
+            if (nouvellePhase != null) {
+                try {
+                    if (avecService.changerPhase(selected.getId(), nouvellePhase)) {
+                        selected.setPhaseCourante(nouvellePhase);
+                        table.refresh();
+                        AlertUtils.showInfo("Succès", "Phase changée", "Nouvelle phase: " + nouvellePhase.getLibelle());
+                    }
+                } catch (SQLException | IllegalStateException e) {
+                    AlertUtils.showError("Erreur", "Impossible de changer la phase", e.getMessage());
                 }
-            } catch (SQLException | IllegalStateException e) {
-                AlertUtils.showError("Erreur", "Impossible de changer la phase", e.getMessage());
             }
         });
     }
 
     /**
-     * Affiche les détails d'une AVEC
+     * Supprime une AVEC
      */
-    private void afficherDetailsAvec(Avec avec) {
-        String details = String.format(
-                "Code: %s\n" +
-                        "Statut: %s\n" +
-                        "Phase: %s\n" +
-                        "Date création: %s\n" +
-                        "Membres: %d / %d\n" +
-                        "Prix de la part: %s\n" +
-                        "Taux des frais: %.1f%%\n" +
-                        "Épargne totale: %s\n" +
-                        "Crédits en cours: %s\n" +
-                        "Lieu de réunion: %s\n" +
-                        "Jour de réunion: %s\n" +
-                        "Prochaine réunion: %s\n" +
-                        "Progression formation: %d%%",
-                avec.getCodeUnique(),
-                avec.getStatut().getLibelle(),
-                avec.getPhaseCourante().getLibelle(),
-                avec.getDateCreation().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
-                avec.getNombreMembresActifs(),
-                avec.getNombreMembresMax(),
-                FormatUtils.formatCurrency(avec.getPrixPart()),
-                avec.getTauxFraisServiceMensuel().doubleValue(),
-                FormatUtils.formatCurrency(avec.getTotalEpargne()),
-                FormatUtils.formatCurrency(avec.getTotalCredit()),
-                avec.getLieuReunion() != null ? avec.getLieuReunion() : "Non défini",
-                avec.getJourReunion() != null ? avec.getJourReunion().getLibelle() : "Non défini",
-                avec.getProchaineReunion() != null ?
-                        avec.getProchaineReunion().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "Non planifiée",
-                avec.getProgressionFormation()
+    private void supprimerAvec() {
+        Avec selected = table.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            AlertUtils.showWarning("Sélection requise", "Veuillez sélectionner une AVEC à supprimer.", null);
+            return;
+        }
+
+        boolean confirm = AlertUtils.showConfirmation(
+                "Confirmation",
+                "Supprimer l'AVEC",
+                "Êtes-vous sûr de vouloir supprimer " + selected.getNom() + " ?"
         );
 
-        AlertUtils.showInfo("Détails de l'AVEC", avec.getNom(), details);
+        if (confirm) {
+            try {
+                if (avecService.supprimerAvec(selected.getId())) {
+                    AlertUtils.showInfo("Succès", "AVEC supprimée", null);
+                    loadAvecs();
+                    annulerFormulaire();
+                }
+            } catch (SQLException | IllegalStateException e) {
+                AlertUtils.showError("Erreur", "Impossible de supprimer", e.getMessage());
+            }
+        }
     }
 
     /**
-     * Génère un rapport
+     * Annule le formulaire
      */
-//    private void genererRapport() {
-//        try {
-//            List<Avec> avecs = avecService.getAllAvecs();
-//            StringBuilder rapport = new StringBuilder();
-//            rapport.append("RAPPORT DES AVEC\n");
-//            rapport.append("=").repeat(50).append("\n\n");
-//            rapport.append("Date: ").append(LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))).append("\n");
-//            rapport.append("Total AVEC: ").append(avecs.size()).append("\n\n");
-//
-//            rapport.append("RÉPARTITION PAR STATUT:\n");
-//            long enFormation = avecs.stream().filter(a -> a.getStatut() == StatutAvec.EN_FORMATION).count();
-//            long actives = avecs.stream().filter(a -> a.getStatut() == StatutAvec.ACTVIE).count();
-//            long enPause = avecs.stream().filter(a -> a.getStatut() == StatutAvec.EN_PAUSE).count();
-//            long terminees = avecs.stream().filter(a -> a.getStatut() == StatutAvec.TERMINE).count();
-//
-//            rapport.append("- En formation: ").append(enFormation).append("\n");
-//            rapport.append("- Actives: ").append(actives).append("\n");
-//            rapport.append("- En pause: ").append(enPause).append("\n");
-//            rapport.append("- Terminées: ").append(terminees).append("\n\n");
-//
-//            AlertUtils.showInfo("Rapport", "Génération du rapport", rapport.toString());
-//
-//        } catch (SQLException e) {
-//            AlertUtils.showError("Erreur", "Impossible de générer le rapport", e.getMessage());
-//        }
-//    }
+    private void annulerFormulaire() {
+        avecEnCours = null;
+        viderFormulaire();
+        table.getSelectionModel().clearSelection();
+    }
 
-    /**
-     * Retourne la classe CSS pour le badge de statut
-     */
-    private String getStatutBadgeClass(StatutAvec statut) {
-        return switch (statut) {
-            case EN_FORMATION -> "badge-warning";
-            case ACTVIE -> "badge-success";
-            case EN_PAUSE -> "badge-info";
-            case TERMINE, EN_DISSOLUTION -> "badge-secondary";
-        };
+    public BorderPane getRoot() {
+        return root;
     }
 }
