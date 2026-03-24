@@ -29,7 +29,7 @@ public class CycleService {
      */
     public Cycle demarrerCycle(Long avecId) throws SQLException {
         // Vérifier que l'AVEC exist
-        Avec avec = avecDAO.findAvecById(avecId);
+        Avec avec = avecDAO.findById(avecId);
         if (avec == null) {
             throw new IllegalArgumentException("AVEC non trouvée avec l'ID: " + avecId);
         }

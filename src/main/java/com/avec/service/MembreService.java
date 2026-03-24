@@ -12,7 +12,6 @@ import com.avec.utils.ValidationUtils;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Service pour la gestion des membres
@@ -58,10 +57,9 @@ public class MembreService {
                     avec.getNombreMembresMax() + ")");
         }
 
-        // Générer un numéro de carte unique
-        String numeroCarte = genererNumeroCarte(avecId);
+        int numeroMembre = membreDAO.getProchainNumeroMembre(avecId);
 
-        Membre membre = new Membre(nom, prenom, numeroCarte, LocalDate.now());
+        Membre membre = new Membre(nom, prenom, numeroMembre, LocalDate.now());
         membre.setAvecId(avecId);
         membre.setProfession(profession);
         membre.setVillage(village);
@@ -246,16 +244,6 @@ public class MembreService {
             return getMembresByAvecId(avecId);
         }
         return membreDAO.searchByNom(avecId, recherche);
-    }
-
-    /**
-     * Génère un numéro de carte unique pour un membre
-     */
-    private String genererNumeroCarte(long avecId) {
-        String prefix = "MEM";
-        String avec = String.format("%03d", avecId);
-        String unique = UUID.randomUUID().toString().substring(0, 4).toUpperCase();
-        return prefix + "-" + avec + "-" + unique;
     }
 
     /**
