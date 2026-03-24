@@ -319,7 +319,7 @@ public class LoginView {
 		        
 		        // ✅ CONNEXION EN TANT QU'ADMIN
 		        SessionUtilisateur.getInstance().connecterAdmin(utilisateur);
-		        ouvrirDashboard(messageLabel);
+		        ouvrirDashboard(messageLabel,utilisateur);
 		    } else {
 		        System.out.println("Admin non trouvé");
 		        messageLabel.setText("Email ou mot de passe incorrect");
@@ -327,7 +327,7 @@ public class LoginView {
 		    }
 		}
 
-//	private void loginMembreComite(String roleAttendu) {
+//	private void loginMembreComite(Label messageLabel, String roleAttendu) {
 //		String numeroCarte = numeroCarteField.getText().trim();
 //		String password = passwordField.getText().trim();
 //
@@ -344,13 +344,13 @@ public class LoginView {
 //				messageLabel.setText("Numéro de carte incorrect");
 //				return;
 //			}
-//
+
 //			// Vérifier que le membre est actif
 //			if (membre.getStatut() != StatutMembre.ACTIF) {
 //				messageLabel.setText("Ce membre est inactif");
 //				return;
 //			}
-//
+
 //			// Vérifier le rôle
 //			String roleMembre = membre.getRoleComite().getDescription();
 //			if (!roleMembre.equals(roleAttendu)) {
@@ -385,7 +385,7 @@ public class LoginView {
 	        
 	        if (agent != null) {
 	            SessionUtilisateur.getInstance().connecterAgentVillageois(agent);
-	            ouvrirDashboard(messageLabel);
+	            ouvrirDashboard(messageLabel,agent);
 	        } else {
 	            messageLabel.setText("Email ou mot de passe incorrect");
 	        }
@@ -404,13 +404,13 @@ public class LoginView {
 	        
 	        if (agent != null) {
 	            SessionUtilisateur.getInstance().connecterAgentTerrain(agent);
-	            ouvrirDashboard(messageLabel);
+	            ouvrirDashboard(messageLabel,agent);
 	        } else {
 	            messageLabel.setText("Email ou mot de passe incorrect");
 	        }
 	    }
 	    
-	    private void ouvrirDashboard(Label messageLabel) {
+	    private void ouvrirDashboard(Label messageLabel, Utilisateur utilisateur) {
 	        messageLabel.setStyle(Styles.MESSAGE_SUCCES);
 	        messageLabel.setText("Connexion réussie! Chargement...");
 	        
@@ -418,7 +418,7 @@ public class LoginView {
 	        // ET éviter les conflits d'animation
 	        Platform.runLater(() -> {
 	            try {
-	                DashboardView dashboard = new DashboardView(mainApp);
+	                DashboardView dashboard = new DashboardView(mainApp,utilisateur);
 	                mainApp.getPrimaryStage().getScene().setRoot(dashboard.getRoot());
 	                mainApp.getPrimaryStage().setMaximized(true);
 	            } catch (Exception e) {

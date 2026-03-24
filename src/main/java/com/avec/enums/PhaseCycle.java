@@ -5,7 +5,7 @@ package com.avec.enums;
  */
 
     public enum PhaseCycle {
-        PREPERATIORE("preparatiore", 0, "Reunoin d'information " ),
+        PREPARATOIRE("preparatiore", 0, "Reunoin d'information " ),
         INTENSIVE("Intensive",12, " 4 visites semaine 1 , puis 6 visites "),
         DEVELOPPEMENT("Developpement", 24 , "3 vistes de supervision"),
         MATURITE("Maturite", 36 ,"2 visite , preparation repartition"),

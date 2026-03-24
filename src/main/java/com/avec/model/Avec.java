@@ -1,5 +1,14 @@
 package com.avec.model;
 
+<<<<<<< HEAD
+=======
+import com.avec.config.DBConnection;
+import com.avec.dao.CaisseDAO;
+import com.avec.enums.*;
+import javafx.scene.Node;
+import javafx.scene.layout.VBox;
+
+>>>>>>> 1e9b2e7037b3769359e3e3f974d471ad3070e3e4
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.Date;
@@ -74,7 +83,7 @@ public class Avec {
     public Avec() {
         this.dateCreation = LocalDate.now();
         this.statut = StatutAvec.EN_FORMATION;
-        this.phaseCourante = PhaseCycle.PREPERATIORE;  // CORRECTION orthographe
+        this.phaseCourante = PhaseCycle.PREPARATOIRE;  // CORRECTION orthographe
         this.nombreMembresMax = 25;
         this.tauxFraisServiceMensuel = BigDecimal.valueOf(10);
         this.cotisationCaisseSolidarite = BigDecimal.valueOf(100);
@@ -91,13 +100,12 @@ public class Avec {
     /**
      * Constructeur avec paramètres principaux
      */
-    public Avec(String nom, String prenom, BigDecimal prixPart, String lieuReunion, JourReunion jourReunion) {
+    public Avec(String nom, BigDecimal prixPart) {
         this();
         this.nom = nom;
-        this.prenom = prenom;
+
         this.prixPart = prixPart;
-        this.lieuReunion = lieuReunion;
-        this.jourReunion = jourReunion;
+
         genererCodeUnique();
     }
 
@@ -486,7 +494,7 @@ public class Avec {
         if (visites == null) return false;
 
         return switch (phaseCourante) {
-            case PREPERATIORE -> visites.size() >= 1;  // CORRECTION orthographe
+            case PREPARATOIRE ->  visites.size() >= 1;  // CORRECTION orthographe
             case INTENSIVE -> visites.size() >= 10;
             case DEVELOPPEMENT -> visites.size() >= 13;
             case MATURITE -> visites.size() >= 15;
@@ -672,4 +680,6 @@ public class Avec {
     public int hashCode() {
         return id != null ? id.hashCode() : 0;
     }
+
+
 }

@@ -3,38 +3,41 @@ package com.avec.dao;
 import com.avec.config.DBConnection;
 import com.avec.enums.PhaseCycle;
 import com.avec.enums.StatutAvec;
-import com.avec.enums.JourReunion;
 import com.avec.model.Avec;
-import com.avec.model.AgentVillageois;
-import com.avec.model.AgentTerrain;
 
 import java.math.BigDecimal;
 import java.sql.*;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * DAO pour la gestion des AVEC dans la base de données
+ * DAO pour la gestion des AVEC
+ * Table: avec
  */
 public class AvecDAO {
-
-   
 
     public AvecDAO() {
        
     }
 
+
     /**
      * Insère une nouvelle AVEC
      */
     public Avec insert(Avec avec) throws SQLException {
+
         String sql = "INSERT INTO avec (nom, codeUnique, statut, dateCreation, " +
                 "nombreMembreMax, prixPart, tauxFraisServiceMensuel, " +
                 "phaseCourante,  " +
                 "agentVillageois_id, agentTerrain_id) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+        System.out.println(">>> DAO: Debut insert()");
+        System.out.println(">>> DAO: avec.nom = " + avec.getNom());
+        System.out.println(">>> DAO: avec.agentVillageoisId = " + avec.getAgentVillageoisId());
+        
+              
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -47,18 +50,18 @@ public class AvecDAO {
             stmt.setBigDecimal(6, avec.getPrixPart());
             stmt.setBigDecimal(7, avec.getTauxFraisServiceMensuel());
             stmt.setString(8, avec.getPhaseCourante().name());
-            stmt.setDate(9, avec.getDateDebutCycle() != null ? Date.valueOf(avec.getDateDebutCycle()) : null);
-            stmt.setDate(10, avec.getDateFinCyclePrevue() != null ? Date.valueOf(avec.getDateFinCyclePrevue()) : null);
-            stmt.setString(11, avec.getLieuReunion());
-            stmt.setString(12, avec.getJourReunion() != null ? avec.getJourReunion().name() : null);
-            stmt.setTime(13, avec.getHeureReunion() != null ? Time.valueOf(avec.getHeureReunion()) : null);
-            stmt.setDate(14, avec.getProchaineReunion() != null ? Date.valueOf(avec.getProchaineReunion()) : null);
-            stmt.setBigDecimal(15, avec.getCotisationCaisseSolidarite());
-            stmt.setBoolean(16, avec.isCaisseSolidariteActive());
-            stmt.setLong(17, avec.getAgentVillageoisId());
-            stmt.setLong(18, avec.getAgentTerrainId() != null ? avec.getAgentTerrainId() : null);
+            stmt.setLong(9, avec.getAgentVillageoisId());
 
+            if (avec.getAgentTerrainId() != null) {
+                stmt.setLong(10, avec.getAgentTerrainId());
+            } else {
+                stmt.setNull(10, Types.BIGINT);
+            }
+
+            System.out.println(">>> DAO: Execution INSERT...");
             int affectedRows = stmt.executeUpdate();
+            System.out.println(">>> DAO: affectedRows = " + affectedRows);
+            
             if (affectedRows == 0) {
                 throw new SQLException("La création de l'AVEC a échoué");
             }
@@ -66,16 +69,11 @@ public class AvecDAO {
             try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
                 if (generatedKeys.next()) {
                     avec.setId(generatedKeys.getLong(1));
-                } else {
-                    throw new SQLException("La création de l'AVEC a échoué, aucun ID obtenu");
+                    System.out.println(">>> DAO: ID genere = " + avec.getId());
                 }
             }
         }
-
-        // Créer la caisse associée
-        CaisseDAO caisseDAO = new CaisseDAO();
-        caisseDAO.creerCaissePourAvec(avec.getId());
-
+        System.out.println(">>> DAO: Fin insert() - SUCCESS");
         return avec;
     }
 
@@ -83,10 +81,15 @@ public class AvecDAO {
      * Met à jour une AVEC existante
      */
     public boolean update(Avec avec) throws SQLException {
+
         String sql = "UPDATE avec SET nom = ?, codeUnique = ?, statut = ?, " +
                 "nombreMembreMax = ?, prixPart = ?, tauxFraisServiceMensuel = ?, " +
                 "phaseCourante = ?, " +
                 "agentVillageois_id = ?, agentTerrain_id = ? WHERE id = ?";
+
+        System.out.println(">>> DAO UPDATE: Debut");
+        System.out.println(">>> DAO UPDATE: id=" + avec.getId() + ", nom=" + avec.getNom());
+        
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -98,19 +101,20 @@ public class AvecDAO {
             stmt.setBigDecimal(5, avec.getPrixPart());
             stmt.setBigDecimal(6, avec.getTauxFraisServiceMensuel());
             stmt.setString(7, avec.getPhaseCourante().name());
-            stmt.setDate(8, avec.getDateDebutCycle() != null ? Date.valueOf(avec.getDateDebutCycle()) : null);
-            stmt.setDate(9, avec.getDateFinCyclePrevue() != null ? Date.valueOf(avec.getDateFinCyclePrevue()) : null);
-            stmt.setString(10, avec.getLieuReunion());
-            stmt.setString(11, avec.getJourReunion() != null ? avec.getJourReunion().name() : null);
-            stmt.setTime(12, avec.getHeureReunion() != null ? Time.valueOf(avec.getHeureReunion()) : null);
-            stmt.setDate(13, avec.getProchaineReunion() != null ? Date.valueOf(avec.getProchaineReunion()) : null);
-            stmt.setBigDecimal(14, avec.getCotisationCaisseSolidarite());
-            stmt.setBoolean(15, avec.isCaisseSolidariteActive());
-            stmt.setLong(16, avec.getAgentVillageoisId());
-            stmt.setLong(17, avec.getAgentTerrainId() != null ? avec.getAgentTerrainId() : null);
-            stmt.setLong(18, avec.getId());
+            stmt.setLong(8, avec.getAgentVillageoisId());
 
-            return stmt.executeUpdate() > 0;
+            if (avec.getAgentTerrainId() != null) {
+                stmt.setLong(9, avec.getAgentTerrainId());
+            } else {
+                stmt.setNull(9, Types.BIGINT);
+            }
+
+            stmt.setLong(10, avec.getId());
+
+            System.out.println(">>> DAO UPDATE: Execution UPDATE...");
+            int rows = stmt.executeUpdate();
+            System.out.println(">>> DAO UPDATE: rows affected = " + rows);
+            return rows > 0;
         }
     }
 
@@ -118,6 +122,7 @@ public class AvecDAO {
      * Supprime une AVEC par son ID
      */
     public boolean delete(long id) throws SQLException {
+
         // Supprimer d'abord les dépendances
         String deleteCaisse = "DELETE FROM caisse WHERE avec_id = ?";
         String deleteMembres = "DELETE FROM membre WHERE avec_id = ?";
@@ -126,43 +131,15 @@ public class AvecDAO {
         String deleteRegles = "DELETE FROM regle WHERE avec_id = ?";
         String deleteAvec = "DELETE FROM avec WHERE id = ?";
 
-        try (Connection conn = DBConnection.getConnection()) {
-            conn.setAutoCommit(false);
 
-            try (PreparedStatement stmtCaisse = conn.prepareStatement(deleteCaisse);
-                 PreparedStatement stmtMembres = conn.prepareStatement(deleteMembres);
-                 PreparedStatement stmtCycles = conn.prepareStatement(deleteCycles);
-                 PreparedStatement stmtVisites = conn.prepareStatement(deleteVisites);
-                 PreparedStatement stmtRegles = conn.prepareStatement(deleteRegles);
-                 PreparedStatement stmtAvec = conn.prepareStatement(deleteAvec)) {
+        String sql = "DELETE FROM avec WHERE id = ?";
 
-                stmtCaisse.setLong(1, id);
-                stmtCaisse.executeUpdate();
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-                stmtMembres.setLong(1, id);
-                stmtMembres.executeUpdate();
 
-                stmtCycles.setLong(1, id);
-                stmtCycles.executeUpdate();
-
-                stmtVisites.setLong(1, id);
-                stmtVisites.executeUpdate();
-
-                stmtRegles.setLong(1, id);
-                stmtRegles.executeUpdate();
-
-                stmtAvec.setLong(1, id);
-                int result = stmtAvec.executeUpdate();
-
-                conn.commit();
-                return result > 0;
-
-            } catch (SQLException e) {
-                conn.rollback();
-                throw e;
-            } finally {
-                conn.setAutoCommit(true);
-            }
+            stmt.setLong(1, id);
+            return stmt.executeUpdate() > 0;
         }
     }
 
@@ -187,10 +164,32 @@ public class AvecDAO {
     }
 
     /**
+     * Vérifie si une AVEC existe par son ID
+     */
+    public boolean existsById(long id) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM avec WHERE id = ?";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setLong(1, id);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1) > 0;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
      * Trouve une AVEC par son code unique
      */
     public Avec findByCodeUnique(String codeUnique) throws SQLException {
-        String sql = "SELECT * FROM avec WHERE code_unique = ?";
+
+        String sql = "SELECT * FROM avec WHERE codeUnique = ?";
+
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -211,7 +210,9 @@ public class AvecDAO {
      */
     public List<Avec> findAll() throws SQLException {
         List<Avec> avecs = new ArrayList<>();
-        String sql = "SELECT * FROM avec ORDER BY date_creation DESC";
+
+        String sql = "SELECT * FROM avec ORDER BY dateCreation DESC";
+
 
         try (Connection conn = DBConnection.getConnection();
              Statement stmt = conn.createStatement();
@@ -229,7 +230,9 @@ public class AvecDAO {
      */
     public List<Avec> findByStatut(StatutAvec statut) throws SQLException {
         List<Avec> avecs = new ArrayList<>();
-        String sql = "SELECT * FROM avec WHERE statut = ? ORDER BY date_creation DESC";
+
+        String sql = "SELECT * FROM avec WHERE statut = ? ORDER BY dateCreation DESC";
+
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -250,7 +253,9 @@ public class AvecDAO {
      */
     public List<Avec> findByPhase(PhaseCycle phase) throws SQLException {
         List<Avec> avecs = new ArrayList<>();
-        String sql = "SELECT * FROM avec WHERE phaseCourante = ? ORDER BY date_creation DESC";
+
+        String sql = "SELECT * FROM avec WHERE phaseCourante = ? ORDER BY dateCreation DESC";
+
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -271,7 +276,9 @@ public class AvecDAO {
      */
     public List<Avec> findByAgentVillageoisId(long agentId) throws SQLException {
         List<Avec> avecs = new ArrayList<>();
-        String sql = "SELECT * FROM avec WHERE agentVillageois_id = ? ORDER BY date_creation DESC";
+
+        String sql = "SELECT * FROM avec WHERE agentVillageois_id = ? ORDER BY dateCreation DESC";
+
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -292,7 +299,10 @@ public class AvecDAO {
      */
     public List<Avec> findByAgentTerrainId(long agentId) throws SQLException {
         List<Avec> avecs = new ArrayList<>();
-        String sql = "SELECT * FROM avec WHERE agentTerrain_id = ? ORDER BY date_creation DESC";
+
+
+        String sql = "SELECT * FROM avec WHERE agentTerrain_id = ? ORDER BY dateCreation DESC";
+
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -378,6 +388,7 @@ public class AvecDAO {
     }
 
     /**
+
      * Compte le nombre total d'AVEC
      */
     public int countAll() throws SQLException {
@@ -422,52 +433,41 @@ public class AvecDAO {
 
         avec.setId(rs.getLong("id"));
         avec.setNom(rs.getString("nom"));
-        avec.setCodeUnique(rs.getString("code_unique"));
-        avec.setStatut(StatutAvec.valueOf(rs.getString("statut")));
-        avec.setDateCreation(rs.getDate("date_creation").toLocalDate());
-        avec.setNombreMembresMax(rs.getInt("nombre_membres_max"));
-        avec.setPrixPart(rs.getBigDecimal("prix_part"));
-        avec.setTauxFraisServiceMensuel(rs.getBigDecimal("taux_frais_service_mensuel"));
-        avec.setPhaseCourante(PhaseCycle.valueOf(rs.getString("phase_courante")));
+        avec.setCodeUnique(rs.getString("codeUnique"));
 
-        Date dateDebutCycle = rs.getDate("date_debut_cycle");
-        if (dateDebutCycle != null) {
-            avec.setDateDebutCycle(dateDebutCycle.toLocalDate());
+        // Gestion sécurisée du statut
+        String statutStr = rs.getString("statut");
+        try {
+            avec.setStatut(StatutAvec.valueOf(statutStr));
+        } catch (IllegalArgumentException e) {
+            System.err.println("Statut invalide: " + statutStr + " - utilisation de EN_FORMATION par défaut");
+            avec.setStatut(StatutAvec.EN_FORMATION);
         }
 
-        Date dateFinCyclePrevue = rs.getDate("date_fin_cycle_prevue");
-        if (dateFinCyclePrevue != null) {
-            avec.setDateFinCyclePrevue(dateFinCyclePrevue.toLocalDate());
+        avec.setDateCreation(rs.getDate("dateCreation").toLocalDate());
+        avec.setNombreMembresMax(rs.getInt("nombreMembreMax"));
+        avec.setPrixPart(rs.getBigDecimal("prixPart"));
+        avec.setTauxFraisServiceMensuel(rs.getBigDecimal("tauxFraisServiceMensuel"));
+
+        // Gestion sécurisée de la phase
+        String phaseStr = rs.getString("phaseCourante");
+        try {
+            avec.setPhaseCourante(PhaseCycle.valueOf(phaseStr));
+        } catch (IllegalArgumentException e) {
+            System.err.println("Phase invalide: " + phaseStr + " - utilisation de PREPARATOIRE par défaut");
+            avec.setPhaseCourante(PhaseCycle.PREPARATOIRE);
         }
 
-        avec.setLieuReunion(rs.getString("lieu_reunion"));
+        avec.setAgentVillageoisId(rs.getLong("agentVillageois_id"));
 
-        String jourReunion = rs.getString("jour_reunion");
-        if (jourReunion != null) {
-            avec.setJourReunion(JourReunion.valueOf(jourReunion));
-        }
-
-        Time heureReunion = rs.getTime("heure_reunion");
-        if (heureReunion != null) {
-            avec.setHeureReunion(heureReunion.toLocalTime());
-        }
-
-        Date prochaineReunion = rs.getDate("prochaine_reunion");
-        if (prochaineReunion != null) {
-            avec.setProchaineReunion(prochaineReunion.toLocalDate());
-        }
-
-        avec.setCotisationCaisseSolidarite(rs.getBigDecimal("cotisation_caisse_solidarite"));
-        avec.setCaisseSolidariteActive(rs.getBoolean("caisse_solidarite_active"));
-        avec.setAgentVillageoisId(rs.getLong("agent_villageois_id"));
-
-        long agentTerrainId = rs.getLong("agent_terrain_id");
+        long agentTerrainId = rs.getLong("agentTerrain_id");
         if (!rs.wasNull()) {
             avec.setAgentTerrainId(agentTerrainId);
         }
 
         return avec;
     }
+
 
     /**
      * Trouve une AVEC par son ID
@@ -491,4 +491,5 @@ public class AvecDAO {
         }
         return null;
     }
+
 }

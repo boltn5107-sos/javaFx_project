@@ -1265,7 +1265,7 @@ public class AdminDashboardView {
                     
                     // Créer l'AVEC avec la méthode creerAvec
                     Avec avec = avecService.creerAvec(
-                        nom, prixPart, lieuReunion, jourReunion, agentVillageoisId
+                        nom, prixPart, agentVillageoisId
                     );
                     
                     // Mettre à jour les paramètres supplémentaires

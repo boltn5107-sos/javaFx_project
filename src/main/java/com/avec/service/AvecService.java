@@ -37,10 +37,9 @@ public class AvecService {
     }
 
     /**
-     * Crée une nouvelle AVEC
+     * Crée une nouvelle AVEC (version simple avec nom, prixPart et agentVillageoisId)
      */
-    public Avec creerAvec(String nom, BigDecimal prixPart, String lieuReunion,
-                          JourReunion jourReunion, Long agentVillageoisId)
+    public Avec creerAvec(String nom, BigDecimal prixPart, Long agentVillageoisId)
             throws SQLException, IllegalArgumentException {
 
         // Vérifier que l'agent villageois existe
@@ -49,11 +48,16 @@ public class AvecService {
             throw new IllegalArgumentException("Agent villageois non trouvé avec l'ID: " + agentVillageoisId);
         }
 
-        // Créer l'AVEC
-        Avec avec = new Avec( nom, prixPart, lieuReunion, jourReunion);
+        // Créer l'AVEC avec les valeurs par défaut
+        Avec avec = new Avec();
+        avec.setNom(nom);
+        avec.setPrixPart(prixPart);
         avec.setAgentVillageoisId(agentVillageoisId);
         avec.setStatut(StatutAvec.EN_FORMATION);
-        avec.setPhaseCourante(PhaseCycle.PREPERATIORE);
+        avec.setPhaseCourante(PhaseCycle.PREPARATOIRE);
+        avec.setDateCreation(LocalDate.now());
+        avec.setNombreMembresMax(25);  // Valeur par défaut
+        avec.setTauxFraisServiceMensuel(BigDecimal.valueOf(10));  // Valeur par défaut
 
         // Générer un code unique
         String codeUnique = genererCodeUnique();
@@ -63,6 +67,59 @@ public class AvecService {
     }
     
     
+
+    /**
+     * Crée une nouvelle AVEC à partir d'un objet Avec complet
+     * Cette méthode est appelée par la Vue
+     */
+    public Avec creerAvec(Avec avec) throws SQLException {
+        System.out.println(">>> SERVICE: Debut creerAvec()");
+        
+        if (avec == null) {
+            System.out.println(">>> SERVICE: AVEC est null!");
+            throw new IllegalArgumentException("L'AVEC ne peut pas être null");
+        }
+
+        // Vérifier que l'agent villageois existe
+        System.out.println(">>> SERVICE: agentVillageoisId = " + avec.getAgentVillageoisId());
+        
+        if (avec.getAgentVillageoisId() == null) {
+            System.out.println(">>> SERVICE: agentVillageoisId est null!");
+            throw new IllegalArgumentException("L'ID de l'agent villageois est obligatoire");
+        }
+
+        System.out.println(">>> SERVICE: Recherche agent villageois...");
+        AgentVillageois av = agentVillageoisDao.findAgentVillageoisById(avec.getAgentVillageoisId());
+        System.out.println(">>> SERVICE: Agent trouve = " + av);
+        
+        if (av == null) {
+            System.out.println(">>> SERVICE: Agent NON TROUVE!");
+            throw new IllegalArgumentException("Agent villageois non trouvé avec l'ID: " + avec.getAgentVillageoisId());
+        }
+
+        // S'assurer que le code unique est généré
+        if (avec.getCodeUnique() == null || avec.getCodeUnique().isEmpty()) {
+            avec.setCodeUnique(genererCodeUnique());
+        }
+
+        // S'assurer que la date de création est définie
+        if (avec.getDateCreation() == null) {
+            avec.setDateCreation(LocalDate.now());
+        }
+
+        // Valeurs par défaut si non définies
+        if (avec.getNombreMembresMax() == 0) {
+            avec.setNombreMembresMax(25);
+        }
+        if (avec.getTauxFraisServiceMensuel() == null) {
+            avec.setTauxFraisServiceMensuel(BigDecimal.valueOf(10));
+        }
+
+        System.out.println(">>> SERVICE: Appel avecDAO.insert()...");
+        Avec result = avecDAO.insert(avec);
+        System.out.println(">>> SERVICE: Resultat insert = " + result);
+        return result;
+    }
 
     /**
      * Modifie une AVEC existante
@@ -161,7 +218,7 @@ public class AvecService {
         PhaseCycle phaseActuelle = avec.getPhaseCourante();
 
         // Vérifier la progression logique des phases
-        if (phaseActuelle == PhaseCycle.PREPERATIORE && nouvellePhase != PhaseCycle.INTENSIVE) {
+        if (phaseActuelle == PhaseCycle.PREPARATOIRE && nouvellePhase != PhaseCycle.INTENSIVE) {
             return false;
         }
         if (phaseActuelle == PhaseCycle.INTENSIVE && nouvellePhase != PhaseCycle.DEVELOPPEMENT) {
@@ -214,13 +271,13 @@ public class AvecService {
         for (Avec avec : toutesAvecs) {
             switch (avec.getStatut()) {
                 case EN_FORMATION -> stats.incrementerEnFormation();
-                case ACTVIE -> stats.incrementerActives();
+                case ACTIVE -> stats.incrementerActives();
                 case EN_PAUSE -> stats.incrementerEnPause();
                 case TERMINE -> stats.incrementerTerminees();
             }
 
             switch (avec.getPhaseCourante()) {
-                case PREPERATIORE -> stats.incrementerPreparatoire();
+                case PREPARATOIRE -> stats.incrementerPreparatoire();
                 case INTENSIVE -> stats.incrementerIntensive();
                 case DEVELOPPEMENT -> stats.incrementerDeveloppement();
                 case MATURITE -> stats.incrementerMaturite();
