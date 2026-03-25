@@ -1,29 +1,44 @@
 package com.avec.view;
 
+import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.avec.MainApp;
 import com.avec.config.Styles;
+import com.avec.enums.JourReunion;
+import com.avec.enums.RoleComite;
+import com.avec.enums.StatutMembre;
 import com.avec.model.AgentVillageois;
 import com.avec.model.Avec;
+import com.avec.model.Membre;
 import com.avec.model.SessionUtilisateur;
 import com.avec.service.AvecService;
+import com.avec.service.MembreService;
 
+import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Accordion;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.Separator;
+import javafx.scene.control.Spinner;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
+import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -36,6 +51,7 @@ public class AgentVillageoisDashboardView {
     private MainApp mainApp;
     private SessionUtilisateur session;
     private AvecService avecService;
+    private MembreService membreService;
     private BorderPane root;
     
     private AgentVillageois agentVillageois;
@@ -53,7 +69,17 @@ public class AgentVillageoisDashboardView {
         this.mainApp = mainApp;
         this.session = SessionUtilisateur.getInstance();
         this.avecService = new AvecService();
+        this.membreService = new MembreService();
         this.agentVillageois = session.getAgentVillageois();
+        
+        if (this.agentVillageois == null) {
+            System.err.println("ERREUR: Aucun agent villageois connecté!");
+            root = new BorderPane();
+            Label errorLabel = new Label("Erreur: Vous n'êtes pas connecté en tant qu'agent villageois");
+            errorLabel.setStyle("-fx-text-fill: red;");
+            root.setCenter(errorLabel);
+            return;
+        }
         createView();
         loadData();
     }
@@ -222,32 +248,51 @@ public class AgentVillageoisDashboardView {
         Label title = new Label("AVEC sous ma responsabilité");
         title.setStyle(Styles.TITRE_PRINCIPAL);
         
+        HBox toolbar = new HBox(10);
+        
+        // ✅ Bouton pour créer une AVEC
+        Button creerAvecBtn = new Button("➕ Créer une AVEC");
+        creerAvecBtn.setStyle(Styles.BOUTON_PRINCIPAL);
+        creerAvecBtn.setOnAction(e -> showCreerAvec());
+        
+        Button actualiserBtn = new Button("🔄 Actualiser");
+        actualiserBtn.setStyle(Styles.BOUTON_SECONDAIRE);
+        actualiserBtn.setOnAction(e -> {
+            try {
+                List<Avec> avecs = avecService.getAvecsByAgentVillageois(agentVillageois.getId());
+                if (avecs != null) {
+                    avecTable.setItems(FXCollections.observableArrayList(avecs));
+                }
+            } catch (SQLException ex) {
+                showAlert("Erreur", "Impossible de charger les AVEC: " + ex.getMessage());
+            }
+        });
+        
+        toolbar.getChildren().addAll(creerAvecBtn, actualiserBtn);
+        
         avecTable = new TableView<>();
         avecTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         
+        TableColumn<Avec, Long> colId = new TableColumn<>("ID");
+        colId.setCellValueFactory(new PropertyValueFactory<>("id"));
+        colId.setPrefWidth(50);
+        
         TableColumn<Avec, String> colNom = new TableColumn<>("Nom AVEC");
-        colNom.setCellValueFactory(cellData -> 
-            new javafx.beans.property.SimpleStringProperty(cellData.getValue().getNom()));
+        colNom.setCellValueFactory(new PropertyValueFactory<>("nom"));
+        colNom.setPrefWidth(150);
         
         TableColumn<Avec, String> colCode = new TableColumn<>("Code");
-        colCode.setCellValueFactory(cellData -> 
-            new javafx.beans.property.SimpleStringProperty(cellData.getValue().getCodeUnique()));
+        colCode.setCellValueFactory(new PropertyValueFactory<>("codeUnique"));
+        colCode.setPrefWidth(100);
         
         TableColumn<Avec, String> colPhase = new TableColumn<>("Phase");
         colPhase.setCellValueFactory(cellData -> 
             new javafx.beans.property.SimpleStringProperty(cellData.getValue().getPhaseCourante().getLibelle()));
+        colPhase.setPrefWidth(120);
         
-        TableColumn<Avec, String> colMembres = new TableColumn<>("Membres");
-        colMembres.setCellValueFactory(cellData -> 
-            new javafx.beans.property.SimpleStringProperty(cellData.getValue().getNombreMembresMax() + " max"));
-        
-        TableColumn<Avec, String> colProchaine = new TableColumn<>("Prochaine visite");
-        colProchaine.setCellValueFactory(cellData -> {
-            LocalDate date = cellData.getValue().getProchaineReunion();
-            return new javafx.beans.property.SimpleStringProperty(
-                date != null ? date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "À planifier"
-            );
-        });
+        TableColumn<Avec, Integer> colMembres = new TableColumn<>("Membres");
+        colMembres.setCellValueFactory(new PropertyValueFactory<>("nombreMembreMax"));
+        colMembres.setPrefWidth(80);
         
         TableColumn<Avec, String> colAction = new TableColumn<>("Action");
         colAction.setCellFactory(col -> new TableCell<Avec, String>() {
@@ -257,43 +302,290 @@ public class AgentVillageoisDashboardView {
                 if (empty) {
                     setGraphic(null);
                 } else {
-                    Button btn = new Button("📖 Démarrer formation");
-                    btn.setStyle(Styles.BOUTON_PRINCIPAL);
-                    btn.setOnAction(e -> {
+                    HBox buttonBox = new HBox(5);
+                    
+                    Button formationBtn = new Button("📖 Formation");
+                    formationBtn.setStyle(Styles.BOUTON_PRINCIPAL);
+                    formationBtn.setOnAction(e -> {
                         Avec avec = getTableView().getItems().get(getIndex());
                         demarrerFormation(avec);
                     });
-                    setGraphic(btn);
+                    
+                    Button comiteBtn = new Button("👥 Comité");
+                    comiteBtn.setStyle(Styles.BOUTON_SECONDAIRE);
+                    comiteBtn.setOnAction(e -> {
+                        Avec avec = getTableView().getItems().get(getIndex());
+                        gererComite(avec);
+                    });
+                    
+                    Button membresBtn = new Button("👤 Membres");
+                    membresBtn.setStyle(Styles.BOUTON_ACCENT);
+                    membresBtn.setOnAction(e -> {
+                        Avec avec = getTableView().getItems().get(getIndex());
+                        //gererMembres(avec);
+                    });
+                    
+                    buttonBox.getChildren().addAll(formationBtn, comiteBtn, membresBtn);
+                    setGraphic(buttonBox);
                 }
             }
         });
+        colAction.setPrefWidth(250);
         
-        avecTable.getColumns().addAll(colNom, colCode, colPhase, colMembres, colProchaine, colAction);
+        avecTable.getColumns().addAll(colId, colNom, colCode, colPhase, colMembres, colAction);
         
         try {
             List<Avec> avecs = avecService.getAvecsByAgentVillageois(agentVillageois.getId());
             if (avecs != null) {
-                avecTable.setItems(javafx.collections.FXCollections.observableArrayList(avecs));
+                avecTable.setItems(FXCollections.observableArrayList(avecs));
             }
         } catch (SQLException e) {
             showAlert("Erreur", "Impossible de charger les AVEC: " + e.getMessage());
         }
         
-        view.getChildren().addAll(title, avecTable);
+        view.getChildren().addAll(title, toolbar, avecTable);
+        VBox.setVgrow(avecTable, Priority.ALWAYS);
         root.setCenter(view);
     }
+    
+    /**
+     * ✅ Création d'une AVEC par l'agent villageois
+     */
+    private void showCreerAvec() {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Créer une AVEC");
+        dialog.setHeaderText("Nouvelle Association Villageoise d'Épargne et de Crédit");
+        
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(20));
+        content.setPrefWidth(450);
+        
+        // Nom de l'AVEC
+        Label nomLabel = new Label("Nom de l'AVEC *");
+        nomLabel.setStyle("-fx-font-weight: bold;");
+        TextField nomField = new TextField();
+        nomField.setPromptText("Ex: AVEC Ndiarème");
+        nomField.setStyle(Styles.CHAMP_TEXTE);
+        
+        // Prix de la part
+        Label prixLabel = new Label("Prix de la part (FCFA) *");
+        prixLabel.setStyle("-fx-font-weight: bold;");
+        TextField prixPartField = new TextField();
+        prixPartField.setPromptText("Ex: 500");
+        prixPartField.setStyle(Styles.CHAMP_TEXTE);
+        
+        // Lieu de réunion
+        Label lieuLabel = new Label("Lieu de réunion *");
+        lieuLabel.setStyle("-fx-font-weight: bold;");
+        TextField lieuField = new TextField();
+        lieuField.setPromptText("Ex: Chez le président");
+        lieuField.setStyle(Styles.CHAMP_TEXTE);
+        
+        // Jour de réunion
+        Label jourLabel = new Label("Jour de réunion *");
+        jourLabel.setStyle("-fx-font-weight: bold;");
+        ComboBox<JourReunion> jourCombo = new ComboBox<>();
+        jourCombo.setItems(FXCollections.observableArrayList(JourReunion.values()));
+        jourCombo.setStyle(Styles.CHAMP_TEXTE);
+        
+        // Nombre max de membres
+        Label nbMembresLabel = new Label("Nombre max de membres");
+        Spinner<Integer> nbMembresSpinner = new Spinner<>(10, 30, 15);
+        nbMembresSpinner.setStyle(Styles.CHAMP_TEXTE);
+        
+        // Taux frais service
+        Label tauxLabel = new Label("Taux frais service mensuel (%)");
+        TextField tauxField = new TextField("5");
+        tauxField.setStyle(Styles.CHAMP_TEXTE);
+        
+        content.getChildren().addAll(
+            nomLabel, nomField,
+            prixLabel, prixPartField,
+            lieuLabel, lieuField,
+            jourLabel, jourCombo,
+            nbMembresLabel, nbMembresSpinner,
+            tauxLabel, tauxField
+        );
+        
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        
+        dialog.setResultConverter(button -> {
+            if (button == ButtonType.OK) {
+                try {
+                    String nom = nomField.getText().trim();
+                    BigDecimal prixPart = new BigDecimal(prixPartField.getText().trim());
+                    String lieuReunion = lieuField.getText().trim();
+                    JourReunion jourReunion = jourCombo.getValue();
+                    
+                    if (nom.isEmpty() || prixPart.compareTo(BigDecimal.ZERO) <= 0) {
+                        showAlert("Erreur", "Veuillez remplir tous les champs obligatoires");
+                        return null;
+                    }
+                    
+                    // ✅ Créer l'AVEC avec l'agent villageois connecté
+                    Avec avec = avecService.creerAvec(nom, prixPart, agentVillageois.getId());
+                    
+                    // Mettre à jour les paramètres supplémentaires
+                    avec.setNombreMembresMax(nbMembresSpinner.getValue());
+                    avec.setTauxFraisServiceMensuel(new BigDecimal(tauxField.getText().trim()));
+                    avecService.modifierAvec(avec);
+                    
+                    showInfo("Succès", "AVEC créée avec succès!\n" +
+                            "Nom: " + avec.getNom() + "\n" +
+                            "Code: " + avec.getCodeUnique());
+                    
+                    // Rafraîchir la liste
+                    try {
+                        List<Avec> avecs = avecService.getAvecsByAgentVillageois(agentVillageois.getId());
+                        if (avecs != null) {
+                            avecTable.setItems(FXCollections.observableArrayList(avecs));
+                        }
+                    } catch (SQLException e) {
+                        showAlert("Erreur", "Erreur: " + e.getMessage());
+                    }
+                    
+                } catch (Exception e) {
+                    showAlert("Erreur", "Erreur: " + e.getMessage());
+                }
+            }
+            return null;
+        });
+        
+        dialog.showAndWait();
+    }
+    
+    /**
+     * ✅ Gestion du comité de gestion
+     */
+    private void gererComite(Avec avec) {
+        try {
+            List<Membre> membres = membreService.getMembresByAvecId(avec.getId());
+            List<Membre> membresActifs = membres.stream()
+                    .filter(m -> m.getStatut() == StatutMembre.ACTIF)
+                    .collect(Collectors.toList());
+            
+            if (membresActifs.isEmpty()) {
+                showAlert("Information", "Aucun membre actif dans cette AVEC. Ajoutez d'abord des membres.");
+                return;
+            }
+            
+            Dialog<ButtonType> dialog = new Dialog<>();
+            dialog.setTitle("Comité de gestion");
+            dialog.setHeaderText("Élection du comité pour " + avec.getNom());
+            
+            VBox content = new VBox(10);
+            content.setPadding(new Insets(20));
+            content.setPrefWidth(400);
+            
+            Label infoLabel = new Label("Sélectionnez les membres du comité selon la procédure d'élection (vote secret avec cailloux):");
+            infoLabel.setStyle("-fx-font-weight: bold;");
+            infoLabel.setWrapText(true);
+            
+            ComboBox<Membre> presidentCombo = new ComboBox<>();
+            presidentCombo.setPromptText("Président");
+            presidentCombo.setItems(FXCollections.observableArrayList(membresActifs));
+            presidentCombo.setStyle(Styles.CHAMP_TEXTE);
+            
+            ComboBox<Membre> secretaireCombo = new ComboBox<>();
+            secretaireCombo.setPromptText("Secrétaire");
+            secretaireCombo.setItems(FXCollections.observableArrayList(membresActifs));
+            secretaireCombo.setStyle(Styles.CHAMP_TEXTE);
+            
+            ComboBox<Membre> tresorierCombo = new ComboBox<>();
+            tresorierCombo.setPromptText("Trésorier");
+            tresorierCombo.setItems(FXCollections.observableArrayList(membresActifs));
+            tresorierCombo.setStyle(Styles.CHAMP_TEXTE);
+            
+            ComboBox<Membre> compteur1Combo = new ComboBox<>();
+            compteur1Combo.setPromptText("Compteur 1");
+            compteur1Combo.setItems(FXCollections.observableArrayList(membresActifs));
+            compteur1Combo.setStyle(Styles.CHAMP_TEXTE);
+            
+            ComboBox<Membre> compteur2Combo = new ComboBox<>();
+            compteur2Combo.setPromptText("Compteur 2");
+            compteur2Combo.setItems(FXCollections.observableArrayList(membresActifs));
+            compteur2Combo.setStyle(Styles.CHAMP_TEXTE);
+            
+            content.getChildren().addAll(
+                infoLabel,
+                new Separator(),
+                new Label("Président:"), presidentCombo,
+                new Label("Secrétaire:"), secretaireCombo,
+                new Label("Trésorier:"), tresorierCombo,
+                new Label("Compteur 1:"), compteur1Combo,
+                new Label("Compteur 2:"), compteur2Combo
+            );
+            
+            dialog.getDialogPane().setContent(content);
+            dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+            
+            dialog.setResultConverter(button -> {
+                if (button == ButtonType.OK) {
+                    try {
+                        List<MembreService.ResultatElection> resultats = new ArrayList<>();
+                        resultats.add(new MembreService.ResultatElection(presidentCombo.getValue().getId(), RoleComite.PRESIDENT));
+                        resultats.add(new MembreService.ResultatElection(secretaireCombo.getValue().getId(), RoleComite.SECRETAIRE));
+                        resultats.add(new MembreService.ResultatElection(tresorierCombo.getValue().getId(), RoleComite.TRESORIER));
+                        resultats.add(new MembreService.ResultatElection(compteur1Combo.getValue().getId(), RoleComite.COMPTEUR));
+                        resultats.add(new MembreService.ResultatElection(compteur2Combo.getValue().getId(), RoleComite.COMPTEUR));
+                        
+                        if (membreService.organiserElection(avec.getId(), resultats)) {
+                            showInfo("Succès", "Comité de gestion élu avec succès!");
+                        } else {
+                            showAlert("Erreur", "Échec de l'élection");
+                        }
+                    } catch (Exception e) {
+                        showAlert("Erreur", "Erreur: " + e.getMessage());
+                    }
+                }
+                return null;
+            });
+            
+            dialog.showAndWait();
+            
+        } catch (SQLException e) {
+            showAlert("Erreur", "Impossible de charger les membres: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * ✅ Gestion des membres (ouverture de la vue MembreView)
+     */
+//    private void gererMembres(Avec avec) {
+//        // Ouvrir la vue de gestion des membres
+//        MembreView membreView = new MembreView(mainApp, session.getUtilisateur());
+//        root.setCenter(membreView.getRoot());
+//        
+//        // Filtrer pour afficher uniquement les membres de cette AVEC
+//        // Cette partie nécessite une modification de MembreView pour accepter un filtre
+//    }
     
     private void demarrerFormation(Avec avec) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("Formation AVEC");
         alert.setHeaderText("Démarrage de la formation - " + avec.getNom());
-        alert.setContentText("Module 1: Groupes, leadership et élections\n\n" +
-                            "Objectifs:\n" +
-                            "- Auto-sélection individuelle\n" +
-                            "- Rôle de l'Assemblée Générale\n" +
-                            "- Rôles des dirigeants\n" +
-                            "- Préparation aux élections\n" +
-                            "- Procédures d'élection (vote secret avec cailloux)");
+        
+        TextArea content = new TextArea();
+        content.setText("Module 1: Groupes, leadership et élections\n\n" +
+                        "Objectifs:\n" +
+                        "- Auto-sélection individuelle\n" +
+                        "- Rôle de l'Assemblée Générale\n" +
+                        "- Rôles des dirigeants\n" +
+                        "- Préparation aux élections\n" +
+                        "- Procédures d'élection (vote secret avec cailloux)\n\n" +
+                        "Procédure:\n" +
+                        "1. Disposer les chaises en cercle (voir diagramme du guide)\n" +
+                        "2. Expliquer les qualités d'un bon membre\n" +
+                        "3. Expliquer les rôles (Président, Secrétaire, Trésorier, Compteurs)\n" +
+                        "4. Organiser les élections avec la méthode des cailloux\n" +
+                        "5. Faire signer le contrat entre l'AVEC et l'Agent Villageois");
+        content.setWrapText(true);
+        content.setEditable(false);
+        content.setPrefHeight(300);
+        content.setPrefWidth(400);
+        
+        alert.getDialogPane().setContent(content);
         alert.showAndWait();
     }
     
@@ -427,7 +719,6 @@ public class AgentVillageoisDashboardView {
         Label title = new Label("Planning des visites de formation");
         title.setStyle(Styles.TITRE_PRINCIPAL);
         
-        // Calendrier
         DatePicker datePicker = new DatePicker(LocalDate.now());
         datePicker.setStyle(Styles.CHAMP_TEXTE);
         
@@ -508,6 +799,14 @@ public class AgentVillageoisDashboardView {
     
     private void showAlert(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+    
+    private void showInfo(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);

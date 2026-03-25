@@ -5,6 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -67,6 +68,43 @@ public class AgentVillageoisDao {
         } finally {
             try {
                 if (rs != null) rs.close();
+                if (pstmt != null) pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+    
+ // Dans AgentVillageoisDAO.java
+    public boolean enregistrerAVParAt(AgentVillageois agent) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        
+        try {
+            // D'abord sauvegarder dans Utilisateur
+            if (!utilisateurDao.ajouter(agent)) {
+                return false;
+            }
+            
+            conn = DBConnection.getConnection();
+            String sql = "INSERT INTO agent_villageois (id, agent_terrain_id, avec_origine_id) VALUES (?, ?, ?)";
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setLong(1, agent.getId());
+            pstmt.setLong(2, agent.getAgentTerrain().getId());
+            
+            if (agent.getAvecOrigineId() != null) {
+                pstmt.setLong(3, agent.getAvecOrigineId());
+            } else {
+                pstmt.setNull(3, Types.BIGINT);
+            }
+            
+            return pstmt.executeUpdate() > 0;
+            
+        } catch (SQLException e) {
+            System.err.println("Erreur: " + e.getMessage());
+            return false;
+        } finally {
+            try {
                 if (pstmt != null) pstmt.close();
             } catch (SQLException e) {
                 e.printStackTrace();

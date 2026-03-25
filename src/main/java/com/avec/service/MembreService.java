@@ -20,10 +20,12 @@ public class MembreService {
 
     private final MembreDAO membreDAO;
     private final AvecDAO avecDAO;
+    private Membre membre;
 
     public MembreService() {
         this.membreDAO = new MembreDAO();
         this.avecDAO = new AvecDAO();
+        this.membre = new Membre();
     }
 
     /**
@@ -57,7 +59,7 @@ public class MembreService {
                     avec.getNombreMembresMax() + ")");
         }
 
-        int numeroMembre = membreDAO.getProchainNumeroMembre(avecId);
+        String numeroMembre = membre.getNumeroCarte();
 
         Membre membre = new Membre(nom, prenom, numeroMembre, LocalDate.now());
         membre.setAvecId(avecId);

@@ -134,7 +134,7 @@ public class MembreDAO {
      */
     public List<Membre> findByAvecId(long avecId) throws SQLException {
         List<Membre> membres = new ArrayList<>();
-        String sql = "SELECT * FROM membres WHERE avec_id = ? ORDER BY nom, prenom";
+        String sql = "SELECT * FROM membre WHERE avec_id = ? ORDER BY nom, prenom";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -154,7 +154,7 @@ public class MembreDAO {
      * Trouve un membre par son numéro de carte
      */
     public Membre findByNumeroCarte(String numeroCarte) throws SQLException {
-        String sql = "SELECT * FROM membres WHERE numero_carte = ?";
+        String sql = "SELECT * FROM membre WHERE numero_carte = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -175,7 +175,7 @@ public class MembreDAO {
      */
     public List<Membre> findByRoleComite(RoleComite role) throws SQLException {
         List<Membre> membres = new ArrayList<>();
-        String sql = "SELECT * FROM membres WHERE role_comite = ?";
+        String sql = "SELECT * FROM membre WHERE roleComite = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -196,7 +196,7 @@ public class MembreDAO {
      */
     public List<Membre> findGardiensCles(long avecId) throws SQLException {
         List<Membre> membres = new ArrayList<>();
-        String sql = "SELECT * FROM membres WHERE avec_id = ? AND role_cle != 'AUCUN'";
+        String sql = "SELECT * FROM membre WHERE avec_id = ? AND roleCle != 'AUCUN'";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -217,7 +217,7 @@ public class MembreDAO {
      */
     public List<Membre> findComiteGestion(long avecId) throws SQLException {
         List<Membre> membres = new ArrayList<>();
-        String sql = "SELECT * FROM membres WHERE avec_id = ? AND role_comite != 'AUCUN'";
+        String sql = "SELECT * FROM membre WHERE avec_id = ? AND roleComite != 'AUCUN'";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -237,7 +237,7 @@ public class MembreDAO {
      * Compte le nombre de membres actifs dans une AVEC
      */
     public int countActifsByAvecId(long avecId) throws SQLException {
-        String sql = "SELECT COUNT(*) FROM membres WHERE avec_id = ? AND statut = 'ACTIF'";
+        String sql = "SELECT COUNT(*) FROM membre WHERE avec_id = ? AND estActif = 'true'";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -257,7 +257,7 @@ public class MembreDAO {
      * Met à jour le rôle au comité
      */
     public boolean updateRoleComite(long membreId, RoleComite role) throws SQLException {
-        String sql = "UPDATE membres SET role_comite = ? WHERE id = ?";
+        String sql = "UPDATE membre SET roleComite = ? WHERE id = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -273,7 +273,7 @@ public class MembreDAO {
      * Met à jour le rôle de gardien de clé
      */
     public boolean updateRoleCle(long membreId, RoleDetenteurCle role) throws SQLException {
-        String sql = "UPDATE membres SET role_cle = ? WHERE id = ?";
+        String sql = "UPDATE membre SET roleCle = ? WHERE id = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -289,7 +289,7 @@ public class MembreDAO {
      * Réinitialise tous les rôles du comité pour une AVEC
      */
     public boolean resetAllRolesComite(long avecId) throws SQLException {
-        String sql = "UPDATE membres SET role_comite = 'AUCUN' WHERE avec_id = ?";
+        String sql = "UPDATE membre SET roleComite = 'AUCUN' WHERE avec_id = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -303,7 +303,7 @@ public class MembreDAO {
      * Réinitialise tous les rôles de gardien de clé pour une AVEC
      */
     public boolean resetAllRolesCle(long avecId) throws SQLException {
-        String sql = "UPDATE membres SET role_cle = 'AUCUN' WHERE avec_id = ?";
+        String sql = "UPDATE membre SET roleCle = 'AUCUN' WHERE avec_id = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -336,7 +336,7 @@ public class MembreDAO {
      */
     public List<Membre> searchByNom(long avecId, String recherche) throws SQLException {
         List<Membre> membres = new ArrayList<>();
-        String sql = "SELECT * FROM membres WHERE avec_id = ? AND (nom LIKE ? OR prenom LIKE ? OR nom_complet LIKE ?)";
+        String sql = "SELECT * FROM membre WHERE avec_id = ? AND (nom LIKE ? OR prenom LIKE ? OR nom_complet LIKE ?)";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {

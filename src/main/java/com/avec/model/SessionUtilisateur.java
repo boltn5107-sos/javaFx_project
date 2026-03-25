@@ -85,7 +85,7 @@ public class SessionUtilisateur {
 		return "Inconnu";
 	}
 
-	public String getTypeUtilisateurr() {
+	public String getTypeUtilisateur() {
 		return typeUtilisateur;
 	}
 

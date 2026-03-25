@@ -1,14 +1,6 @@
 package com.avec.model;
 
-<<<<<<< HEAD
-=======
-import com.avec.config.DBConnection;
-import com.avec.dao.CaisseDAO;
-import com.avec.enums.*;
-import javafx.scene.Node;
-import javafx.scene.layout.VBox;
 
->>>>>>> 1e9b2e7037b3769359e3e3f974d471ad3070e3e4
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.Date;

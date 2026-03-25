@@ -1,23 +1,23 @@
 package com.avec.service;
 
-import com.avec.dao.AvecDAO;
-import com.avec.dao.AgentVillageoisDao;
-import com.avec.dao.AgentTerrainDao;
-import com.avec.dao.MembreDAO;
-import com.avec.enums.PhaseCycle;
-import com.avec.enums.StatutAvec;
-import com.avec.enums.JourReunion;
-import com.avec.enums.StatutMembre;
-import com.avec.model.Avec;
-import com.avec.model.AgentVillageois;
-import com.avec.model.AgentTerrain;
-import com.avec.model.Membre;
-
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+
+import com.avec.dao.AgentTerrainDao;
+import com.avec.dao.AgentVillageoisDao;
+import com.avec.dao.AvecDAO;
+import com.avec.dao.MembreDAO;
+import com.avec.enums.PhaseCycle;
+import com.avec.enums.StatutAvec;
+import com.avec.enums.StatutMembre;
+import com.avec.model.AgentTerrain;
+import com.avec.model.AgentVillageois;
+import com.avec.model.Avec;
+import com.avec.model.Membre;
 
 /**
  * Service pour la gestion des AVEC
@@ -296,6 +296,13 @@ public class AvecService {
         String uuid = UUID.randomUUID().toString().substring(0, 4).toUpperCase();
         return prefix + "-" + annee + "-" + uuid;
     }
+    /*
+    * Récupère les AVEC supervisées par un agent terrain
+    */
+   public List<Avec> getAvecsByAgentTerrainId(Long agentTerrainId) throws SQLException {
+       if (agentTerrainId == null) return new ArrayList<>();
+       return avecDAO.findByAgentTerrainId(agentTerrainId);
+   }
 
     /**
      * Classe interne pour les statistiques des AVEC

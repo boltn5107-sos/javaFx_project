@@ -491,5 +491,24 @@ public class AvecDAO {
         }
         return null;
     }
+    
+    public List<Avec> findByAgentTerrainId(Long agentTerrainId) throws SQLException {
+        List<Avec> avecs = new ArrayList<>();
+        String sql = "SELECT * FROM avec WHERE agentTerrain_id = ? ORDER BY nom";
+        
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setLong(1, agentTerrainId);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    avecs.add(mapResultSetToAvec(rs));
+                }
+            }
+        }
+        return avecs;
+    }
+
 
 }
