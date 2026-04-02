@@ -23,8 +23,16 @@ public class AchatPart {
         return id;
     }
 
+    public void setId(Long id) {
+        this.id = id;
+    }
+
     public int getNombreParts() {
         return nombreParts;
+    }
+
+    public void setNombreParts(int nombreParts) {
+        this.nombreParts = nombreParts;
     }
 
     public BigDecimal getMontantTotal() {
@@ -49,8 +57,5 @@ public class AchatPart {
 
     public void setReunion(Reunion reunion) {
         this.reunion = reunion;
-    }
-
-    public void setMembreId(Long id) {
     }
 }

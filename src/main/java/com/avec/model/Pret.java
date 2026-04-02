@@ -30,12 +30,12 @@ public class Pret {
     private Long approuveParId;
     private Membre approuvePar;
 
-    //private List<Remboursement> remboursements;
+    private List<Remboursement> remboursements;
     private List<DecaissementPret> decaissements;
 
 
     public Pret(){
-        //this.remboursements = new ArrayList<>();
+        this.remboursements = new ArrayList<>();
         this.decaissements = new ArrayList<>();
         this.statut = StatutPret.ACTIF;
     }
@@ -55,16 +55,21 @@ public class Pret {
     }
 
 
-    public void setNumeroPret(String text) { this.numeroPret = numeroPret; }
     public String getNumeroPret() {
         return numeroPret;
+    }
+    
+    public void setNumeroPret(String text) {
+        this.numeroPret = numeroPret;
     }
 
     public BigDecimal getMontantInitial() {
         return montantInitial;
     }
 
-    public void setMontantInitial(BigDecimal bigDecimal) { this.montantInitial = montantInitial; }
+    public void setMontantInitial(BigDecimal bigDecimal) { 
+        this.montantInitial = montantInitial;
+     }
 
     public StatutPret getStatut() {
         return statut;
@@ -199,13 +204,13 @@ public class Pret {
         }
     }
 
-//    public List<Remboursement> getRemboursements() {
-//        return remboursements;
-//    }
-//
-//    public void setRemboursements(List<Remboursement> remboursements) {
-//        this.remboursements = remboursements;
-//    }
+   public List<Remboursement> getRemboursements() {
+       return remboursements;
+   }
+
+   public void setRemboursements(List<Remboursement> remboursements) {
+       this.remboursements = remboursements;
+   }
 
 
     public List<DecaissementPret> getDecaissements() {
