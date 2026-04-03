@@ -56,4 +56,7 @@ public class UtilisateurService {
 		
 		return utilisateurDao.spprimer(id);
 	}
+	public int getNombreUtilisateurs() {
+		return utilisateurDao.getNombreUtilisateur();
+	}
 }

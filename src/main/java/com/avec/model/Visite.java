@@ -1,38 +1,78 @@
 package com.avec.model;
 
-import com.avec.enums.ModuleFormation;
-
-import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class Visite {
 
     private Long id;
+    private LocalDateTime date;
+    private String module;
+    private String observations;
+    private boolean moduleComplete; 
+    private int numeroVisite;
+    
+    // Relations
     private Long avecId;
     private Avec avec;
     private Long agentVillageoisId;
     private AgentVillageois agentVillageois;
-    private Long reunionId;
-    private LocalDate date;
-    private LocalTime heureArrivee;
-    private LocalTime heureDepart;
-    private ModuleFormation module;
-    private int numeroVisite;
-    private String observations;
-    private boolean moduleComplete;
-    private String recommandations;
+    private Long superviseurPresentId;
+    private AgentTerrain superviseurPresent;
 
     public Visite() {
+        this.date = LocalDateTime.now();
     }
+    
+    
+    public boolean isModuleComplete() {  // ✅ Méthode getter pour boolean
+        return moduleComplete;
+    }
+    
+    public void setModuleComplete(boolean moduleComplete) {
+        this.moduleComplete = moduleComplete;
+    }
+    
+    public int getNumeroVisite() {
+        return numeroVisite;
+    }
+    
+    public void setNumeroVisite(int numeroVisite) {
+        this.numeroVisite = numeroVisite;
+    }
+    
 
     // Getters et Setters
-
     public Long getId() {
         return id;
     }
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public LocalDateTime getDate() {
+        return date;
+    }
+
+    public void setDate(LocalDateTime date) {
+        this.date = date;
+    }
+
+    public String getModule() {
+        return module;
+    }
+
+    public void setModule(String module) {
+        this.module = module;
+    }
+
+    public String getObservations() {
+        return observations;
+    }
+
+    public void setObservations(String observations) {
+        this.observations = observations;
     }
 
     public Long getAvecId() {
@@ -73,75 +113,38 @@ public class Visite {
         }
     }
 
-    public Long getReunionId() {
-        return reunionId;
+    public Long getSuperviseurPresentId() {
+        return superviseurPresentId;
     }
 
-    public void setReunionId(Long reunionId) {
-        this.reunionId = reunionId;
+    public void setSuperviseurPresentId(Long superviseurPresentId) {
+        this.superviseurPresentId = superviseurPresentId;
     }
 
-    public LocalDate getDate() {
-        return date;
+    public AgentTerrain getSuperviseurPresent() {
+        return superviseurPresent;
     }
 
-    public void setDate(LocalDate date) {
-        this.date = date;
+    public void setSuperviseurPresent(AgentTerrain superviseurPresent) {
+        this.superviseurPresent = superviseurPresent;
+        if (superviseurPresent != null) {
+            this.superviseurPresentId = superviseurPresent.getId();
+        }
     }
 
-    public LocalTime getHeureArrivee() {
-        return heureArrivee;
+    public String getDateFormatted() {
+        if (date != null) {
+            return date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
+        }
+        return "";
     }
 
-    public void setHeureArrivee(LocalTime heureArrivee) {
-        this.heureArrivee = heureArrivee;
-    }
-
-    public LocalTime getHeureDepart() {
-        return heureDepart;
-    }
-
-    public void setHeureDepart(LocalTime heureDepart) {
-        this.heureDepart = heureDepart;
-    }
-
-    public ModuleFormation getModule() {
-        return module;
-    }
-
-    public void setModule(ModuleFormation module) {
-        this.module = module;
-    }
-
-    public int getNumeroVisite() {
-        return numeroVisite;
-    }
-
-    public void setNumeroVisite(int numeroVisite) {
-        this.numeroVisite = numeroVisite;
-    }
-
-    public String getObservations() {
-        return observations;
-    }
-
-    public void setObservations(String observations) {
-        this.observations = observations;
-    }
-
-    public boolean isModuleComplete() {
-        return moduleComplete;
-    }
-
-    public void setModuleComplete(boolean moduleComplete) {
-        this.moduleComplete = moduleComplete;
-    }
-
-    public String getRecommandations() {
-        return recommandations;
-    }
-
-    public void setRecommandations(String recommandations) {
-        this.recommandations = recommandations;
+    @Override
+    public String toString() {
+        return "Visite{" +
+                "id=" + id +
+                ", date=" + date +
+                ", module='" + module + '\'' +
+                '}';
     }
 }

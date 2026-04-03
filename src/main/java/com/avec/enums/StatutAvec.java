@@ -6,7 +6,7 @@ package com.avec.enums;
 
  public enum StatutAvec{
     EN_FORMATION("En formation"),
-    ACTVIE("Active"),
+    ACTIVE("Active"),
     EN_PAUSE("En pause"),
     TERMINE("Termine"),
     EN_DISSOLUTION("En dissolution");

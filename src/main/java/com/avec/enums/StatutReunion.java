@@ -1,15 +1,14 @@
 package com.avec.enums;
 
-public enum StatutPret {
-    ACTIF("Actif"),
-    REMBOURSE("Remboursé"),
-    EN_RETARD("En retard"),
-    EN_ATTENTE("En attente"),
-    IMPAYE("Impayé");
+public enum StatutReunion {
+    PLANIFIEE("Planifiée"),
+    EN_COURS("En cours"),
+    TERMINEE("Terminée"),
+    ANNULEE("Annulée");
 
     private final String libelle;
 
-    StatutPret(String libelle) {
+    StatutReunion(String libelle) {
         this.libelle = libelle;
     }
 

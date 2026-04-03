@@ -16,7 +16,7 @@ public class CycleDAO {
      * Insère un nouveau cycle
      */
     public Cycle insert(Cycle cycle) throws SQLException {
-        String sql = "INSERT INTO cycles (date_debut, date_fin_prevue, date_fin_reelle, statut, " +
+        String sql = "INSERT INTO cycle (date_debut, date_fin_prevue, date_fin_reelle, statut, " +
                 "fonds_credit_final, total_parts_achetees, valeur_part, numero_cycle, avec_id) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
@@ -53,7 +53,7 @@ public class CycleDAO {
      * Met à jour un cycle existant
      */
     public boolean update(Cycle cycle) throws SQLException {
-        String sql = "UPDATE cycles SET date_debut = ?, date_fin_prevue = ?, date_fin_reelle = ?, " +
+        String sql = "UPDATE cycle SET date_debut = ?, date_fin_prevue = ?, date_fin_reelle = ?, " +
                 "statut = ?, fonds_credit_final = ?, total_parts_achetees = ?, valeur_part = ?, " +
                 "numero_cycle = ? WHERE id = ?";
 
@@ -78,7 +78,7 @@ public class CycleDAO {
      * Trouve un cycle par son ID
      */
     public Cycle findById(long id) throws SQLException {
-        String sql = "SELECT * FROM cycles WHERE id = ?";
+        String sql = "SELECT * FROM cycle WHERE id = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -99,7 +99,7 @@ public class CycleDAO {
      */
     public List<Cycle> findByAvecId(long avecId) throws SQLException {
         List<Cycle> cycles = new ArrayList<>();
-        String sql = "SELECT * FROM cycles WHERE avec_id = ? ORDER BY numero_cycle DESC";
+        String sql = "SELECT * FROM cycle WHERE avec_id = ? ORDER BY numero_cycle DESC";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -119,7 +119,7 @@ public class CycleDAO {
      * Trouve le cycle en cours d'une AVEC
      */
     public Cycle findEnCoursByAvecId(long avecId) throws SQLException {
-        String sql = "SELECT * FROM cycles WHERE avec_id = ? AND statut = 'EN_COURS'";
+        String sql = "SELECT * FROM cycle WHERE avec_id = ? AND statut = 'EN_COURS'";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -140,7 +140,7 @@ public class CycleDAO {
      */
     public List<Cycle> findAll() throws SQLException {
         List<Cycle> cycles = new ArrayList<>();
-        String sql = "SELECT * FROM cycles ORDER BY date_debut DESC";
+        String sql = "SELECT * FROM cycle ORDER BY date_debut DESC";
 
         try (Connection conn = DBConnection.getConnection();
              Statement stmt = conn.createStatement();
@@ -157,7 +157,7 @@ public class CycleDAO {
      * Supprime un cycle
      */
     public boolean delete(long id) throws SQLException {
-        String sql = "DELETE FROM cycles WHERE id = ?";
+        String sql = "DELETE FROM cycle WHERE id = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {

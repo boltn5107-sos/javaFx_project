@@ -32,7 +32,7 @@ public class ReunionView {
             reunion.setDate(datePicker.getValue());
             reunion.setType(typeReunion.getValue());
 
-            reunionService.creerReunion(reunion);
+            reunionService.enregistrerReunion(reunion);
 
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
             alert.setContentText("Réunion enregistrée");

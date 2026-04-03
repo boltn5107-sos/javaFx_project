@@ -15,6 +15,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
@@ -210,7 +211,7 @@ public class MembreView {
         });
 
         // Colonnes
-        TableColumn<Membre, String> colNumero = new TableColumn<>("N° Carte");
+        TableColumn<Membre, Integer> colNumero = new TableColumn<>("N° Membre");
         colNumero.setCellValueFactory(new PropertyValueFactory<>("numeroCarte"));
         colNumero.setPrefWidth(120);
 
@@ -544,7 +545,7 @@ public class MembreView {
 
                 membresObservable.add(created);
                 mettreAJourStatistiques(membresObservable);
-                AlertUtils.showInfo("Succès", "Membre créé", "Numéro de carte: " + created.getNumeroCarte());
+                AlertUtils.showInfo("Succès", "Membre créé", "N° Membre: " + created.getNumeroCarte());
 
             } catch (SQLException | IllegalArgumentException e) {
                 AlertUtils.showError("Erreur", "Impossible de créer le membre", e.getMessage());
@@ -689,7 +690,7 @@ public class MembreView {
                         "Profession: %s\n" +
                         "Village: %s\n" +
                         "Téléphone: %s",
-                membre.getNumeroCarte(),
+                "N° Membre: " + membre.getNumeroCarte(),
                 membre.getNomComplet(),
                 membre.getStatut().getLibelle(),
                 FormatUtils.formatDate(membre.getDateAdhesion()),
@@ -717,5 +718,10 @@ public class MembreView {
             case SUSPENDU -> "badge-warning";
             case RADIE -> "badge-danger";
         };
+    }
+
+    public Parent getRoot() {
+
+        return null;
     }
 }

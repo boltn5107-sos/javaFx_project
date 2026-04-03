@@ -1,5 +1,7 @@
 package com.avec.view;
 
+import java.util.List;
+
 import com.avec.MainApp;
 import com.avec.config.Styles;
 import com.avec.model.AgentTerrain;
@@ -7,14 +9,27 @@ import com.avec.model.AgentVillageois;
 import com.avec.model.Utilisateur;
 import com.avec.service.AgentTerrainService;
 import com.avec.service.AgentVillageoisService;
+
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.layout.*;
-import java.util.List;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
 
 public class AgentVillageoisView {
     
@@ -89,9 +104,9 @@ public class AgentVillageoisView {
         
         Label countLabel = new Label();
         countLabel.setStyle("-fx-background-color: " + Styles.BLEU_SECONDAIRE + ";" +
-                "-fx-text-fill: white;" +
-                "-fx-padding: 5 10;" +
-                "-fx-background-radius: 15;");
+                          "-fx-text-fill: white;" +
+                          "-fx-padding: 5 10;" +
+                          "-fx-background-radius: 15;");
         countLabel.setText(agentVillageoisService.getNombreAgentVillageois() + " agents");
         
         Region spacer = new Region();
@@ -162,19 +177,12 @@ public class AgentVillageoisView {
         TableView<AgentVillageois> table = new TableView<>();
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         table.setStyle("-fx-background-color: " + Styles.BLANC + ";");
-        
-        // IMPORTANT: Ne pas ajouter de listener automatique ici
-        // On utilisera le double-clic ou le bouton Modifier
-        
         table.setRowFactory(tv -> {
             TableRow<AgentVillageois> row = new TableRow<>();
             row.setOnMouseClicked(event -> {
                 if (event.getClickCount() == 2 && !row.isEmpty()) {
                     AgentVillageois rowData = row.getItem();
-                    agentEnCours = rowData;
                     afficherAgent(rowData);
-                    passwordField.setDisable(true);
-                    System.out.println("Double-clic: agentEnCours = " + (agentEnCours != null ? agentEnCours.getNom() : "null"));
                 }
             });
             return row;
@@ -200,7 +208,7 @@ public class AgentVillageoisView {
         TableColumn<AgentVillageois, String> colAgentTerrain = new TableColumn<>("Agent Terrain");
         colAgentTerrain.setCellValueFactory(cellData -> {
             AgentVillageois agent = cellData.getValue();
-            if (agent != null && agent.getAgentTerrain() != null) {
+            if (agent.getAgentTerrain() != null) {
                 return new javafx.beans.property.SimpleStringProperty(
                     agent.getAgentTerrain().getPrenom() + " " + agent.getAgentTerrain().getNom()
                 );
@@ -345,100 +353,67 @@ public class AgentVillageoisView {
     
     private void nouvelAgent() {
         agentEnCours = new AgentVillageois();
-        System.out.println("Nouvel agent créé: " + agentEnCours);
-        
-        nomField.clear();
-        prenomField.clear();
-        emailField.clear();
-        telephoneField.clear();
-        passwordField.clear();
-        agentTerrainComboBox.setValue(null);
+        afficherAgent(agentEnCours);
         passwordField.setDisable(false);
-        
-        table.getSelectionModel().clearSelection();
     }
     
     private void modifierAgent() {
         AgentVillageois selected = table.getSelectionModel().getSelectedItem();
         if (selected != null) {
-            agentEnCours = selected;
-            System.out.println("Agent sélectionné pour modification: " + agentEnCours.getNom());
             afficherAgent(selected);
-            passwordField.setDisable(true);
+            passwordField.setDisable(true); // Ne pas modifier le mot de passe
         } else {
-            showAlert("Sélection requise", "Veuillez sélectionner un agent à modifier.");
+            showAlert("Sélection required", "Veuillez sélectionner un agent à modifier.");
         }
     }
     
     private void afficherAgent(AgentVillageois agent) {
-        if (agent == null) {
-            System.out.println("ERREUR: afficherAgent reçoit null");
-            return;
-        }
-        
         agentEnCours = agent;
-        System.out.println("Affichage agent: " + agent.getNom());
         
-        nomField.setText(agent.getNom() != null ? agent.getNom() : "");
-        prenomField.setText(agent.getPrenom() != null ? agent.getPrenom() : "");
-        emailField.setText(agent.getEmail() != null ? agent.getEmail() : "");
-        telephoneField.setText(agent.getTelephone() != null ? agent.getTelephone() : "");
+        nomField.setText(agent.getNom());
+        prenomField.setText(agent.getPrenom());
+        emailField.setText(agent.getEmail());
+        telephoneField.setText(agent.getTelephone());
         agentTerrainComboBox.setValue(agent.getAgentTerrain());
         passwordField.clear();
     }
     
     private void enregistrerAgent() {
-        System.out.println("=== DÉBUT enregistrerAgent ===");
-        System.out.println("agentEnCours = " + agentEnCours);
-        
-        if (agentEnCours == null) {
-            System.out.println("ERREUR: agentEnCours est null!");
-            showAlert("Erreur",
-                    "Aucun agent villageois sélectionné. Veuillez cliquer sur 'Ajouter' ou sélectionner un agent dans la liste.");
-            return;
-        }
-        
-        System.out.println("ID agent = " + agentEnCours.getId());
-        System.out.println("Nom agent = " + agentEnCours.getNom());
-        
-        // Validation des champs
-        if (nomField.getText() == null || nomField.getText().trim().isEmpty()) {
+        // Validation
+        if (nomField.getText().trim().isEmpty()) {
             showAlert("Erreur", "Le nom est obligatoire");
             return;
         }
-        if (prenomField.getText() == null || prenomField.getText().trim().isEmpty()) {
+        if (prenomField.getText().trim().isEmpty()) {
             showAlert("Erreur", "Le prénom est obligatoire");
             return;
         }
-        if (emailField.getText() == null || emailField.getText().trim().isEmpty()) {
+        if (emailField.getText().trim().isEmpty()) {
             showAlert("Erreur", "L'email est obligatoire");
             return;
         }
-        
-        AgentTerrain agentTerrainSelectionne = agentTerrainComboBox.getValue();
-        if (agentTerrainSelectionne == null) {
+        if (agentTerrainComboBox.getValue() == null) {
             showAlert("Erreur", "Veuillez sélectionner un agent terrain");
             return;
         }
-        
-        if (agentEnCours.getId() == null && (passwordField.getText() == null || passwordField.getText().trim().isEmpty())) {
+        if (agentEnCours.getId() == null && passwordField.getText().trim().isEmpty()) {
             showAlert("Erreur", "Le mot de passe est obligatoire pour un nouvel agent");
             return;
         }
         
-        // Remplir l'agent villageois
+        // Remplir l'agent
         agentEnCours.setNom(nomField.getText().trim());
         agentEnCours.setPrenom(prenomField.getText().trim());
         agentEnCours.setEmail(emailField.getText().trim());
-        agentEnCours.setTelephone(telephoneField.getText() != null ? telephoneField.getText().trim() : "");
-        agentEnCours.setAgentTerrain(agentTerrainSelectionne);
+        agentEnCours.setTelephone(telephoneField.getText().trim());
+        agentEnCours.setAgentTerrain(agentTerrainComboBox.getValue());
         
-        if (passwordField.getText() != null && !passwordField.getText().trim().isEmpty()) {
+        if (!passwordField.getText().trim().isEmpty()) {
             agentEnCours.setMotDePasse(passwordField.getText().trim());
         }
         
         if (agentEnCours.getId() == null) {
-            System.out.println("Tentative d'ajout d'un nouvel agent");
+            // Nouvel agent
             if (agentVillageoisService.enregistrerAgentVillageois(agentEnCours)) {
                 showInfo("Succès", "Agent villageois ajouté avec succès");
                 loadAgents();
@@ -447,7 +422,7 @@ public class AgentVillageoisView {
                 showAlert("Erreur", "Échec de l'ajout de l'agent");
             }
         } else {
-            System.out.println("Tentative de mise à jour de l'agent ID: " + agentEnCours.getId());
+            // Mise à jour
             if (agentVillageoisService.modifierAgentVillageois(agentEnCours)) {
                 showInfo("Succès", "Agent villageois modifié avec succès");
                 loadAgents();
@@ -456,13 +431,12 @@ public class AgentVillageoisView {
                 showAlert("Erreur", "Échec de la modification");
             }
         }
-        System.out.println("=== FIN enregistrerAgent ===");
     }
     
     private void supprimerAgent() {
         AgentVillageois selected = table.getSelectionModel().getSelectedItem();
         if (selected == null) {
-            showAlert("Sélection requise", "Veuillez sélectionner un agent à supprimer.");
+            showAlert("Sélection required", "Veuillez sélectionner un agent à supprimer.");
             return;
         }
         
@@ -486,7 +460,6 @@ public class AgentVillageoisView {
     
     private void annulerFormulaire() {
         agentEnCours = null;
-        System.out.println("Formulaire annulé, agentEnCours = null");
         nomField.clear();
         prenomField.clear();
         emailField.clear();
@@ -494,7 +467,6 @@ public class AgentVillageoisView {
         passwordField.clear();
         agentTerrainComboBox.setValue(null);
         passwordField.setDisable(false);
-        table.getSelectionModel().clearSelection();
     }
     
     private void showAlert(String title, String message) {

@@ -1,16 +1,20 @@
 package com.avec.dao;
 
+import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+
 import com.avec.config.DBConnection;
 import com.avec.enums.RoleComite;
 import com.avec.enums.RoleDetenteurCle;
 import com.avec.enums.StatutMembre;
 import com.avec.model.Membre;
-
-import java.math.BigDecimal;
-import java.sql.*;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * DAO pour la gestion des membres dans la base de données
@@ -130,7 +134,7 @@ public class MembreDAO {
      */
     public List<Membre> findByAvecId(long avecId) throws SQLException {
         List<Membre> membres = new ArrayList<>();
-        String sql = "SELECT * FROM membres WHERE avec_id = ? ORDER BY nom, prenom";
+        String sql = "SELECT * FROM membre WHERE avec_id = ? ORDER BY nom, prenom";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -150,7 +154,7 @@ public class MembreDAO {
      * Trouve un membre par son numéro de carte
      */
     public Membre findByNumeroCarte(String numeroCarte) throws SQLException {
-        String sql = "SELECT * FROM membres WHERE numero_carte = ?";
+        String sql = "SELECT * FROM membre WHERE numero_carte = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -171,7 +175,7 @@ public class MembreDAO {
      */
     public List<Membre> findByRoleComite(RoleComite role) throws SQLException {
         List<Membre> membres = new ArrayList<>();
-        String sql = "SELECT * FROM membres WHERE role_comite = ?";
+        String sql = "SELECT * FROM membre WHERE roleComite = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -192,7 +196,7 @@ public class MembreDAO {
      */
     public List<Membre> findGardiensCles(long avecId) throws SQLException {
         List<Membre> membres = new ArrayList<>();
-        String sql = "SELECT * FROM membres WHERE avec_id = ? AND role_cle != 'AUCUN'";
+        String sql = "SELECT * FROM membre WHERE avec_id = ? AND roleCle != 'AUCUN'";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -213,7 +217,7 @@ public class MembreDAO {
      */
     public List<Membre> findComiteGestion(long avecId) throws SQLException {
         List<Membre> membres = new ArrayList<>();
-        String sql = "SELECT * FROM membres WHERE avec_id = ? AND role_comite != 'AUCUN'";
+        String sql = "SELECT * FROM membre WHERE avec_id = ? AND roleComite != 'AUCUN'";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -233,7 +237,7 @@ public class MembreDAO {
      * Compte le nombre de membres actifs dans une AVEC
      */
     public int countActifsByAvecId(long avecId) throws SQLException {
-        String sql = "SELECT COUNT(*) FROM membres WHERE avec_id = ? AND statut = 'ACTIF'";
+        String sql = "SELECT COUNT(*) FROM membre WHERE avec_id = ? AND estActif = 'true'";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -253,7 +257,7 @@ public class MembreDAO {
      * Met à jour le rôle au comité
      */
     public boolean updateRoleComite(long membreId, RoleComite role) throws SQLException {
-        String sql = "UPDATE membres SET role_comite = ? WHERE id = ?";
+        String sql = "UPDATE membre SET roleComite = ? WHERE id = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -269,7 +273,7 @@ public class MembreDAO {
      * Met à jour le rôle de gardien de clé
      */
     public boolean updateRoleCle(long membreId, RoleDetenteurCle role) throws SQLException {
-        String sql = "UPDATE membres SET role_cle = ? WHERE id = ?";
+        String sql = "UPDATE membre SET roleCle = ? WHERE id = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -285,7 +289,7 @@ public class MembreDAO {
      * Réinitialise tous les rôles du comité pour une AVEC
      */
     public boolean resetAllRolesComite(long avecId) throws SQLException {
-        String sql = "UPDATE membres SET role_comite = 'AUCUN' WHERE avec_id = ?";
+        String sql = "UPDATE membre SET roleComite = 'AUCUN' WHERE avec_id = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -299,7 +303,7 @@ public class MembreDAO {
      * Réinitialise tous les rôles de gardien de clé pour une AVEC
      */
     public boolean resetAllRolesCle(long avecId) throws SQLException {
-        String sql = "UPDATE membres SET role_cle = 'AUCUN' WHERE avec_id = ?";
+        String sql = "UPDATE membre SET roleCle = 'AUCUN' WHERE avec_id = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -332,7 +336,7 @@ public class MembreDAO {
      */
     public List<Membre> searchByNom(long avecId, String recherche) throws SQLException {
         List<Membre> membres = new ArrayList<>();
-        String sql = "SELECT * FROM membres WHERE avec_id = ? AND (nom LIKE ? OR prenom LIKE ? OR nom_complet LIKE ?)";
+        String sql = "SELECT * FROM membre WHERE avec_id = ? AND (nom LIKE ? OR prenom LIKE ? OR nom_complet LIKE ?)";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -351,6 +355,115 @@ public class MembreDAO {
         }
         return membres;
     }
+    /*
+    * Récupère TOUS les membres de toutes les AVEC
+    */
+   public List<Membre> findAll() throws SQLException {
+       List<Membre> membres = new ArrayList<>();
+       String sql = "SELECT * FROM membre ORDER BY nom, prenom";
+
+       try (Connection conn = DBConnection.getConnection();
+    		   Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql)) {
+
+           while (rs.next()) {
+               membres.add(mapResultSetToMembre(rs));
+           }
+       }
+       return membres;
+   }
+
+   /**
+    * Compte le nombre total de membres (toutes AVEC confondues)
+    */
+   public int countAll() throws SQLException {
+       String sql = "SELECT COUNT(*) FROM membre";
+
+       try (Connection conn = DBConnection.getConnection();
+    		   Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql)) {
+
+           if (rs.next()) {
+               return rs.getInt(1);
+           }
+       }
+       return 0;
+   }
+
+   /**
+    * Compte le nombre de membres actifs (toutes AVEC confondues)
+    */
+   public int countActifs() throws SQLException {
+       String sql = "SELECT COUNT(*) FROM membre WHERE statut = 'ACTIF'";
+
+       try (Connection conn = DBConnection.getConnection();
+    		   Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql)) {
+
+           if (rs.next()) {
+               return rs.getInt(1);
+           }
+       }
+       return 0;
+   }
+
+   /**
+    * Calcule le total de l'épargne de tous les membres
+    */
+   public BigDecimal sumTotalEpargne() throws SQLException {
+       String sql = "SELECT COALESCE(SUM(total_epargne), 0) FROM membre";
+
+       try (Connection conn = DBConnection.getConnection();
+    		   Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql)) {
+
+           if (rs.next()) {
+               return rs.getBigDecimal(1);
+           }
+       }
+       return BigDecimal.ZERO;
+   }
+
+   /**
+    * Calcule le total des prêts en cours de tous les membres
+    */
+   public BigDecimal sumTotalPretEnCours() throws SQLException {
+       String sql = "SELECT COALESCE(SUM(total_pret_en_cours), 0) FROM membre";
+
+       try (Connection conn = DBConnection.getConnection();
+    		   Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql)) {
+
+           if (rs.next()) {
+               return rs.getBigDecimal(1);
+           }
+       }
+       return BigDecimal.ZERO;
+   }
+
+   /**
+    * Recherche des membres par nom dans toutes les AVEC
+    */
+   public List<Membre> searchByNomGlobal(String recherche) throws SQLException {
+       List<Membre> membres = new ArrayList<>();
+       String sql = "SELECT * FROM membre WHERE nom LIKE ? OR prenom LIKE ? ORDER BY nom, prenom";
+
+       try (Connection conn = DBConnection.getConnection();
+    		   PreparedStatement stmt = conn.prepareStatement(sql)) {
+           stmt.setString(1, "%" + recherche + "%");
+           stmt.setString(2, "%" + recherche + "%");
+
+           try (ResultSet rs = stmt.executeQuery()) {
+               while (rs.next()) {
+                   membres.add(mapResultSetToMembre(rs));
+               }
+           }
+       }
+       return membres;
+   }
+
+   
+  
 
     /**
      * Map un ResultSet vers un objet Membre

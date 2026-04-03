@@ -34,7 +34,7 @@ public class PretView {
             pret.setNumeroPret(numeroPret.getText());
             pret.setMontantInitial(new BigDecimal(montant.getText()));
 
-            pretService.creerPret(pret);
+            pretService.enregistrerPret(pret);
 
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
             alert.setContentText("Pret enregistré");

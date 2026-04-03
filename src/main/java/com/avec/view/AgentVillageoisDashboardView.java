@@ -1,0 +1,831 @@
+package com.avec.view;
+
+import java.math.BigDecimal;
+import java.sql.SQLException;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import com.avec.MainApp;
+import com.avec.config.Styles;
+import com.avec.enums.JourReunion;
+import com.avec.enums.RoleComite;
+import com.avec.enums.StatutMembre;
+import com.avec.model.AgentVillageois;
+import com.avec.model.Avec;
+import com.avec.model.Membre;
+import com.avec.model.SessionUtilisateur;
+import com.avec.service.AvecService;
+import com.avec.service.MembreService;
+
+import javafx.collections.FXCollections;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.control.Accordion;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.DatePicker;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
+import javafx.scene.control.Separator;
+import javafx.scene.control.Spinner;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TitledPane;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+
+public class AgentVillageoisDashboardView {
+    
+    private MainApp mainApp;
+    private SessionUtilisateur session;
+    private AvecService avecService;
+    private MembreService membreService;
+    private BorderPane root;
+    
+    private AgentVillageois agentVillageois;
+    private TableView<Avec> avecTable;
+    
+    private static final String ICONE_TABLEAU_BORD = "📊";
+    private static final String ICONE_FORMATION = "📚";
+    private static final String ICONE_AVEC = "🤝";
+    private static final String ICONE_MODULES = "📖";
+    private static final String ICONE_CALENDRIER = "📅";
+    private static final String ICONE_HONORAIRES = "💰";
+    private static final String ICONE_DECONNEXION = "🚪";
+    
+    public AgentVillageoisDashboardView(MainApp mainApp) {
+        this.mainApp = mainApp;
+        this.session = SessionUtilisateur.getInstance();
+        this.avecService = new AvecService();
+        this.membreService = new MembreService();
+        this.agentVillageois = session.getAgentVillageois();
+        
+        if (this.agentVillageois == null) {
+            System.err.println("ERREUR: Aucun agent villageois connecté!");
+            root = new BorderPane();
+            Label errorLabel = new Label("Erreur: Vous n'êtes pas connecté en tant qu'agent villageois");
+            errorLabel.setStyle("-fx-text-fill: red;");
+            root.setCenter(errorLabel);
+            return;
+        }
+        createView();
+        loadData();
+    }
+    
+    private void createView() {
+        root = new BorderPane();
+        root.setStyle("-fx-background-color: " + Styles.GRIS_CLAIR + ";");
+        root.setTop(createHeader());
+        root.setLeft(createSidebar());
+        showDashboard();
+    }
+    
+    private HBox createHeader() {
+        HBox header = new HBox();
+        header.setAlignment(Pos.CENTER_RIGHT);
+        header.setPadding(new Insets(15, 20, 15, 20));
+        header.setStyle("-fx-background-color: " + Styles.BLANC + ";" +
+                       "-fx-border-color: " + Styles.GRIS_CLAIR + ";" +
+                       "-fx-border-width: 0 0 2 0;");
+        
+        HBox titleBox = new HBox(10);
+        titleBox.setAlignment(Pos.CENTER_LEFT);
+        
+        Label logoLabel = new Label("🌾");
+        logoLabel.setStyle("-fx-font-size: 24px;");
+        
+        Label titleLabel = new Label("AGENT VILLAGEOIS - Formateur");
+        titleLabel.setStyle(Styles.TITRE_PRINCIPAL);
+        
+        titleBox.getChildren().addAll(logoLabel, titleLabel);
+        
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        
+        HBox userBox = new HBox(15);
+        userBox.setAlignment(Pos.CENTER_RIGHT);
+        
+        Label userIcon = new Label("👤");
+        userIcon.setStyle("-fx-font-size: 20px;");
+        
+        Label userLabel = new Label(agentVillageois.getPrenom() + " " + agentVillageois.getNom());
+        userLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: " + Styles.VERT_PRINCIPAL + ";");
+        
+        Label roleLabel = new Label("(Agent Villageois)");
+        roleLabel.setStyle("-fx-text-fill: " + Styles.GRIS_FONCE + ";");
+        
+        Button logoutButton = new Button(ICONE_DECONNEXION + " Déconnexion");
+        logoutButton.setStyle(Styles.BOUTON_SECONDAIRE);
+        logoutButton.setOnMouseEntered(e -> logoutButton.setStyle(Styles.BOUTON_SECONDAIRE_HOVER));
+        logoutButton.setOnMouseExited(e -> logoutButton.setStyle(Styles.BOUTON_SECONDAIRE));
+        logoutButton.setOnAction(e -> logout());
+        
+        userBox.getChildren().addAll(userIcon, userLabel, roleLabel, logoutButton);
+        
+        header.getChildren().addAll(titleBox, spacer, userBox);
+        return header;
+    }
+    
+    private VBox createSidebar() {
+        VBox sidebar = new VBox(10);
+        sidebar.setPadding(new Insets(20));
+        sidebar.setPrefWidth(280);
+        sidebar.setStyle("-fx-background-color: " + Styles.BLANC + ";" +
+                        "-fx-border-color: " + Styles.GRIS_CLAIR + ";" +
+                        "-fx-border-width: 0 2 0 0;");
+        
+        VBox profileBox = new VBox(10);
+        profileBox.setAlignment(Pos.CENTER);
+        profileBox.setPadding(new Insets(0, 0, 20, 0));
+        profileBox.setStyle("-fx-border-color: " + Styles.GRIS_CLAIR + ";" +
+                           "-fx-border-width: 0 0 2 0;");
+        
+        Label avatarLabel = new Label("🌾");
+        avatarLabel.setStyle("-fx-font-size: 48px;");
+        
+        Label nameLabel = new Label(agentVillageois.getNomComplet());
+        nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        
+        profileBox.getChildren().addAll(avatarLabel, nameLabel);
+        
+        VBox menuBox = new VBox(5);
+        menuBox.setPadding(new Insets(20, 0, 0, 0));
+        
+        menuBox.getChildren().addAll(
+            createMenuButton(ICONE_TABLEAU_BORD, "Tableau de bord", this::showDashboard),
+            createMenuButton(ICONE_AVEC, "Mes AVEC", this::showMesAvec),
+            createMenuButton(ICONE_MODULES, "Modules de formation", this::showModules),
+            createMenuButton(ICONE_CALENDRIER, "Planning visites", this::showPlanning),
+            createMenuButton(ICONE_HONORAIRES, "Mes honoraires", this::showHonoraires)
+        );
+        
+        sidebar.getChildren().addAll(profileBox, menuBox);
+        
+        return sidebar;
+    }
+    
+    private Button createMenuButton(String icon, String text, Runnable action) {
+        Button button = new Button(icon + "  " + text);
+        button.setStyle("-fx-background-color: transparent; " +
+                       "-fx-text-fill: " + Styles.NOIR + "; " +
+                       "-fx-font-size: 14px; " +
+                       "-fx-padding: 10 15; " +
+                       "-fx-alignment: CENTER_LEFT; " +
+                       "-fx-cursor: hand;");
+        button.setMaxWidth(Double.MAX_VALUE);
+        
+        button.setOnMouseEntered(e -> 
+            button.setStyle("-fx-background-color: " + Styles.GRIS_CLAIR + "; " +
+                           "-fx-text-fill: " + Styles.VERT_PRINCIPAL + "; " +
+                           "-fx-font-size: 14px; " +
+                           "-fx-padding: 10 15; " +
+                           "-fx-alignment: CENTER_LEFT; " +
+                           "-fx-cursor: hand;")
+        );
+        
+        button.setOnMouseExited(e -> 
+            button.setStyle("-fx-background-color: transparent; " +
+                           "-fx-text-fill: " + Styles.NOIR + "; " +
+                           "-fx-font-size: 14px; " +
+                           "-fx-padding: 10 15; " +
+                           "-fx-alignment: CENTER_LEFT; " +
+                           "-fx-cursor: hand;")
+        );
+        
+        button.setOnAction(e -> action.run());
+        
+        return button;
+    }
+    
+    private void showDashboard() {
+        VBox dashboard = new VBox(20);
+        dashboard.setPadding(new Insets(20));
+        dashboard.setAlignment(Pos.TOP_CENTER);
+        
+        try {
+            List<Avec> avecs = avecService.getAvecsByAgentVillageois(agentVillageois.getId());
+            int nbAvec = avecs != null ? avecs.size() : 0;
+            
+            Label welcomeLabel = new Label("Bienvenue, " + agentVillageois.getPrenom());
+            welcomeLabel.setStyle(Styles.TITRE_PRINCIPAL);
+            
+            HBox statsBox = new HBox(20);
+            statsBox.setAlignment(Pos.CENTER);
+            statsBox.setPadding(new Insets(20, 0, 20, 0));
+            
+            VBox carte1 = createStatCard("🤝", "AVEC formées", String.valueOf(nbAvec), Styles.VERT_PRINCIPAL);
+            VBox carte2 = createStatCard("📚", "Modules", "7", Styles.BLEU_SECONDAIRE);
+            VBox carte3 = createStatCard("📍", "Visites prévues", "15", Styles.ACCENT_DORE);
+            VBox carte4 = createStatCard("💰", "Honoraires", "0 FCFA", Styles.VERT_PRINCIPAL);
+            
+            statsBox.getChildren().addAll(carte1, carte2, carte3, carte4);
+            
+            dashboard.getChildren().addAll(welcomeLabel, statsBox);
+            
+        } catch (SQLException e) {
+            showAlert("Erreur", "Erreur chargement données: " + e.getMessage());
+        }
+        
+        root.setCenter(dashboard);
+    }
+    
+    private void showMesAvec() {
+        VBox view = new VBox(15);
+        view.setPadding(new Insets(20));
+        
+        Label title = new Label("AVEC sous ma responsabilité");
+        title.setStyle(Styles.TITRE_PRINCIPAL);
+        
+        HBox toolbar = new HBox(10);
+        
+        // ✅ Bouton pour créer une AVEC
+        Button creerAvecBtn = new Button("➕ Créer une AVEC");
+        creerAvecBtn.setStyle(Styles.BOUTON_PRINCIPAL);
+        creerAvecBtn.setOnAction(e -> showCreerAvec());
+        
+        Button actualiserBtn = new Button("🔄 Actualiser");
+        actualiserBtn.setStyle(Styles.BOUTON_SECONDAIRE);
+        actualiserBtn.setOnAction(e -> {
+            try {
+                List<Avec> avecs = avecService.getAvecsByAgentVillageois(agentVillageois.getId());
+                if (avecs != null) {
+                    avecTable.setItems(FXCollections.observableArrayList(avecs));
+                }
+            } catch (SQLException ex) {
+                showAlert("Erreur", "Impossible de charger les AVEC: " + ex.getMessage());
+            }
+        });
+        
+        toolbar.getChildren().addAll(creerAvecBtn, actualiserBtn);
+        
+        avecTable = new TableView<>();
+        avecTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        
+        TableColumn<Avec, Long> colId = new TableColumn<>("ID");
+        colId.setCellValueFactory(new PropertyValueFactory<>("id"));
+        colId.setPrefWidth(50);
+        
+        TableColumn<Avec, String> colNom = new TableColumn<>("Nom AVEC");
+        colNom.setCellValueFactory(new PropertyValueFactory<>("nom"));
+        colNom.setPrefWidth(150);
+        
+        TableColumn<Avec, String> colCode = new TableColumn<>("Code");
+        colCode.setCellValueFactory(new PropertyValueFactory<>("codeUnique"));
+        colCode.setPrefWidth(100);
+        
+        TableColumn<Avec, String> colPhase = new TableColumn<>("Phase");
+        colPhase.setCellValueFactory(cellData -> 
+            new javafx.beans.property.SimpleStringProperty(cellData.getValue().getPhaseCourante().getLibelle()));
+        colPhase.setPrefWidth(120);
+        
+        TableColumn<Avec, Integer> colMembres = new TableColumn<>("Membres");
+        colMembres.setCellValueFactory(new PropertyValueFactory<>("nombreMembreMax"));
+        colMembres.setPrefWidth(80);
+        
+        TableColumn<Avec, String> colAction = new TableColumn<>("Action");
+        colAction.setCellFactory(col -> new TableCell<Avec, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    HBox buttonBox = new HBox(5);
+                    
+                    Button formationBtn = new Button("📖 Formation");
+                    formationBtn.setStyle(Styles.BOUTON_PRINCIPAL);
+                    formationBtn.setOnAction(e -> {
+                        Avec avec = getTableView().getItems().get(getIndex());
+                        demarrerFormation(avec);
+                    });
+                    
+                    Button comiteBtn = new Button("👥 Comité");
+                    comiteBtn.setStyle(Styles.BOUTON_SECONDAIRE);
+                    comiteBtn.setOnAction(e -> {
+                        Avec avec = getTableView().getItems().get(getIndex());
+                        gererComite(avec);
+                    });
+                    
+                    Button membresBtn = new Button("👤 Membres");
+                    membresBtn.setStyle(Styles.BOUTON_ACCENT);
+                    membresBtn.setOnAction(e -> {
+                        Avec avec = getTableView().getItems().get(getIndex());
+                        //gererMembres(avec);
+                    });
+                    
+                    buttonBox.getChildren().addAll(formationBtn, comiteBtn, membresBtn);
+                    setGraphic(buttonBox);
+                }
+            }
+        });
+        colAction.setPrefWidth(250);
+        
+        avecTable.getColumns().addAll(colId, colNom, colCode, colPhase, colMembres, colAction);
+        
+        try {
+            List<Avec> avecs = avecService.getAvecsByAgentVillageois(agentVillageois.getId());
+            if (avecs != null) {
+                avecTable.setItems(FXCollections.observableArrayList(avecs));
+            }
+        } catch (SQLException e) {
+            showAlert("Erreur", "Impossible de charger les AVEC: " + e.getMessage());
+        }
+        
+        view.getChildren().addAll(title, toolbar, avecTable);
+        VBox.setVgrow(avecTable, Priority.ALWAYS);
+        root.setCenter(view);
+    }
+    
+    /**
+     * ✅ Création d'une AVEC par l'agent villageois
+     */
+    private void showCreerAvec() {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Créer une AVEC");
+        dialog.setHeaderText("Nouvelle Association Villageoise d'Épargne et de Crédit");
+        
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(20));
+        content.setPrefWidth(450);
+        
+        // Nom de l'AVEC
+        Label nomLabel = new Label("Nom de l'AVEC *");
+        nomLabel.setStyle("-fx-font-weight: bold;");
+        TextField nomField = new TextField();
+        nomField.setPromptText("Ex: AVEC Ndiarème");
+        nomField.setStyle(Styles.CHAMP_TEXTE);
+        
+        // Prix de la part
+        Label prixLabel = new Label("Prix de la part (FCFA) *");
+        prixLabel.setStyle("-fx-font-weight: bold;");
+        TextField prixPartField = new TextField();
+        prixPartField.setPromptText("Ex: 500");
+        prixPartField.setStyle(Styles.CHAMP_TEXTE);
+        
+        // Lieu de réunion
+        Label lieuLabel = new Label("Lieu de réunion *");
+        lieuLabel.setStyle("-fx-font-weight: bold;");
+        TextField lieuField = new TextField();
+        lieuField.setPromptText("Ex: Chez le président");
+        lieuField.setStyle(Styles.CHAMP_TEXTE);
+        
+        // Jour de réunion
+        Label jourLabel = new Label("Jour de réunion *");
+        jourLabel.setStyle("-fx-font-weight: bold;");
+        ComboBox<JourReunion> jourCombo = new ComboBox<>();
+        jourCombo.setItems(FXCollections.observableArrayList(JourReunion.values()));
+        jourCombo.setStyle(Styles.CHAMP_TEXTE);
+        
+        // Nombre max de membres
+        Label nbMembresLabel = new Label("Nombre max de membres");
+        Spinner<Integer> nbMembresSpinner = new Spinner<>(10, 30, 15);
+        nbMembresSpinner.setStyle(Styles.CHAMP_TEXTE);
+        
+        // Taux frais service
+        Label tauxLabel = new Label("Taux frais service mensuel (%)");
+        TextField tauxField = new TextField("5");
+        tauxField.setStyle(Styles.CHAMP_TEXTE);
+        
+        content.getChildren().addAll(
+            nomLabel, nomField,
+            prixLabel, prixPartField,
+            lieuLabel, lieuField,
+            jourLabel, jourCombo,
+            nbMembresLabel, nbMembresSpinner,
+            tauxLabel, tauxField
+        );
+        
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        
+        dialog.setResultConverter(button -> {
+            if (button == ButtonType.OK) {
+                try {
+                    String nom = nomField.getText().trim();
+                    BigDecimal prixPart = new BigDecimal(prixPartField.getText().trim());
+                    String lieuReunion = lieuField.getText().trim();
+                    JourReunion jourReunion = jourCombo.getValue();
+                    
+                    if (nom.isEmpty() || prixPart.compareTo(BigDecimal.ZERO) <= 0) {
+                        showAlert("Erreur", "Veuillez remplir tous les champs obligatoires");
+                        return null;
+                    }
+                    
+                    // ✅ Créer l'AVEC avec l'agent villageois connecté
+                    Avec avec = avecService.creerAvec(nom, prixPart, agentVillageois.getId());
+                    
+                    // Mettre à jour les paramètres supplémentaires
+                    avec.setNombreMembresMax(nbMembresSpinner.getValue());
+                    avec.setTauxFraisServiceMensuel(new BigDecimal(tauxField.getText().trim()));
+                    avecService.modifierAvec(avec);
+                    
+                    showInfo("Succès", "AVEC créée avec succès!\n" +
+                            "Nom: " + avec.getNom() + "\n" +
+                            "Code: " + avec.getCodeUnique());
+                    
+                    // Rafraîchir la liste
+                    try {
+                        List<Avec> avecs = avecService.getAvecsByAgentVillageois(agentVillageois.getId());
+                        if (avecs != null) {
+                            avecTable.setItems(FXCollections.observableArrayList(avecs));
+                        }
+                    } catch (SQLException e) {
+                        showAlert("Erreur", "Erreur: " + e.getMessage());
+                    }
+                    
+                } catch (Exception e) {
+                    showAlert("Erreur", "Erreur: " + e.getMessage());
+                }
+            }
+            return null;
+        });
+        
+        dialog.showAndWait();
+    }
+    
+    /**
+     * ✅ Gestion du comité de gestion
+     */
+    private void gererComite(Avec avec) {
+        try {
+            List<Membre> membres = membreService.getMembresByAvecId(avec.getId());
+            List<Membre> membresActifs = membres.stream()
+                    .filter(m -> m.getStatut() == StatutMembre.ACTIF)
+                    .collect(Collectors.toList());
+            
+            if (membresActifs.isEmpty()) {
+                showAlert("Information", "Aucun membre actif dans cette AVEC. Ajoutez d'abord des membres.");
+                return;
+            }
+            
+            Dialog<ButtonType> dialog = new Dialog<>();
+            dialog.setTitle("Comité de gestion");
+            dialog.setHeaderText("Élection du comité pour " + avec.getNom());
+            
+            VBox content = new VBox(10);
+            content.setPadding(new Insets(20));
+            content.setPrefWidth(400);
+            
+            Label infoLabel = new Label("Sélectionnez les membres du comité selon la procédure d'élection (vote secret avec cailloux):");
+            infoLabel.setStyle("-fx-font-weight: bold;");
+            infoLabel.setWrapText(true);
+            
+            ComboBox<Membre> presidentCombo = new ComboBox<>();
+            presidentCombo.setPromptText("Président");
+            presidentCombo.setItems(FXCollections.observableArrayList(membresActifs));
+            presidentCombo.setStyle(Styles.CHAMP_TEXTE);
+            
+            ComboBox<Membre> secretaireCombo = new ComboBox<>();
+            secretaireCombo.setPromptText("Secrétaire");
+            secretaireCombo.setItems(FXCollections.observableArrayList(membresActifs));
+            secretaireCombo.setStyle(Styles.CHAMP_TEXTE);
+            
+            ComboBox<Membre> tresorierCombo = new ComboBox<>();
+            tresorierCombo.setPromptText("Trésorier");
+            tresorierCombo.setItems(FXCollections.observableArrayList(membresActifs));
+            tresorierCombo.setStyle(Styles.CHAMP_TEXTE);
+            
+            ComboBox<Membre> compteur1Combo = new ComboBox<>();
+            compteur1Combo.setPromptText("Compteur 1");
+            compteur1Combo.setItems(FXCollections.observableArrayList(membresActifs));
+            compteur1Combo.setStyle(Styles.CHAMP_TEXTE);
+            
+            ComboBox<Membre> compteur2Combo = new ComboBox<>();
+            compteur2Combo.setPromptText("Compteur 2");
+            compteur2Combo.setItems(FXCollections.observableArrayList(membresActifs));
+            compteur2Combo.setStyle(Styles.CHAMP_TEXTE);
+            
+            content.getChildren().addAll(
+                infoLabel,
+                new Separator(),
+                new Label("Président:"), presidentCombo,
+                new Label("Secrétaire:"), secretaireCombo,
+                new Label("Trésorier:"), tresorierCombo,
+                new Label("Compteur 1:"), compteur1Combo,
+                new Label("Compteur 2:"), compteur2Combo
+            );
+            
+            dialog.getDialogPane().setContent(content);
+            dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+            
+            dialog.setResultConverter(button -> {
+                if (button == ButtonType.OK) {
+                    try {
+                        List<MembreService.ResultatElection> resultats = new ArrayList<>();
+                        resultats.add(new MembreService.ResultatElection(presidentCombo.getValue().getId(), RoleComite.PRESIDENT));
+                        resultats.add(new MembreService.ResultatElection(secretaireCombo.getValue().getId(), RoleComite.SECRETAIRE));
+                        resultats.add(new MembreService.ResultatElection(tresorierCombo.getValue().getId(), RoleComite.TRESORIER));
+                        resultats.add(new MembreService.ResultatElection(compteur1Combo.getValue().getId(), RoleComite.COMPTEUR));
+                        resultats.add(new MembreService.ResultatElection(compteur2Combo.getValue().getId(), RoleComite.COMPTEUR));
+                        
+                        if (membreService.organiserElection(avec.getId(), resultats)) {
+                            showInfo("Succès", "Comité de gestion élu avec succès!");
+                        } else {
+                            showAlert("Erreur", "Échec de l'élection");
+                        }
+                    } catch (Exception e) {
+                        showAlert("Erreur", "Erreur: " + e.getMessage());
+                    }
+                }
+                return null;
+            });
+            
+            dialog.showAndWait();
+            
+        } catch (SQLException e) {
+            showAlert("Erreur", "Impossible de charger les membres: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * ✅ Gestion des membres (ouverture de la vue MembreView)
+     */
+//    private void gererMembres(Avec avec) {
+//        // Ouvrir la vue de gestion des membres
+//        MembreView membreView = new MembreView(mainApp, session.getUtilisateur());
+//        root.setCenter(membreView.getRoot());
+//        
+//        // Filtrer pour afficher uniquement les membres de cette AVEC
+//        // Cette partie nécessite une modification de MembreView pour accepter un filtre
+//    }
+    
+    private void demarrerFormation(Avec avec) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Formation AVEC");
+        alert.setHeaderText("Démarrage de la formation - " + avec.getNom());
+        
+        TextArea content = new TextArea();
+        content.setText("Module 1: Groupes, leadership et élections\n\n" +
+                        "Objectifs:\n" +
+                        "- Auto-sélection individuelle\n" +
+                        "- Rôle de l'Assemblée Générale\n" +
+                        "- Rôles des dirigeants\n" +
+                        "- Préparation aux élections\n" +
+                        "- Procédures d'élection (vote secret avec cailloux)\n\n" +
+                        "Procédure:\n" +
+                        "1. Disposer les chaises en cercle (voir diagramme du guide)\n" +
+                        "2. Expliquer les qualités d'un bon membre\n" +
+                        "3. Expliquer les rôles (Président, Secrétaire, Trésorier, Compteurs)\n" +
+                        "4. Organiser les élections avec la méthode des cailloux\n" +
+                        "5. Faire signer le contrat entre l'AVEC et l'Agent Villageois");
+        content.setWrapText(true);
+        content.setEditable(false);
+        content.setPrefHeight(300);
+        content.setPrefWidth(400);
+        
+        alert.getDialogPane().setContent(content);
+        alert.showAndWait();
+    }
+    
+    private void showModules() {
+        VBox view = new VBox(15);
+        view.setPadding(new Insets(20));
+        
+        Label title = new Label("Modules de formation AVEC");
+        title.setStyle(Styles.TITRE_PRINCIPAL);
+        
+        Accordion accordion = new Accordion();
+        
+        // Module 1
+        TitledPane module1 = createModulePane(
+            "Module 1: Groupes, leadership et élections",
+            "Objectif: Former les membres sur l'auto-sélection et les élections\n\n" +
+            "Contenu:\n" +
+            "• Auto-sélection individuelle (qualités d'un bon membre)\n" +
+            "• Rôle de l'Assemblée Générale\n" +
+            "• Rôles des dirigeants (Président, Secrétaire, Trésorier, Compteurs)\n" +
+            "• Préparation aux élections\n" +
+            "• Procédures d'élection (vote secret avec cailloux)\n\n" +
+            "Durée: 1 réunion\n" +
+            "Matériel: 3 récipients, cartes de couleur, cailloux"
+        );
+        
+        // Module 2
+        TitledPane module2 = createModulePane(
+            "Module 2: Règlements - Caisse Solidarité, parts, crédit",
+            "Objectif: Établir les règles financières de l'AVEC\n\n" +
+            "Contenu:\n" +
+            "• Caisse de Solidarité (cotisations et subventions)\n" +
+            "• Prix de la part (1-5 parts/semaine)\n" +
+            "• Règles de crédit (max 3x épargne, durée max 12 semaines)\n" +
+            "• Taux des frais de service (5-10%)\n" +
+            "• Sécurité des fonds (coffre à 3 cadenas)\n\n" +
+            "Durée: 1 réunion\n" +
+            "Matériel: Règlement intérieur vierge"
+        );
+        
+        // Module 3
+        TitledPane module3 = createModulePane(
+            "Module 3: Élaboration du Règlement Intérieur",
+            "Objectif: Finaliser le règlement de l'AVEC\n\n" +
+            "Contenu:\n" +
+            "• Gouvernance de l'Association\n" +
+            "• Composition du comité\n" +
+            "• Amendes et infractions\n" +
+            "• Signature du règlement par tous les membres\n\n" +
+            "Durée: 1-2 réunions\n" +
+            "Matériel: Règlement intérieur signé"
+        );
+        
+        // Module 4
+        TitledPane module4 = createModulePane(
+            "Module 4: Première réunion d'épargne (Semaine 1)",
+            "Objectif: Organiser la première collecte d'épargne\n\n" +
+            "Contenu:\n" +
+            "• Désignation des gardiens des clés\n" +
+            "• Cotisations à la Caisse de Solidarité\n" +
+            "• Achat de parts (1-5)\n" +
+            "• Enregistrement dans les carnets\n" +
+            "• Calcul et mémorisation des soldes\n\n" +
+            "Durée: 1 réunion\n" +
+            "Matériel: Coffre, carnets, tampon"
+        );
+        
+        // Module 5
+        TitledPane module5 = createModulePane(
+            "Module 5: Première réunion de crédit (Semaine 4)",
+            "Objectif: Décaisser les premiers prêts\n\n" +
+            "Contenu:\n" +
+            "• Procédure de demande de prêt\n" +
+            "• Calcul du montant disponible\n" +
+            "• Décaissement des prêts\n" +
+            "• Enregistrement dans les carnets\n\n" +
+            "Durée: 1 réunion\n" +
+            "Matériel: Carnets de prêts"
+        );
+        
+        // Module 6
+        TitledPane module6 = createModulePane(
+            "Module 6: Premier remboursement (Semaine 8)",
+            "Objectif: Gérer les remboursements et nouveaux prêts\n\n" +
+            "Contenu:\n" +
+            "• Remboursement des prêts\n" +
+            "• Calcul des intérêts\n" +
+            "• Nouveaux décaissements\n" +
+            "• Transition vers phase développement\n\n" +
+            "Durée: 1 réunion\n" +
+            "Matériel: Carnets de prêts, calculatrice"
+        );
+        
+        // Module 7
+        TitledPane module7 = createModulePane(
+            "Module 7: Répartition du capital, élections et indépendance",
+            "Objectif: Clôturer le cycle et préparer le suivant\n\n" +
+            "Contenu:\n" +
+            "• Répartition du capital (calcul valeur part)\n" +
+            "• Élections du nouveau comité\n" +
+            "• Préparation du cycle suivant\n" +
+            "• Indépendance de l'AVEC\n\n" +
+            "Durée: 1 réunion\n" +
+            "Matériel: Calculatrice, carnets"
+        );
+        
+        accordion.getPanes().addAll(module1, module2, module3, module4, module5, module6, module7);
+        
+        view.getChildren().addAll(title, accordion);
+        root.setCenter(view);
+    }
+    
+    private TitledPane createModulePane(String title, String content) {
+        TitledPane pane = new TitledPane();
+        pane.setText(title);
+        pane.setStyle("-fx-font-weight: bold;");
+        
+        TextArea contentArea = new TextArea(content);
+        contentArea.setWrapText(true);
+        contentArea.setEditable(false);
+        contentArea.setStyle("-fx-background-color: " + Styles.GRIS_CLAIR + ";");
+        
+        pane.setContent(contentArea);
+        return pane;
+    }
+    
+    private void showPlanning() {
+        VBox view = new VBox(15);
+        view.setPadding(new Insets(20));
+        
+        Label title = new Label("Planning des visites de formation");
+        title.setStyle(Styles.TITRE_PRINCIPAL);
+        
+        DatePicker datePicker = new DatePicker(LocalDate.now());
+        datePicker.setStyle(Styles.CHAMP_TEXTE);
+        
+        TableView<Object> planningTable = new TableView<>();
+        planningTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        
+        TableColumn<Object, String> colDate = new TableColumn<>("Date");
+        colDate.setPrefWidth(100);
+        TableColumn<Object, String> colHeure = new TableColumn<>("Heure");
+        colHeure.setPrefWidth(80);
+        TableColumn<Object, String> colAvec = new TableColumn<>("AVEC");
+        colAvec.setPrefWidth(150);
+        TableColumn<Object, String> colModule = new TableColumn<>("Module");
+        colModule.setPrefWidth(150);
+        TableColumn<Object, String> colStatut = new TableColumn<>("Statut");
+        colStatut.setPrefWidth(100);
+        
+        planningTable.getColumns().addAll(colDate, colHeure, colAvec, colModule, colStatut);
+        
+        view.getChildren().addAll(title, datePicker, planningTable);
+        root.setCenter(view);
+    }
+    
+    private void showHonoraires() {
+        VBox view = new VBox(15);
+        view.setPadding(new Insets(20));
+        
+        Label title = new Label("Mes honoraires");
+        title.setStyle(Styles.TITRE_PRINCIPAL);
+        
+        GridPane grid = new GridPane();
+        grid.setHgap(20);
+        grid.setVgap(15);
+        grid.setPadding(new Insets(20));
+        grid.setStyle("-fx-background-color: " + Styles.BLANC + ";" +
+                     "-fx-background-radius: 10;");
+        
+        grid.add(new Label("Nombre de visites effectuées:"), 0, 0);
+        grid.add(new Label("0"), 1, 0);
+        
+        grid.add(new Label("Honoraires par visite:"), 0, 1);
+        grid.add(new Label("À définir"), 1, 1);
+        
+        grid.add(new Label("Total des honoraires:"), 0, 2);
+        Label totalLabel = new Label("0 FCFA");
+        totalLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: " + Styles.VERT_PRINCIPAL + ";");
+        grid.add(totalLabel, 1, 2);
+        
+        grid.add(new Label("Mode de paiement:"), 0, 3);
+        grid.add(new Label("En espèces"), 1, 3);
+        
+        view.getChildren().addAll(title, grid);
+        root.setCenter(view);
+    }
+    
+    private VBox createStatCard(String icon, String label, String value, String color) {
+        VBox card = new VBox(10);
+        card.setStyle("-fx-background-color: " + Styles.BLANC + ";" +
+                     "-fx-background-radius: 10;" +
+                     "-fx-padding: 20;" +
+                     "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 5, 0, 0, 2);");
+        card.setPrefWidth(180);
+        card.setAlignment(Pos.CENTER);
+        
+        Label iconLabel = new Label(icon);
+        iconLabel.setStyle("-fx-font-size: 28px;");
+        
+        Label valueLabel = new Label(value);
+        valueLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: " + color + ";");
+        
+        Label labelLabel = new Label(label);
+        labelLabel.setStyle("-fx-text-fill: " + Styles.GRIS_FONCE + ";");
+        
+        card.getChildren().addAll(iconLabel, valueLabel, labelLabel);
+        
+        return card;
+    }
+    
+    private void showAlert(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+    
+    private void showInfo(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+    
+    private void loadData() {
+        // Charger les données
+    }
+    
+    private void logout() {
+        session.deconnecter();
+        LoginView loginView = new LoginView(mainApp);
+        mainApp.getPrimaryStage().getScene().setRoot(loginView.getRoot());
+        mainApp.getPrimaryStage().setMaximized(false);
+        mainApp.getPrimaryStage().centerOnScreen();
+    }
+    
+    public BorderPane getRoot() {
+        return root;
+    }
+}
