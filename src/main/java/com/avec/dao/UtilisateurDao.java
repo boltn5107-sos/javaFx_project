@@ -46,12 +46,18 @@ public class UtilisateurDao {
 	// Chercher un utilisateur par son id
 
 	public Utilisateur chercherId(Long id) {
-
-		String sql = "SELECT * FROM utilisateur WHERE id = ?";
-
-		try (Connection con = DBConnection.getConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
+if (id == null) return null;
+        
+        Connection conn = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        
+        try {
+            conn = DBConnection.getConnection();
+            String sql = "SELECT * FROM utilisateur WHERE id = ?";
+            ps = conn.prepareStatement(sql);
 			ps.setLong(1, id);
-			ResultSet rs = ps.executeQuery();
+			 rs = ps.executeQuery();
 			if (rs.next()) {
 				return mapResultSetToUtilisateur(rs);
 			}
@@ -59,7 +65,14 @@ public class UtilisateurDao {
 		} catch (SQLException e) {
 			e.printStackTrace();
 
-		}
+		} finally {
+            try {
+                if (rs != null) rs.close();
+                if (ps != null) ps.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
 
 		return null;
 	}

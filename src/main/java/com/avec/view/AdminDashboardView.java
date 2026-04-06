@@ -329,8 +329,7 @@ public class AdminDashboardView {
 			nbAvec = stats.getTotalAvecs();
 			nbMembres = membreService.getNombreTotalMembres();
 			nbMembresActifs = membreService.getNombreMembresActifs();
-			totalEpargne = membreService.getTotalEpargne();
-			totalPrets = membreService.getTotalPretEnCours();
+			
 		} catch (SQLException e) {
 			System.err.println("Erreur chargement stats: " + e.getMessage());
 		}
@@ -680,8 +679,7 @@ public class AdminDashboardView {
 			int nbAvec = stats.getTotalAvecs();
 			int nbMembres = membreService.getNombreTotalMembres();
 			int nbMembresActifs = membreService.getNombreMembresActifs();
-			BigDecimal totalEpargne = membreService.getTotalEpargne();
-			BigDecimal totalPrets = membreService.getTotalPretEnCours();
+			
 
 			statsGrid.add(createStatItem("👤", "Utilisateurs", String.valueOf(nbUtilisateurs)), 0, 0);
 			statsGrid.add(createStatItem("🏞️", "Agents Terrain", String.valueOf(nbAgentsTerrain)), 1, 0);
@@ -689,8 +687,7 @@ public class AdminDashboardView {
 			statsGrid.add(createStatItem("🤝", "AVEC", String.valueOf(nbAvec)), 3, 0);
 			statsGrid.add(createStatItem("👥", "Membres", String.valueOf(nbMembres)), 0, 1);
 			statsGrid.add(createStatItem("✅", "Membres actifs", String.valueOf(nbMembresActifs)), 1, 1);
-			statsGrid.add(createStatItem("💰", "Épargne totale", formatMontant(totalEpargne)), 2, 1);
-			statsGrid.add(createStatItem("💳", "Prêts en cours", formatMontant(totalPrets)), 3, 1);
+			
 
 		} catch (SQLException e) {
 			System.err.println("Erreur chargement stats: " + e.getMessage());
@@ -775,7 +772,7 @@ public class AdminDashboardView {
 			List<Membre> resultats = new ArrayList<>();
 
 			for (Avec avec : avecs) {
-				resultats.addAll(membreService.rechercherMembres(avec.getId(), recherche));
+				resultats.addAll(membreService.getMembresByAvecId(avec.getId()));
 			}
 
 			membreTable.setItems(FXCollections.observableArrayList(resultats));
@@ -805,6 +802,8 @@ public class AdminDashboardView {
 		ComboBox<Avec> avecCombo = new ComboBox<>();
 		avecCombo.setPromptText("Sélectionner une AVEC");
 		avecCombo.setStyle(Styles.CHAMP_TEXTE);
+		
+		
 
 		try {
 			List<Avec> avecs = avecService.getAllAvecs();
@@ -813,25 +812,23 @@ public class AdminDashboardView {
 			showAlert("Erreur", "Impossible de charger les AVEC: " + e.getMessage());
 		}
 
-		TextField professionField = new TextField();
-		professionField.setPromptText("Profession");
-		professionField.setStyle(Styles.CHAMP_TEXTE);
+		TextField numeroCarteField = new TextField();
+		numeroCarteField.setPromptText("Numéro de carte");
+		numeroCarteField.setStyle(Styles.CHAMP_TEXTE);
 
-		TextField villageField = new TextField();
-		villageField.setPromptText("Village");
-		villageField.setStyle(Styles.CHAMP_TEXTE);
-
-		TextField telephoneField = new TextField();
-		telephoneField.setPromptText("Téléphone");
-		telephoneField.setStyle(Styles.CHAMP_TEXTE);
 
 		PasswordField passwordField = new PasswordField();
 		passwordField.setPromptText("Mot de passe");
 		passwordField.setStyle(Styles.CHAMP_TEXTE);
+		
+		TextField telephoneField = new TextField();
+		telephoneField.setPromptText("Téléphone");
+		telephoneField.setStyle(Styles.CHAMP_TEXTE);
+		
 
 		content.getChildren().addAll(new Label("Nom:"), nomField, new Label("Prénom:"), prenomField, new Label("AVEC:"),
-				avecCombo, new Label("Profession:"), professionField, new Label("Village:"), villageField,
-				new Label("Téléphone:"), telephoneField, new Label("Mot de passe:"), passwordField);
+				avecCombo, new Label("Profession:"), numeroCarteField, telephoneField, new Label("Mot de passe:"), passwordField,
+				new Label("Téléphone:"));
 
 		dialog.getDialogPane().setContent(content);
 		dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
@@ -844,16 +841,22 @@ public class AdminDashboardView {
 						showAlert("Erreur", "Veuillez sélectionner une AVEC");
 						return null;
 					}
-
-					Membre membre = membreService.creerMembre(nomField.getText().trim(), prenomField.getText().trim(),
-							selectedAvec.getId(), professionField.getText().trim(), villageField.getText().trim(),
-							telephoneField.getText().trim());
-
-					// Définir le mot de passe (si votre modèle Membre a un champ motDePasse)
-					// membre.setMotDePasse(passwordField.getText().trim());
-
+					String nom = nomField.getText().trim();
+                    String prenom = prenomField.getText().trim();
+                    String password = passwordField.getText().trim();
+                    String telephone = telephoneField.getText().trim();
+                    
+                    if (nom.isEmpty() || prenom.isEmpty() || password.isEmpty() || telephone.isEmpty()) {
+                        showAlert("Erreur", "Tous les champs sont obligatoires");
+                        return null;
+                    }
+                    
+                    Membre membre = membreService.creerMembre(
+                        nom, prenom, selectedAvec.getId(),password, telephone
+                    );
 					showInfo("Succès", "Membre ajouté avec succès!\nNuméro de carte: " + membre.getNumeroCarte());
 					chargerMembres();
+					
 
 				} catch (SQLException | IllegalArgumentException e) {
 					showAlert("Erreur", "Erreur: " + e.getMessage());

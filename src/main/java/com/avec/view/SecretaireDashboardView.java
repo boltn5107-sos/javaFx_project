@@ -163,7 +163,7 @@ public class SecretaireDashboardView {
             createMenuButton(ICONE_TABLEAU_BORD, "Tableau de bord", this::showDashboard),
             createMenuButton(ICONE_PRESENCE, "Gestion des présences", this::showPresence),
             createMenuButton(ICONE_PV, "Procès-verbaux", this::showPV),
-            createMenuButton(ICONE_AMENDES, "Gestion des amendes", this::showAmendes),
+            createMenuButton(ICONE_AMENDES, "Liste des amendes", this::showAmendes),
             createMenuButton(ICONE_MEMBRES, "Liste des membres", this::showMembres),
             createMenuButton(ICONE_REUNIONS, "Calendrier", this::showCalendrier)
         );
@@ -304,39 +304,8 @@ public class SecretaireDashboardView {
         });
         colPresent.setPrefWidth(80);
         
-        TableColumn<Membre, Boolean> colRetard = new TableColumn<>("Retard");
-        colRetard.setCellFactory(col -> new TableCell<Membre, Boolean>() {
-            @Override
-            protected void updateItem(Boolean item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty) {
-                    setGraphic(null);
-                } else {
-                    CheckBox checkBox = new CheckBox();
-                    checkBox.setSelected(item != null && item);
-                    setGraphic(checkBox);
-                }
-            }
-        });
-        colRetard.setPrefWidth(80);
         
-        TableColumn<Membre, String> colAmende = new TableColumn<>("Amende");
-        colAmende.setCellFactory(col -> new TableCell<Membre, String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty) {
-                    setGraphic(null);
-                } else {
-                    TextField textField = new TextField(item);
-                    textField.setPromptText("Montant");
-                    setGraphic(textField);
-                }
-            }
-        });
-        colAmende.setPrefWidth(100);
-        
-        presenceTable.getColumns().addAll(colNom, colPrenom, colPresent, colRetard, colAmende);
+        presenceTable.getColumns().addAll(colNom, colPrenom, colPresent);
         
         // Charger les membres
         try {

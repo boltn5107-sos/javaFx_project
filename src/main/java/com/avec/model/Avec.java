@@ -393,7 +393,7 @@ public class Avec {
 
         // Membres actifs
         long actifs = membres.stream()
-                .filter(m -> m != null && m.getStatut() == StatutMembre.ACTIF)
+                .filter(m -> m != null && m.getEstActif() == StatutMembre.ACTIF)
                 .count();
         this.nombreMembresActifs = (int) actifs;
 

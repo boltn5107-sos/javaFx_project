@@ -1,7 +1,10 @@
 package com.avec.view;
 
+import java.sql.SQLException;
+
 import com.avec.MainApp;
 import com.avec.config.Styles;
+import com.avec.enums.StatutMembre;
 import com.avec.model.AgentTerrain;
 import com.avec.model.AgentVillageois;
 import com.avec.model.Membre;
@@ -279,7 +282,7 @@ public class LoginView {
 	            case "Secrétaire":
 	            case "Trésorier":
 	            case "Compteur":
-	                //loginMembre(role);
+	                loginMembreComite(messageLabel,role);
 	                break;
 	            case "Agent Villageois":
 	                loginAgentVillageois(messageLabel);
@@ -314,7 +317,7 @@ public class LoginView {
 		    // 🔍 RECHERCHE DANS LA TABLE UTILISATEUR
 		    Utilisateur utilisateur = utilisateurService.login(email, password);
 		    
-		    if (utilisateur != null) {
+		    if (utilisateur != null && utilisateur.getEmail().equals("admin@avec.com")) {
 		        System.out.println("Admin trouvé: " + utilisateur.getNom());
 		        
 		        // ✅ CONNEXION EN TANT QU'ADMIN
@@ -327,51 +330,72 @@ public class LoginView {
 		    }
 		}
 
-//	private void loginMembreComite(Label messageLabel, String roleAttendu) {
-//		String numeroCarte = numeroCarteField.getText().trim();
-//		String password = passwordField.getText().trim();
-//
-//		if (numeroCarte.isEmpty() || password.isEmpty()) {
-//			messageLabel.setText("Veuillez remplir tous les champs");
-//			return;
-//		}
-//
-//		try {
-//			// Chercher le membre par carte
-//			Membre membre = membreService.getMembreByNumeroCarte(numeroCarte);
-//
-//			if (membre == null) {
-//				messageLabel.setText("Numéro de carte incorrect");
-//				return;
-//			}
+	// Pour le membre du comité
+	 private void loginMembreComite(Label messageLabel, String roleAttendu) {
+	     String numeroCarte = numeroCarteField.getText().trim();
+	     String password = passwordField.getText().trim();
+	     
+	     System.out.println("=== TENTATIVE CONNEXION MEMBRE ===");
+	     System.out.println("Rôle attendu: " + roleAttendu);
+	     System.out.println("Numéro de carte: " + numeroCarte);
+	     System.out.println("Mot de passe: " + password);
 
-//			// Vérifier que le membre est actif
-//			if (membre.getStatut() != StatutMembre.ACTIF) {
-//				messageLabel.setText("Ce membre est inactif");
-//				return;
-//			}
+	     if (numeroCarte.isEmpty() || password.isEmpty()) {
+	         messageLabel.setText("Veuillez remplir tous les champs");
+	         return;
+	     }
 
-//			// Vérifier le rôle
-//			String roleMembre = membre.getRoleComite().getDescription();
-//			if (!roleMembre.equals(roleAttendu)) {
-//				messageLabel.setText("Vous n'avez pas le rôle " + roleAttendu);
-//				return;
-//			}
-//
-//			// Vérifier le mot de passe (à adapter selon votre système)
-//			if (verifierMotDePasseMembre(membre, password)) {
-//				SessionUtilisateur.getInstance().connecterMembre(membre);
-//				ouvrirDashboard();
-//			} else {
-//				messageLabel.setText("Mot de passe incorrect");
-//			}
-//
-//		} catch (SQLException e) {
-//			messageLabel.setText("Erreur de connexion: " + e.getMessage());
-//			e.printStackTrace();
-//		}
-//	}
-//	
+	     try {
+	         Membre membre = membreService.chercherParCarteEtMotDePasse(numeroCarte, password);
+
+	         if (membre == null) {
+	             messageLabel.setText("Numéro de carte ou mot de passe incorrect");
+	             return;
+	         }
+	         
+	         System.out.println("✅ Membre trouvé: " + membre.getNomComplet());
+	         System.out.println("   Rôle dans la base: " + membre.getRoleComite().getDescription());
+	         System.out.println("   Statut: " + (membre.getEstActif() == StatutMembre.ACTIF ? "Actif" : "Inactif"));
+
+	         if (membre.getEstActif() != StatutMembre.ACTIF) {
+	        	 System.out.println("❌ Membre inactif");
+	             messageLabel.setText("Ce membre est inactif");
+	             return;
+	         }
+
+	         String roleMembre = membre.getRoleComite().getDescription();
+	         
+	         System.out.println("   Rôle attendu: " + roleAttendu);
+	         System.out.println("   Rôle trouvé: " + roleMembre);
+	         
+	         if (!roleMembre.equals(roleAttendu)) {
+	        	 System.out.println("❌ Rôle incorrect");
+	             messageLabel.setText("Vous n'avez pas le rôle " + roleAttendu);
+	             return;
+	         }
+
+	         SessionUtilisateur.getInstance().connecterMembre(membre);
+	         
+	         // ✅ Pour les membres, on passe l'utilisateur associé (ou null)
+	         Utilisateur utilisateur = utilisateurService.chercherUtilisateur(membre.getId());
+	         
+	         if (utilisateur == null) {
+	             System.out.println("❌ Aucun compte utilisateur associé à ce membre");
+	             messageLabel.setText("Compte utilisateur non trouvé");
+	             return;
+	         }
+	         
+	         System.out.println("✅ Utilisateur trouvé: " + utilisateur.getEmail());
+	         System.out.println("   Mot de passe stocké: " + utilisateur.getMotDePasse());
+	         System.out.println("   Mot de passe saisi: " + password);
+	         
+	         ouvrirDashboard(messageLabel, utilisateur);  // ✅ Passer les deux paramètres
+
+	     } catch (Exception e) {
+	         messageLabel.setText("Erreur de connexion: " + e.getMessage());
+	         e.printStackTrace();
+	     }
+	 }
 	 private void loginAgentVillageois(Label messageLabel) {
 	        String email = emailField.getText().trim();
 	        String password = passwordField.getText().trim();

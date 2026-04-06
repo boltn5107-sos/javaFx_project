@@ -380,8 +380,12 @@ public class AgentTerrainDashboardView {
 			Avec a = cellData.getValue();
 			if (a.getAgentVillageois() != null) {
 				return new javafx.beans.property.SimpleStringProperty(a.getAgentVillageois().getNomComplet());
-			}
+			} else if (a.getAgentVillageoisId() != null) {
+	            // Si l'objet n'est pas chargé mais l'ID existe
+	            return new javafx.beans.property.SimpleStringProperty("ID: " + a.getAgentVillageoisId());
+	        } else {
 			return new javafx.beans.property.SimpleStringProperty("");
+	        }
 		});
 		colAgent.setPrefWidth(150);
 
@@ -422,15 +426,38 @@ public class AgentTerrainDashboardView {
 	private void chargerAvecs() {
 		try {
 			List<Avec> avecs = avecService.getAvecsByAgentTerrainId(agentTerrain.getId());
-			if (avecs != null) {
-				avecTable.setItems(FXCollections.observableArrayList(avecs));
-			}
-		} catch (SQLException e) {
-			showAlert("Erreur", "Impossible de charger les AVEC: " + e.getMessage());
-		}
+			 if (avecs != null && !avecs.isEmpty()) {
+		            System.out.println(">>> Nombre d'AVEC trouvées: " + avecs.size());
+		            for (Avec avec : avecs) {
+		                System.out.println(">>> - " + avec.getNom() + 
+		                    ", Agent villageois: " + (avec.getAgentVillageois() != null ? 
+		                    avec.getAgentVillageois().getNomComplet() : "Non désigné"));
+		            }
+		            avecTable.setItems(FXCollections.observableArrayList(avecs));
+		        } else {
+		            System.out.println(">>> Aucune AVEC trouvée");
+		            avecTable.setItems(FXCollections.observableArrayList());
+		        }
+		    } catch (SQLException e) {
+		        System.err.println("Erreur chargement AVEC: " + e.getMessage());
+		        e.printStackTrace();
+		        showAlert("Erreur", "Impossible de charger les AVEC: " + e.getMessage());
+		        avecTable.setItems(FXCollections.observableArrayList());
+		    }
+		
 	}
 
 	private void voirDetailsAvec(Avec avec) {
+		
+		 // ✅ Charger l'agent villageois si nécessaire
+	    if (avec.getAgentVillageois() == null && avec.getAgentVillageoisId() != null) {
+	        try {
+	            AgentVillageois agent = agentVillageoisService.chercherAvParId(avec.getAgentVillageoisId());
+	            avec.setAgentVillageois(agent);
+	        } catch (Exception e) {
+	            System.err.println("Erreur chargement agent: " + e.getMessage());
+	        }
+	    }
 		Alert alert = new Alert(Alert.AlertType.INFORMATION);
 		alert.setTitle("Détails AVEC");
 		alert.setHeaderText(avec.getNom());
@@ -442,11 +469,24 @@ public class AgentTerrainDashboardView {
 		content.append("Membres max: ").append(avec.getNombreMembresMax()).append("\n");
 		content.append("Prix part: ").append(avec.getPrixPart()).append(" FCFA\n");
 		content.append("Agent Villageois: ");
-		if (avec.getAgentVillageois() != null) {
-			content.append(avec.getAgentVillageois().getNomComplet());
-		} else {
-			content.append("Non assigné");
-		}
+		// ✅ Affichage correct de l'agent villageois
+	    if (avec.getAgentVillageois() != null) {
+	        content.append(avec.getAgentVillageois().getNomComplet());
+	        content.append(" (ID: ").append(avec.getAgentVillageois().getId()).append(")");
+	    } else if (avec.getAgentVillageoisId() != null) {
+	        content.append("ID: ").append(avec.getAgentVillageoisId()).append(" (non chargé)");
+	    } else {
+	        content.append("Non désigné");
+	    }
+	    
+	    content.append("\n\nAgent Terrain: ");
+	    if (avec.getAgentTerrain() != null) {
+	        content.append(avec.getAgentTerrain().getNomComplet());
+	    } else if (avec.getAgentTerrainId() != null) {
+	        content.append("ID: ").append(avec.getAgentTerrainId());
+	    } else {
+	        content.append("Non assigné");
+	    }
 
 		alert.setContentText(content.toString());
 		alert.showAndWait();
@@ -987,23 +1027,24 @@ public class AgentTerrainDashboardView {
 		TextField prixPartField = new TextField();
 		prixPartField.setPromptText("Ex: 500");
 		prixPartField.setStyle(Styles.CHAMP_TEXTE);
+		
+		 // Nombre max de membres
+	    Label nbMembresLabel = new Label("Nombre max de membres");
+	    Spinner<Integer> nbMembresSpinner = new Spinner<>(10, 30, 15);
+	    nbMembresSpinner.setStyle(Styles.CHAMP_TEXTE);
+	    
+	    // Taux frais service
+	    Label tauxLabel = new Label("Taux frais service mensuel (%)");
+	    TextField tauxField = new TextField("5");
+	    tauxField.setStyle(Styles.CHAMP_TEXTE);
 
-		// Lieu de réunion
-		Label lieuLabel = new Label("Lieu de réunion *");
-		lieuLabel.setStyle("-fx-font-weight: bold;");
-		TextField lieuField = new TextField();
-		lieuField.setPromptText("Ex: Chez le président");
-		lieuField.setStyle(Styles.CHAMP_TEXTE);
-
-		// Jour de réunion
-		Label jourLabel = new Label("Jour de réunion *");
-		jourLabel.setStyle("-fx-font-weight: bold;");
-		ComboBox<JourReunion> jourCombo = new ComboBox<>();
-		jourCombo.setItems(FXCollections.observableArrayList(JourReunion.values()));
-		jourCombo.setStyle(Styles.CHAMP_TEXTE);
-
-		content.getChildren().addAll(nomLabel, nomField, agentLabel, agentCombo, prixLabel, prixPartField, lieuLabel,
-				lieuField, jourLabel, jourCombo);
+	    content.getChildren().addAll(
+	            nomLabel, nomField,
+	            agentLabel, agentCombo,
+	            prixLabel, prixPartField,
+	            nbMembresLabel, nbMembresSpinner,
+	            tauxLabel, tauxField
+	        );
 
 		dialog.getDialogPane().setContent(content);
 		dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
@@ -1012,10 +1053,10 @@ public class AgentTerrainDashboardView {
 			if (button == ButtonType.OK) {
 				try {
 					String nom = nomField.getText().trim();
-					AgentVillageois agent = agentCombo.getValue();
-					BigDecimal prixPart = new BigDecimal(prixPartField.getText().trim());
-					String lieuReunion = lieuField.getText().trim();
-					JourReunion jourReunion = jourCombo.getValue();
+	                AgentVillageois agent = agentCombo.getValue();
+	                BigDecimal prixPart = new BigDecimal(prixPartField.getText().trim());
+	                
+					
 
 					if (nom.isEmpty() || agent == null || prixPart.compareTo(BigDecimal.ZERO) <= 0) {
 						showAlert("Erreur", "Veuillez remplir tous les champs obligatoires");

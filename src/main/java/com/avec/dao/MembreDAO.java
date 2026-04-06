@@ -25,10 +25,9 @@ public class MembreDAO {
      * Insère un nouveau membre
      */
     public Membre insert(Membre membre) throws SQLException {
-        String sql = "INSERT INTO membres (nom, prenom, numero_carte, statut, date_adhesion, " +
-                "profession, village, telephone, role_comite, role_cle, total_epargne, " +
-                "total_pret_en_cours, nombre_parts, avec_id) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO membre (nom, prenom, numeroCarte, estActif,dateAdhesion, " +
+                "  avec_id, roleComite, roleCle) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -36,17 +35,16 @@ public class MembreDAO {
             stmt.setString(1, membre.getNom());
             stmt.setString(2, membre.getPrenom());
             stmt.setString(3, membre.getNumeroCarte());
-            stmt.setString(4, membre.getStatut().name());
+            
+         //  Correction: Convertir StatutMembre en boolean
+            boolean estActif = (membre.getEstActif() == StatutMembre.ACTIF);
+            stmt.setBoolean(4, estActif);
             stmt.setDate(5, Date.valueOf(membre.getDateAdhesion()));
-            stmt.setString(6, membre.getProfession());
-            stmt.setString(7, membre.getVillage());
-            stmt.setString(8, membre.getTelephone());
-            stmt.setString(9, membre.getRoleComite().name());
-            stmt.setString(10, membre.getRoleCle().name());
-            stmt.setBigDecimal(11, membre.getTotalEpargne());
-            stmt.setBigDecimal(12, membre.getTotalPretEnCours());
-            stmt.setInt(13, membre.getNombreParts());
-            stmt.setLong(14, membre.getAvecId());
+            stmt.setLong(6, membre.getAvecId());
+            stmt.setString(7, membre.getRoleComite().name());
+            stmt.setString(8, membre.getRoleCle().name());
+            
+            
 
             int affectedRows = stmt.executeUpdate();
             if (affectedRows == 0) {
@@ -68,28 +66,22 @@ public class MembreDAO {
      * Met à jour un membre existant
      */
     public boolean update(Membre membre) throws SQLException {
-        String sql = "UPDATE membres SET nom = ?, prenom = ?, numero_carte = ?, statut = ?, " +
-                "date_adhesion = ?, profession = ?, village = ?, telephone = ?, " +
-                "role_comite = ?, role_cle = ?, total_epargne = ?, total_pret_en_cours = ?, " +
-                "nombre_parts = ? WHERE id = ?";
+        String sql = "UPDATE membres SET nom = ?, prenom = ?, numeroCarte = ?, estActif = ?,dateAdhesion = ?," + 
+        		 "avec_id = ?, roleComite = ?, roleCle = ? WHERE id = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            stmt.setString(1, membre.getNom());
+        	stmt.setString(1, membre.getNom());
             stmt.setString(2, membre.getPrenom());
             stmt.setString(3, membre.getNumeroCarte());
-            stmt.setString(4, membre.getStatut().name());
+            boolean estActif = (membre.getEstActif() == StatutMembre.ACTIF);
+            stmt.setBoolean(4, estActif);
             stmt.setDate(5, Date.valueOf(membre.getDateAdhesion()));
-            stmt.setString(6, membre.getProfession());
-            stmt.setString(7, membre.getVillage());
-            stmt.setString(8, membre.getTelephone());
-            stmt.setString(9, membre.getRoleComite().name());
-            stmt.setString(10, membre.getRoleCle().name());
-            stmt.setBigDecimal(11, membre.getTotalEpargne());
-            stmt.setBigDecimal(12, membre.getTotalPretEnCours());
-            stmt.setInt(13, membre.getNombreParts());
-            stmt.setLong(14, membre.getId());
+            stmt.setLong(6, membre.getAvecId());
+            stmt.setString(7, membre.getRoleComite().name());
+            stmt.setString(8, membre.getRoleCle().name());
+            stmt.setLong(9, membre.getId());
 
             return stmt.executeUpdate() > 0;
         }
@@ -99,7 +91,7 @@ public class MembreDAO {
      * Supprime un membre par son ID
      */
     public boolean delete(long id) throws SQLException {
-        String sql = "DELETE FROM membres WHERE id = ?";
+        String sql = "DELETE FROM membre WHERE id = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -113,7 +105,10 @@ public class MembreDAO {
      * Trouve un membre par son ID
      */
     public Membre findById(long id) throws SQLException {
-        String sql = "SELECT * FROM membres WHERE id = ?";
+        String sql = "SELECT m.*, u.email, u.motDePasse, u.telephone " +
+                "FROM membre m " +
+                "LEFT JOIN utilisateur u ON m.id = u.id " +
+                "WHERE m.id = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -134,8 +129,13 @@ public class MembreDAO {
      */
     public List<Membre> findByAvecId(long avecId) throws SQLException {
         List<Membre> membres = new ArrayList<>();
-        String sql = "SELECT * FROM membre WHERE avec_id = ? ORDER BY nom, prenom";
-
+        String sql = "SELECT m.id, m.nom, m.prenom, m.numeroCarte, m.estActif, m.dateAdhesion, " +
+                "m.avec_id, m.roleComite, m.roleCle, " +
+                "u.telephone " +
+                "FROM membre m " +
+                "LEFT JOIN utilisateur u ON u.email = CONCAT(m.numeroCarte, '@membre.avec.com') " +
+                "WHERE m.avec_id = ? ORDER BY m.nom, m.prenom";
+        
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -143,18 +143,70 @@ public class MembreDAO {
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    membres.add(mapResultSetToMembre(rs));
+                   Membre membre = mapResultSetToMembres(rs);
+                 // ✅ Ajouter le téléphone
+                    membre.setTelephone(rs.getString("telephone"));
+                    membres.add(membre);
                 }
             }
         }
         return membres;
     }
-
+    
+    /**
+     * Cherche un membre par sa carte et son mot de passe (jointure avec utilisateur)
+     */
+    /**
+     * Cherche un membre par sa carte et son mot de passe (jointure avec utilisateur)
+     */
+    public Membre chercherParCarteEtMotDePasse(String numeroCarte, String motDePasse) {
+        System.out.println(">>> DAO: chercherParCarteEtMotDePasse");
+        System.out.println(">>> Carte: " + numeroCarte);
+        System.out.println(">>> Mot de passe: " + motDePasse);
+        
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        
+        try {
+            conn = DBConnection.getConnection();
+            
+            String sql = "SELECT m.id, m.nom, m.prenom, m.numeroCarte, m.estActif, m.dateAdhesion, " +
+                         "m.avec_id, m.roleComite, m.roleCle " +
+                         "FROM membre m " +
+                         "INNER JOIN utilisateur u ON u.email = CONCAT(m.numeroCarte, '@membre.avec.com') " +
+                         "WHERE m.numeroCarte = ? AND u.motDePasse = ?";
+            
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, numeroCarte);
+            pstmt.setString(2, motDePasse);
+            rs = pstmt.executeQuery();
+            
+            if (rs.next()) {
+                System.out.println(">>> Membre trouvé!");
+                return mapResultSetToMembre(rs);
+            } else {
+                System.out.println(">>> Aucun membre trouvé avec cette carte et mot de passe");
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("Erreur chercherParCarteEtMotDePasse: " + e.getMessage());
+            e.printStackTrace();
+        } finally {
+            try {
+                if (rs != null) rs.close();
+                if (pstmt != null) pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+        return null;
+    }
     /**
      * Trouve un membre par son numéro de carte
      */
     public Membre findByNumeroCarte(String numeroCarte) throws SQLException {
-        String sql = "SELECT * FROM membre WHERE numero_carte = ?";
+        String sql = "SELECT * FROM membre WHERE numeroCarte = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -210,6 +262,21 @@ public class MembreDAO {
             }
         }
         return membres;
+    }
+    
+    
+
+    /**
+     * ✅ Met à jour le rôle de clé d'un membre
+     */
+    public boolean updateRoleCle(long membreId, String role) throws SQLException {
+        String sql = "UPDATE membre SET roleCle = ? WHERE id = ?";
+        try (Connection conn = DBConnection.getConnection();
+        		PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, role);
+            stmt.setLong(2, membreId);
+            return stmt.executeUpdate() > 0;
+        }
     }
 
     /**
@@ -313,23 +380,8 @@ public class MembreDAO {
         }
     }
 
-    /**
-     * Met à jour les totaux d'un membre
-     */
-    public boolean updateTotaux(long membreId, BigDecimal epargne, BigDecimal prets, int nombreParts) throws SQLException {
-        String sql = "UPDATE membres SET total_epargne = ?, total_pret_en_cours = ?, nombre_parts = ? WHERE id = ?";
-
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setBigDecimal(1, epargne);
-            stmt.setBigDecimal(2, prets);
-            stmt.setInt(3, nombreParts);
-            stmt.setLong(4, membreId);
-
-            return stmt.executeUpdate() > 0;
-        }
-    }
+   
+    
 
     /**
      * Recherche des membres par nom
@@ -394,13 +446,16 @@ public class MembreDAO {
     * Compte le nombre de membres actifs (toutes AVEC confondues)
     */
    public int countActifs() throws SQLException {
-       String sql = "SELECT COUNT(*) FROM membre WHERE statut = 'ACTIF'";
+       String sql = "SELECT COUNT(*) FROM membre WHERE estActif = 'true'";
 
        try (Connection conn = DBConnection.getConnection();
     		   Statement stmt = conn.createStatement();
             ResultSet rs = stmt.executeQuery(sql)) {
+    	   
+    	  
 
            if (rs.next()) {
+        	   
                return rs.getInt(1);
            }
        }
@@ -423,23 +478,26 @@ public class MembreDAO {
        }
        return BigDecimal.ZERO;
    }
-
+   
    /**
-    * Calcule le total des prêts en cours de tous les membres
+    * Calcule le total de l'épargne de tous les membres
     */
    public BigDecimal sumTotalPretEnCours() throws SQLException {
-       String sql = "SELECT COALESCE(SUM(total_pret_en_cours), 0) FROM membre";
+       String sql = "SELECT COALESCE(SUM(montantRestantDu), 0) FROM pret WHERE statut <> 'REMBOURSE' ";
 
        try (Connection conn = DBConnection.getConnection();
     		   Statement stmt = conn.createStatement();
             ResultSet rs = stmt.executeQuery(sql)) {
 
            if (rs.next()) {
+        	  
                return rs.getBigDecimal(1);
            }
        }
        return BigDecimal.ZERO;
    }
+
+ 
 
    /**
     * Recherche des membres par nom dans toutes les AVEC
@@ -474,18 +532,66 @@ public class MembreDAO {
         membre.setId(rs.getLong("id"));
         membre.setNom(rs.getString("nom"));
         membre.setPrenom(rs.getString("prenom"));
-        membre.setNumeroCarte(rs.getString("numero_carte"));
-        membre.setStatut(StatutMembre.valueOf(rs.getString("statut")));
-        membre.setDateAdhesion(rs.getDate("date_adhesion").toLocalDate());
-        membre.setProfession(rs.getString("profession"));
-        membre.setVillage(rs.getString("village"));
-        membre.setTelephone(rs.getString("telephone"));
-        membre.setRoleComite(RoleComite.valueOf(rs.getString("role_comite")));
-        membre.setRoleCle(RoleDetenteurCle.valueOf(rs.getString("role_cle")));
-        membre.setTotalEpargne(rs.getBigDecimal("total_epargne"));
-        membre.setTotalPretEnCours(rs.getBigDecimal("total_pret_en_cours"));
-        membre.setNombreParts(rs.getInt("nombre_parts"));
+        membre.setNumeroCarte(rs.getString("numeroCarte"));
+        // Correction: Convertir boolean en StatutMembre
+        boolean estActif = rs.getBoolean("estActif");
+        membre.setEstActif(estActif ? StatutMembre.ACTIF : StatutMembre.INACTIF);
+        Date dateAdhesion = rs.getDate("dateAdhesion");
+        if (dateAdhesion != null) {
+            membre.setDateAdhesion(dateAdhesion.toLocalDate());
+        }
         membre.setAvecId(rs.getLong("avec_id"));
+        
+        String roleComiteStr = rs.getString("roleComite");
+        if (roleComiteStr != null) {
+            membre.setRoleComite(RoleComite.valueOf(roleComiteStr));
+        }
+        
+        String roleCleStr = rs.getString("roleCle");
+        if (roleCleStr != null) {
+            membre.setRoleCle(RoleDetenteurCle.valueOf(roleCleStr));
+        }
+   
+        
+
+        return membre;
+    }
+    
+    private Membre mapResultSetToMembres(ResultSet rs) throws SQLException {
+        Membre membre = new Membre();
+
+        membre.setId(rs.getLong("id"));
+        membre.setNom(rs.getString("nom"));
+        membre.setPrenom(rs.getString("prenom"));
+        membre.setNumeroCarte(rs.getString("numeroCarte"));
+        
+        // ✅ Récupérer le téléphone
+        try {
+            membre.setTelephone(rs.getString("telephone"));
+        } catch (SQLException e) {
+            // La colonne telephone n'existe pas dans ce ResultSet
+            membre.setTelephone(null);
+        }
+        // Correction: Convertir boolean en StatutMembre
+        boolean estActif = rs.getBoolean("estActif");
+        membre.setEstActif(estActif ? StatutMembre.ACTIF : StatutMembre.INACTIF);
+        Date dateAdhesion = rs.getDate("dateAdhesion");
+        if (dateAdhesion != null) {
+            membre.setDateAdhesion(dateAdhesion.toLocalDate());
+        }
+        membre.setAvecId(rs.getLong("avec_id"));
+        
+        String roleComiteStr = rs.getString("roleComite");
+        if (roleComiteStr != null) {
+            membre.setRoleComite(RoleComite.valueOf(roleComiteStr));
+        }
+        
+        String roleCleStr = rs.getString("roleCle");
+        if (roleCleStr != null) {
+            membre.setRoleCle(RoleDetenteurCle.valueOf(roleCleStr));
+        }
+   
+        
 
         return membre;
     }
