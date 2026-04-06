@@ -138,7 +138,7 @@ public class AvecService {
         // Vérifier que l'AVEC n'a pas de membres actifs
         List<Membre> membres = membreDAO.findByAvecId(id);
         long actifs = membres.stream()
-                .filter(m -> m.getStatut() == StatutMembre.ACTIF)
+                .filter(m -> m.getEstActif() == StatutMembre.ACTIF)
                 .count();
 
         if (actifs > 0) {
@@ -301,7 +301,21 @@ public class AvecService {
     */
    public List<Avec> getAvecsByAgentTerrainId(Long agentTerrainId) throws SQLException {
        if (agentTerrainId == null) return new ArrayList<>();
-       return avecDAO.findByAgentTerrainId(agentTerrainId);
+       List<Avec> avecs = avecDAO.findByAgentTerrainId(agentTerrainId);
+       
+       // Charger l'agent villageois pour chaque AVEC
+       for (Avec avec : avecs) {
+           if (avec.getAgentVillageoisId() != null) {
+               AgentVillageois agent = agentVillageoisDao.findAgentVillageoisById(avec.getAgentVillageoisId());
+               avec.setAgentVillageois(agent);
+               System.out.println(">>> AVEC " + avec.getNom() + " - Agent villageois: " + 
+                   (agent != null ? agent.getNomComplet() : "null"));
+           } else {
+               System.out.println(">>> AVEC " + avec.getNom() + " - Pas d'agent villageois associé");
+           }
+       }
+       
+       return avecs;
    }
 
     /**

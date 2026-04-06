@@ -53,7 +53,14 @@ public class AgentTerrainDao {
 	// Chercher par id
 	public AgentTerrain chercherId(Long id) {
 
-		AgentTerrain agent = null;
+		if (id == null)
+			return null;
+
+		// Récupérer d'abord l'utilisateur
+		Utilisateur utilisateur = utilisateurDao.chercherId(id);
+		if (utilisateur == null)
+			return null;
+
 		Connection conn = null;
 		PreparedStatement stmt = null;
 		ResultSet rs = null;
@@ -65,19 +72,12 @@ public class AgentTerrainDao {
 			stmt.setLong(1, id);
 			rs = stmt.executeQuery();
 
-			if (!rs.next()) {
-				return null;
+			if (rs.next()) {
+				AgentTerrain agent = new AgentTerrain(utilisateur);
+				return agent;
 			}
 
-			// Récupérer l'ID (on sait déjà que c'est id)
-			rs.close();
-			stmt.close();
-
-			// 2. Récupérer l'utilisateur correspondant
-			Utilisateur utilisateur = utilisateurDao.chercherId(id);
-			if (utilisateur != null) {
-				agent = new AgentTerrain(utilisateur);
-			}
+			
 
 		} catch (SQLException e) {
 			System.err.println("Erreur chercherId: " + e.getMessage());
@@ -92,54 +92,54 @@ public class AgentTerrainDao {
 				e.printStackTrace();
 			}
 		}
-		return agent;
+		return null;
 	}
 
 	public AgentTerrain chercherParEmailEtMotDePasse(String email, String motDePasse) {
-	    Connection conn = null;
-	    PreparedStatement pstmt = null;
-	    ResultSet rs = null;
-	    
-	    try {
-	        conn = DBConnection.getConnection();
-	        
-	        String sql = "SELECT u.id, u.nom, u.prenom, u.email, u.telephone, u.motDePasse " +
-	                     "FROM Utilisateur u " +
-	                     "JOIN AgentTerrain at ON u.id = at.id " +
-	                     "WHERE u.email = ? AND u.motDePasse = ?";
-	        
-	        pstmt = conn.prepareStatement(sql);
-	        pstmt.setString(1, email);
-	        pstmt.setString(2, motDePasse);
-	        rs = pstmt.executeQuery();
-	        
-	        if (rs.next()) {
-	            Utilisateur utilisateur = new Utilisateur();
-	            utilisateur.setId(rs.getLong("id"));
-	            utilisateur.setNom(rs.getString("nom"));
-	            utilisateur.setPrenom(rs.getString("prenom"));
-	            utilisateur.setEmail(rs.getString("email"));
-	            utilisateur.setTelephone(rs.getString("telephone"));
-	            utilisateur.setMotDePasse(rs.getString("motDePasse"));
-	            
-	            return new AgentTerrain(utilisateur);
-	        }
-	        
-	    } catch (SQLException e) {
-	        System.err.println("Erreur chercherParEmailEtMotDePasse: " + e.getMessage());
-	        e.printStackTrace();
-	    } finally {
-	        try {
-	            if (rs != null) rs.close();
-	            if (pstmt != null) pstmt.close();
-	        } catch (SQLException e) {
-	            e.printStackTrace();
-	        }
-	    }
-	    
-	    return null;
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+
+		try {
+			conn = DBConnection.getConnection();
+
+			String sql = "SELECT u.id, u.nom, u.prenom, u.email, u.telephone, u.motDePasse " + "FROM Utilisateur u "
+					+ "JOIN AgentTerrain at ON u.id = at.id " + "WHERE u.email = ? AND u.motDePasse = ?";
+
+			pstmt = conn.prepareStatement(sql);
+			pstmt.setString(1, email);
+			pstmt.setString(2, motDePasse);
+			rs = pstmt.executeQuery();
+
+			if (rs.next()) {
+				Utilisateur utilisateur = new Utilisateur();
+				utilisateur.setId(rs.getLong("id"));
+				utilisateur.setNom(rs.getString("nom"));
+				utilisateur.setPrenom(rs.getString("prenom"));
+				utilisateur.setEmail(rs.getString("email"));
+				utilisateur.setTelephone(rs.getString("telephone"));
+				utilisateur.setMotDePasse(rs.getString("motDePasse"));
+
+				return new AgentTerrain(utilisateur);
+			}
+
+		} catch (SQLException e) {
+			System.err.println("Erreur chercherParEmailEtMotDePasse: " + e.getMessage());
+			e.printStackTrace();
+		} finally {
+			try {
+				if (rs != null)
+					rs.close();
+				if (pstmt != null)
+					pstmt.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+
+		return null;
 	}
-	
+
 	// Lister tout
 	public List<AgentTerrain> lister() {
 		List<AgentTerrain> agents = new ArrayList<>();
@@ -187,129 +187,124 @@ public class AgentTerrainDao {
 		}
 		return agents;
 	}
-	
-	 // Version alternative plus simple pour lister
-    public List<AgentTerrain> listerSimple() {
-        List<AgentTerrain> agents = new ArrayList<>();
-        Connection conn = null;
-        Statement stmt = null;
-        ResultSet rs = null;
-        
-        try {
-            conn = DBConnection.getConnection();
-            String sql = "SELECT a.*, u.nom, u.prenom, u.email, u.telephone " +
-                         "FROM AgentTerrain a " +
-                         "JOIN Utilisateur u ON a.id = u.id";
-            stmt = conn.createStatement();
-            rs = stmt.executeQuery(sql);
-            
-            while (rs.next()) {
-                Utilisateur utilisateur = new Utilisateur();
-                utilisateur.setId(rs.getLong("id"));
-                utilisateur.setNom(rs.getString("nom"));
-                utilisateur.setPrenom(rs.getString("prenom"));
-                utilisateur.setEmail(rs.getString("email"));
-                utilisateur.setTelephone(rs.getString("telephone"));
-                // Ne pas récupérer le mot de passe ici pour des raisons de sécurité
-                
-                AgentTerrain agent = new AgentTerrain(utilisateur);
-                agents.add(agent);
-            }
-            
-        } catch (SQLException e) {
-            System.err.println("Erreur listerSimple: " + e.getMessage());
-            e.printStackTrace();
-        } finally {
-            try {
-                if (rs != null) rs.close();
-                if (stmt != null) stmt.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        }
-        return agents;
-    }
 
-    
-    // Mettre à jour AT
-    public boolean modifier(AgentTerrain agentTerrain) {
-        // Mettre à jour Utilisateur seulement car AgentTerrain n'a pas d'autres champs
-        return utilisateurDao.modifier(agentTerrain);
-    }
-    
-    // Supprimer
-    public boolean supprimer(Long id) {
-        // Supprimer d'abord de AgentTerrain
-        String sql = "DELETE FROM agentterrain WHERE id = ?";
-        
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
-            stmt.setLong(1, id);
-            boolean deleted = stmt.executeUpdate() > 0;
-            
-            // Puis supprimer de Utilisateur
-            if (deleted) {
-                return utilisateurDao.spprimer(id);
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-    
-    // COUNT
-    public int compter() {
-        String sql = "SELECT COUNT(*) FROM agentterrain";
-        
-        try (Connection conn = DBConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            
-            if (rs.next()) {
-                return rs.getInt(1);
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return 0;
-    }
-    
-    // Mapping ResultSet -> AgentTerrain
-    private AgentTerrain mapResultSetToAgentTerrain(ResultSet rs) throws SQLException {
-        Long id = rs.getLong("id");
-        
-        // Récupérer les informations de base depuis Utilisateur
-        Utilisateur utilisateur = utilisateurDao.chercherId(id);
-        if (utilisateur == null) {
-            return null;
-        }
-        
-        return new AgentTerrain(utilisateur);
-    }
+	// Version alternative plus simple pour lister
+	public List<AgentTerrain> listerSimple() {
+		List<AgentTerrain> agents = new ArrayList<>();
+		Connection conn = null;
+		Statement stmt = null;
+		ResultSet rs = null;
 
+		try {
+			conn = DBConnection.getConnection();
+			String sql = "SELECT a.*, u.nom, u.prenom, u.email, u.telephone " + "FROM AgentTerrain a "
+					+ "JOIN Utilisateur u ON a.id = u.id";
+			stmt = conn.createStatement();
+			rs = stmt.executeQuery(sql);
 
+			while (rs.next()) {
+				Utilisateur utilisateur = new Utilisateur();
+				utilisateur.setId(rs.getLong("id"));
+				utilisateur.setNom(rs.getString("nom"));
+				utilisateur.setPrenom(rs.getString("prenom"));
+				utilisateur.setEmail(rs.getString("email"));
+				utilisateur.setTelephone(rs.getString("telephone"));
+				// Ne pas récupérer le mot de passe ici pour des raisons de sécurité
 
+				AgentTerrain agent = new AgentTerrain(utilisateur);
+				agents.add(agent);
+			}
 
-    public AgentTerrain findAgentTerrainById(Long id) throws SQLException {
-        String sql = "SELECT * FROM agents_terrain WHERE id = ?";
+		} catch (SQLException e) {
+			System.err.println("Erreur listerSimple: " + e.getMessage());
+			e.printStackTrace();
+		} finally {
+			try {
+				if (rs != null)
+					rs.close();
+				if (stmt != null)
+					stmt.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+		return agents;
+	}
 
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+	// Mettre à jour AT
+	public boolean modifier(AgentTerrain agentTerrain) {
+		// Mettre à jour Utilisateur seulement car AgentTerrain n'a pas d'autres champs
+		return utilisateurDao.modifier(agentTerrain);
+	}
 
-            stmt.setLong(1, id);
+	// Supprimer
+	public boolean supprimer(Long id) {
+		// Supprimer d'abord de AgentTerrain
+		String sql = "DELETE FROM agentterrain WHERE id = ?";
 
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    AgentTerrain agent = new AgentTerrain();
+		try (Connection conn = DBConnection.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-                    // Propriétés de base
-                    agent.setId(rs.getLong("id"));
-                    agent.setNom(rs.getString("nom"));
-                    agent.setEmail(rs.getString("email"));
-                    agent.setMotDePasse(rs.getString("mot_de_passe"));
-                    agent.setTelephone(rs.getString("telephone"));
-                   // agent.setActif(rs.getBoolean("actif"));
+			stmt.setLong(1, id);
+			boolean deleted = stmt.executeUpdate() > 0;
+
+			// Puis supprimer de Utilisateur
+			if (deleted) {
+				return utilisateurDao.spprimer(id);
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return false;
+	}
+
+	// COUNT
+	public int compter() {
+		String sql = "SELECT COUNT(*) FROM agentterrain";
+
+		try (Connection conn = DBConnection.getConnection();
+				Statement stmt = conn.createStatement();
+				ResultSet rs = stmt.executeQuery(sql)) {
+
+			if (rs.next()) {
+				return rs.getInt(1);
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return 0;
+	}
+
+	// Mapping ResultSet -> AgentTerrain
+	private AgentTerrain mapResultSetToAgentTerrain(ResultSet rs) throws SQLException {
+		Long id = rs.getLong("id");
+
+		// Récupérer les informations de base depuis Utilisateur
+		Utilisateur utilisateur = utilisateurDao.chercherId(id);
+		if (utilisateur == null) {
+			return null;
+		}
+
+		return new AgentTerrain(utilisateur);
+	}
+
+	public AgentTerrain findAgentTerrainById(Long id) throws SQLException {
+		String sql = "SELECT * FROM agents_terrain WHERE id = ?";
+
+		try (Connection conn = DBConnection.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+			stmt.setLong(1, id);
+
+			try (ResultSet rs = stmt.executeQuery()) {
+				if (rs.next()) {
+					AgentTerrain agent = new AgentTerrain();
+
+					// Propriétés de base
+					agent.setId(rs.getLong("id"));
+					agent.setNom(rs.getString("nom"));
+					agent.setEmail(rs.getString("email"));
+					agent.setMotDePasse(rs.getString("mot_de_passe"));
+					agent.setTelephone(rs.getString("telephone"));
+					// agent.setActif(rs.getBoolean("actif"));
 
 //                    Date dateCreation = rs.getDate("date_creation");
 //                    if (dateCreation != null) {
@@ -321,14 +316,14 @@ public class AgentTerrainDao {
 //                        agent.setDerniereConnexion(derniereConnexion.toLocalDate());
 //                    }
 
-                    // Propriétés spécifiques
-                    //agent.setZoneIntervention(rs.getString("zone_intervention"));
+					// Propriétés spécifiques
+					// agent.setZoneIntervention(rs.getString("zone_intervention"));
 
-                    return agent;
-                }
-            }
-        }
-        return null;
-    }
+					return agent;
+				}
+			}
+		}
+		return null;
+	}
 
 }

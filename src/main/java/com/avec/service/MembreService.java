@@ -1,41 +1,39 @@
 package com.avec.service;
 
-import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 import com.avec.dao.AvecDAO;
 import com.avec.dao.MembreDAO;
+import com.avec.dao.UtilisateurDao;
 import com.avec.enums.RoleComite;
 import com.avec.enums.RoleDetenteurCle;
 import com.avec.enums.StatutMembre;
 import com.avec.model.Avec;
 import com.avec.model.Membre;
+import com.avec.model.Utilisateur;
 
-/**
- * Service pour la gestion des membres
- */
 public class MembreService {
 
     private final MembreDAO membreDAO;
     private final AvecDAO avecDAO;
-    private Membre membre;
+    private final UtilisateurDao utilisateurDao;
 
     public MembreService() {
         this.membreDAO = new MembreDAO();
         this.avecDAO = new AvecDAO();
-        this.membre = new Membre();
+        this.utilisateurDao = new UtilisateurDao();
     }
 
     /**
-     * Crée un nouveau membre
+     * Crée un nouveau membre et son compte utilisateur
      */
     public Membre creerMembre(String nom, String prenom, Long avecId,
-                              String profession, String village, String telephone)
+                              String motDePasse, String telephone)
             throws SQLException, IllegalArgumentException {
 
-        // Validation
         if (nom == null || nom.trim().isEmpty()) {
             throw new IllegalArgumentException("Le nom est obligatoire");
         }
@@ -44,6 +42,13 @@ public class MembreService {
         }
         if (avecId == null) {
             throw new IllegalArgumentException("L'ID de l'AVEC est obligatoire");
+        }
+        if (motDePasse == null || motDePasse.trim().isEmpty()) {
+            throw new IllegalArgumentException("Le mot de passe est obligatoire");
+        }
+        
+        if (telephone == null || telephone.trim().isEmpty()) {
+            throw new IllegalArgumentException("Le numéro de téléphone est obligatoire");
         }
 
         // Vérifier que l'AVEC existe
@@ -59,20 +64,59 @@ public class MembreService {
                     avec.getNombreMembresMax() + ")");
         }
 
-        String numeroMembre = membre.getNumeroCarte();
+        // Générer un numéro de carte unique
+        String numeroCarte = genererNumeroCarte(avecId);
 
-        Membre membre = new Membre(nom, prenom, numeroMembre, LocalDate.now());
+        // 1. Créer l'utilisateur dans la table utilisateur
+        Utilisateur utilisateur = new Utilisateur();
+        utilisateur.setNom(nom);
+        utilisateur.setPrenom(prenom);
+        utilisateur.setEmail(numeroCarte + "@membre.avec.com"); // Email par défaut
+        utilisateur.setMotDePasse(motDePasse);
+        utilisateur.setTelephone(telephone);
+        
+        utilisateurDao.ajouter(utilisateur);
+
+        // 2. Créer le membre dans la table membre
+        Membre membre = new Membre();
+        membre.setId(utilisateur.getId()); // Même ID que l'utilisateur
+        membre.setNom(nom);
+        membre.setPrenom(prenom);
+        membre.setNumeroCarte(numeroCarte);
+        membre.setEstActif(StatutMembre.ACTIF);
+        membre.setDateAdhesion(LocalDate.now());
         membre.setAvecId(avecId);
-        membre.setProfession(profession);
-        membre.setVillage(village);
-        membre.setTelephone(telephone);
-        membre.setStatut(StatutMembre.ACTIF);
         membre.setRoleComite(RoleComite.AUCUN);
         membre.setRoleCle(RoleDetenteurCle.AUCUN);
 
         return membreDAO.insert(membre);
     }
-
+    
+    /**
+     * Cherche un membre par carte et mot de passe
+     */
+    public Membre chercherParCarteEtMotDePasse(String numeroCarte, String motDePasse) {
+        if (numeroCarte == null || numeroCarte.trim().isEmpty()) {
+            return null;
+        }
+        if (motDePasse == null || motDePasse.trim().isEmpty()) {
+            return null;
+        }
+        return membreDAO.chercherParCarteEtMotDePasse(numeroCarte, motDePasse);
+    }
+    
+    /**
+     * Met à jour le mot de passe d'un membre
+     */
+    public boolean updateMotDePasse(long membreId, String nouveauMotDePasse) throws SQLException {
+        Utilisateur utilisateur = utilisateurDao.chercherId(membreId);
+        if (utilisateur == null) {
+            throw new IllegalArgumentException("Utilisateur non trouvé");
+        }
+        utilisateur.setMotDePasse(nouveauMotDePasse);
+        return utilisateurDao.modifier(utilisateur);
+    }
+    
     /**
      * Modifie un membre existant
      */
@@ -80,17 +124,25 @@ public class MembreService {
         if (membre.getId() == null) {
             throw new IllegalArgumentException("L'ID du membre ne peut pas être nul");
         }
-
-        Membre existant = membreDAO.findById(membre.getId());
-        if (existant == null) {
-            throw new IllegalArgumentException("Membre non trouvé");
+        
+        // Mettre à jour le membre
+        boolean updated = membreDAO.update(membre);
+        
+        // Mettre à jour l'utilisateur associé
+        if (updated) {
+            Utilisateur utilisateur = utilisateurDao.chercherId(membre.getId());
+            if (utilisateur != null) {
+                utilisateur.setNom(membre.getNom());
+                utilisateur.setPrenom(membre.getPrenom());
+                utilisateurDao.modifier(utilisateur);
+            }
         }
-
-        return membreDAO.update(membre);
+        
+        return updated;
     }
 
     /**
-     * Désactive un membre (départ de l'AVEC)
+     * Désactive un membre
      */
     public boolean desactiverMembre(long membreId) throws SQLException {
         Membre membre = membreDAO.findById(membreId);
@@ -98,28 +150,20 @@ public class MembreService {
             throw new IllegalArgumentException("Membre non trouvé");
         }
 
-        // Vérifier qu'il n'a pas de prêts en cours
-        if (membre.getTotalPretEnCours().compareTo(java.math.BigDecimal.ZERO) > 0) {
-            throw new IllegalStateException("Impossible de désactiver : le membre a des prêts en cours");
-        }
-
-        membre.setStatut(StatutMembre.INACTIF);
+        membre.setEstActif(StatutMembre.INACTIF);
         return membreDAO.update(membre);
     }
 
     /**
-     * Organise l'élection du comité de gestion
+     * Organise l'élection du comité
      */
     public boolean organiserElection(long avecId, List<ResultatElection> resultats) throws SQLException {
-        // Vérifier qu'on a 5 résultats (Président, Secrétaire, Trésorier, 2 Compteurs)
         if (resultats.size() != 5) {
             throw new IllegalArgumentException("Le comité doit avoir 5 membres");
         }
 
-        // Réinitialiser tous les rôles
         membreDAO.resetAllRolesComite(avecId);
 
-        // Assigner les nouveaux rôles
         for (ResultatElection resultat : resultats) {
             Membre membre = membreDAO.findById(resultat.getMembreId());
             if (membre != null && membre.getAvecId() == avecId) {
@@ -130,55 +174,28 @@ public class MembreService {
                 membreDAO.updateRoleComite(membre.getId(), resultat.getRole());
             }
         }
-
         return true;
+    }
+    
+    /**
+     * ✅ Récupère TOUS les membres de toutes les AVEC
+     */
+    public List<Membre> getAllMembres() throws SQLException {
+        return membreDAO.findAll();
     }
 
     /**
-     * Désigne les gardiens de clés
+     * ✅ Récupère le nombre total de membres
      */
-    public boolean designerGardiensCles(long avecId, List<Long> idsGardiens) throws SQLException {
-        // Vérifier qu'on a exactement 3 gardiens
-        if (idsGardiens.size() != 3) {
-            throw new IllegalArgumentException("Il faut exactement 3 gardiens de clés");
-        }
+    public int getNombreTotalMembres() throws SQLException {
+        return membreDAO.countAll();
+    }
 
-        // Réinitialiser tous les rôles de clé
-        membreDAO.resetAllRolesCle(avecId);
-
-        // Récupérer le comité pour vérification
-        List<Membre> comite = membreDAO.findComiteGestion(avecId);
-
-        // Assigner les rôles
-        for (int i = 0; i < idsGardiens.size(); i++) {
-            long membreId = idsGardiens.get(i);
-            Membre membre = membreDAO.findById(membreId);
-
-            if (membre == null || membre.getAvecId() != avecId) {
-                throw new IllegalArgumentException("Membre invalide: " + membreId);
-            }
-
-            // Vérifier que le membre n'est pas au comité
-            if (membre.getRoleComite() != RoleComite.AUCUN) {
-                throw new IllegalArgumentException("Les gardiens de clés ne doivent pas être au comité");
-            }
-
-            // Vérifier que le membre est actif
-            if (membre.getStatut() != StatutMembre.ACTIF) {
-                throw new IllegalArgumentException("Le membre doit être actif");
-            }
-
-            RoleDetenteurCle role = switch(i) {
-                case 0 -> RoleDetenteurCle.GARDIEN_CLE_1;
-                case 1 -> RoleDetenteurCle.GARDIEN_CLE_2;
-                case 2 -> RoleDetenteurCle.GARDIEN_CLE_3;
-                default -> RoleDetenteurCle.AUCUN;
-            };
-
-            membreDAO.updateRoleCle(membreId, role);
-        }
-
-        return true;
+    /**
+     * ✅ Récupère le nombre de membres actifs
+     */
+    public int getNombreMembresActifs() throws SQLException {
+        return membreDAO.countActifs();
     }
 
     /**
@@ -187,6 +204,64 @@ public class MembreService {
     public List<Membre> getMembresByAvecId(long avecId) throws SQLException {
         return membreDAO.findByAvecId(avecId);
     }
+    
+    /**
+     * ✅ Désigne les gardiens de clés pour une AVEC
+     * Les gardiens de clés sont 3 membres qui ne font pas partie du comité
+     */
+    public boolean designerGardiensCles(long avecId, List<Long> idsGardiens) throws SQLException {
+        // Vérifier qu'on a exactement 3 gardiens
+        if (idsGardiens.size() != 3) {
+            throw new IllegalArgumentException("Il faut exactement 3 gardiens de clés");
+        }
+
+        // Réinitialiser tous les rôles de clé pour cette AVEC
+        membreDAO.resetAllRolesCle(avecId);
+
+        // Récupérer le comité pour vérification
+        List<Membre> comite = membreDAO.findComiteGestion(avecId);
+        List<Long> idsComite = comite.stream()
+                .map(Membre::getId)
+                .toList();
+
+        // Assigner les rôles de gardiens
+        for (int i = 0; i < idsGardiens.size(); i++) {
+            long membreId = idsGardiens.get(i);
+            Membre membre = membreDAO.findById(membreId);
+
+            if (membre == null) {
+                throw new IllegalArgumentException("Membre non trouvé avec l'ID: " + membreId);
+            }
+
+            if (membre.getAvecId() != avecId) {
+                throw new IllegalArgumentException("Le membre n'appartient pas à cette AVEC");
+            }
+
+            // Vérifier que le membre n'est pas au comité
+            if (idsComite.contains(membreId)) {
+                throw new IllegalArgumentException("Les gardiens de clés ne doivent pas être au comité");
+            }
+
+            // Vérifier que le membre est actif
+            if (membre.getEstActif() != StatutMembre.ACTIF) {
+                throw new IllegalArgumentException("Le membre doit être actif");
+            }
+
+            // Déterminer le rôle du gardien
+            RoleDetenteurCle role = switch(i) {
+                case 0 -> RoleDetenteurCle.GARDIEN_CLE_1;
+                case 1 -> RoleDetenteurCle.GARDIEN_CLE_2;
+                case 2 -> RoleDetenteurCle.GARDIEN_CLE_3;
+                default -> RoleDetenteurCle.AUCUN;
+            };
+
+            membre.setRoleCle(role);
+            membreDAO.updateRoleCle(membreId, role.name());
+        }
+
+        return true;
+    }
+
 
     /**
      * Récupère un membre par son ID
@@ -196,108 +271,22 @@ public class MembreService {
     }
 
     /**
-     * Récupère le comité de gestion d'une AVEC
+     * Récupère le comité de gestion
      */
     public List<Membre> getComiteGestion(long avecId) throws SQLException {
         return membreDAO.findComiteGestion(avecId);
     }
 
     /**
-     * Récupère les gardiens de clés d'une AVEC
+     * Génère un numéro de carte unique
      */
-    public List<Membre> getGardiensCles(long avecId) throws SQLException {
-        return membreDAO.findGardiensCles(avecId);
+    private String genererNumeroCarte(long avecId) {
+        String prefix = "MEM";
+        String avec = String.format("%03d", avecId);
+        String unique = UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+        return prefix + "-" + avec + "-" + unique;
     }
 
-    /**
-     * Vérifie si un membre peut être gardien de clé
-     */
-    public boolean isEligibleGardienCle(long membreId) throws SQLException {
-        Membre membre = membreDAO.findById(membreId);
-        return membre != null && membre.isEligibleGardienCle();
-    }
-
-    /**
-     * Met à jour l'épargne d'un membre
-     */
-    public boolean mettreAJourEpargne(long membreId, int nombrePartsAchetees) throws SQLException {
-        Membre membre = membreDAO.findById(membreId);
-        if (membre == null) {
-            return false;
-        }
-
-        int nouveauNombreParts = membre.getNombreParts() + nombrePartsAchetees;
-        membre.setNombreParts(nouveauNombreParts);
-        membre.calculerTotalEpargne();
-
-        return membreDAO.updateTotaux(
-                membreId,
-                membre.getTotalEpargne(),
-                membre.getTotalPretEnCours(),
-                nouveauNombreParts
-        );
-    }
-    
-    // ==================== NOUVELLES MÉTHODES À AJOUTER ====================
-
-    /**
-     * Récupère TOUS les membres de toutes les AVEC
-     */
-    public List<Membre> getAllMembres() throws SQLException {
-        return membreDAO.findAll();
-    }
-
-    /**
-     * Récupère le nombre total de membres (toutes AVEC confondues)
-     */
-    public int getNombreTotalMembres() throws SQLException {
-        return membreDAO.countAll();
-    }
-
-    /**
-     * Récupère le nombre de membres actifs (toutes AVEC confondues)
-     */
-    public int getNombreMembresActifs() throws SQLException {
-        return membreDAO.countActifs();
-    }
-
-    /**
-     * Récupère le total de l'épargne de tous les membres
-     */
-    public BigDecimal getTotalEpargne() throws SQLException {
-        return membreDAO.sumTotalEpargne();
-    }
-
-    /**
-     * Récupère le total des prêts en cours de tous les membres
-     */
-    public BigDecimal getTotalPretEnCours() throws SQLException {
-        return membreDAO.sumTotalPretEnCours();
-    }
-
-    /**
-     * Recherche des membres par nom dans toutes les AVEC
-     */
-    public List<Membre> rechercherMembresGlobal(String recherche) throws SQLException {
-        if (recherche == null || recherche.trim().isEmpty()) {
-            return getAllMembres();
-        }
-        return membreDAO.searchByNomGlobal(recherche);
-    }
-
-    /**
-     * Recherche des membres par nom
-     */
-    public List<Membre> rechercherMembres(long avecId, String recherche) throws SQLException {
-        if (recherche == null || recherche.trim().isEmpty()) {
-            return getMembresByAvecId(avecId);
-        }
-        return membreDAO.searchByNom(avecId, recherche);
-    }
-
-    /**
-     * Classe interne pour représenter un résultat d'élection
-     */
     public static class ResultatElection {
         private final long membreId;
         private final RoleComite role;
@@ -307,12 +296,7 @@ public class MembreService {
             this.role = role;
         }
 
-        public long getMembreId() {
-            return membreId;
-        }
-
-        public RoleComite getRole() {
-            return role;
-        }
+        public long getMembreId() { return membreId; }
+        public RoleComite getRole() { return role; }
     }
 }

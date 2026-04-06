@@ -26,18 +26,15 @@ public class AvecDAO {
      * Insère une nouvelle AVEC
      */
     public Avec insert(Avec avec) throws SQLException {
-
+        // ✅ Correction: Utiliser les bons noms de colonnes de votre table
         String sql = "INSERT INTO avec (nom, codeUnique, statut, dateCreation, " +
                 "nombreMembreMax, prixPart, tauxFraisServiceMensuel, " +
-                "phaseCourante,  " +
-                "agentVillageois_id, agentTerrain_id) " +
+                "phaseCourante, agentVillageois_id, agentTerrain_id) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         System.out.println(">>> DAO: Debut insert()");
         System.out.println(">>> DAO: avec.nom = " + avec.getNom());
         System.out.println(">>> DAO: avec.agentVillageoisId = " + avec.getAgentVillageoisId());
-        
-              
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -45,7 +42,14 @@ public class AvecDAO {
             stmt.setString(1, avec.getNom());
             stmt.setString(2, avec.getCodeUnique());
             stmt.setString(3, avec.getStatut().name());
-            stmt.setDate(4, Date.valueOf(avec.getDateCreation()));
+            
+            // ✅ Correction: dateCreation est LocalDate
+            if (avec.getDateCreation() != null) {
+                stmt.setDate(4, Date.valueOf(avec.getDateCreation()));
+            } else {
+                stmt.setDate(4, Date.valueOf(LocalDate.now()));
+            }
+            
             stmt.setInt(5, avec.getNombreMembresMax());
             stmt.setBigDecimal(6, avec.getPrixPart());
             stmt.setBigDecimal(7, avec.getTauxFraisServiceMensuel());
@@ -437,25 +441,36 @@ public class AvecDAO {
 
         // Gestion sécurisée du statut
         String statutStr = rs.getString("statut");
-        try {
-            avec.setStatut(StatutAvec.valueOf(statutStr));
-        } catch (IllegalArgumentException e) {
-            System.err.println("Statut invalide: " + statutStr + " - utilisation de EN_FORMATION par défaut");
-            avec.setStatut(StatutAvec.EN_FORMATION);
+        if (statutStr != null) {
+            try {
+                avec.setStatut(StatutAvec.valueOf(statutStr));
+            } catch (IllegalArgumentException e) {
+                System.err.println("Statut invalide: " + statutStr);
+                avec.setStatut(StatutAvec.EN_FORMATION);
+            }
         }
 
-        avec.setDateCreation(rs.getDate("dateCreation").toLocalDate());
+        // ✅ Correction: dateCreation est DATE, utiliser getDate
+        Date dateCreation = rs.getDate("dateCreation");
+        if (dateCreation != null) {
+            avec.setDateCreation(dateCreation.toLocalDate());
+        } else {
+            avec.setDateCreation(LocalDate.now());
+        }
+
         avec.setNombreMembresMax(rs.getInt("nombreMembreMax"));
         avec.setPrixPart(rs.getBigDecimal("prixPart"));
         avec.setTauxFraisServiceMensuel(rs.getBigDecimal("tauxFraisServiceMensuel"));
 
         // Gestion sécurisée de la phase
         String phaseStr = rs.getString("phaseCourante");
-        try {
-            avec.setPhaseCourante(PhaseCycle.valueOf(phaseStr));
-        } catch (IllegalArgumentException e) {
-            System.err.println("Phase invalide: " + phaseStr + " - utilisation de PREPARATOIRE par défaut");
-            avec.setPhaseCourante(PhaseCycle.PREPARATOIRE);
+        if (phaseStr != null) {
+            try {
+                avec.setPhaseCourante(PhaseCycle.valueOf(phaseStr));
+            } catch (IllegalArgumentException e) {
+                System.err.println("Phase invalide: " + phaseStr);
+                avec.setPhaseCourante(PhaseCycle.PREPARATOIRE);
+            }
         }
 
         avec.setAgentVillageoisId(rs.getLong("agentVillageois_id"));
@@ -467,7 +482,6 @@ public class AvecDAO {
 
         return avec;
     }
-
 
     /**
      * Trouve une AVEC par son ID

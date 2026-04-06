@@ -87,7 +87,7 @@ public class AgentVillageoisDao {
             }
             
             conn = DBConnection.getConnection();
-            String sql = "INSERT INTO agent_villageois (id, agent_terrain_id, avec_origine_id) VALUES (?, ?, ?)";
+            String sql = "INSERT INTO agentvillageois (id, agentTerrain_id) VALUES (?, ?)";
             pstmt = conn.prepareStatement(sql);
             pstmt.setLong(1, agent.getId());
             pstmt.setLong(2, agent.getAgentTerrain().getId());
@@ -134,19 +134,33 @@ public class AgentVillageoisDao {
             rs = pstmt.executeQuery();
             
             if (rs.next()) {
+                // Récupérer les données avant de fermer le ResultSet
+                Long utilisateurId = rs.getLong("id");
+                String nom = rs.getString("nom");
+                String prenom = rs.getString("prenom");
+                String email = rs.getString("email");
+                String telephone = rs.getString("telephone");
+                String motDePasse = rs.getString("motDePasse");
+                Long agentTerrainId = rs.getLong("agentTerrain_id");
+                boolean hasAgentTerrain = !rs.wasNull();
+                
+                // Fermer le ResultSet et le Statement
+                rs.close();
+                pstmt.close();
+                
+                // Créer l'utilisateur
                 Utilisateur utilisateur = new Utilisateur();
-                utilisateur.setId(rs.getLong("id"));
-                utilisateur.setNom(rs.getString("nom"));
-                utilisateur.setPrenom(rs.getString("prenom"));
-                utilisateur.setEmail(rs.getString("email"));
-                utilisateur.setTelephone(rs.getString("telephone"));
-                utilisateur.setMotDePasse(rs.getString("motDePasse"));
+                utilisateur.setId(utilisateurId);
+                utilisateur.setNom(nom);
+                utilisateur.setPrenom(prenom);
+                utilisateur.setEmail(email);
+                utilisateur.setTelephone(telephone);
+                utilisateur.setMotDePasse(motDePasse);
                 
                 AgentVillageois agent = new AgentVillageois(utilisateur);
                 
-                Long agentTerrainId = rs.getLong("agentTerrain_id");
-                if (agentTerrainId != null && agentTerrainId > 0) {
-                    // Utiliser le DAO d'agent terrain pour chercher
+                // Récupérer l'agent terrain avec une NOUVELLE connexion
+                if (hasAgentTerrain && agentTerrainId > 0) {
                     AgentTerrain agentTerrain = agentTerrainDao.chercherId(agentTerrainId);
                     agent.setAgentTerrain(agentTerrain);
                 }

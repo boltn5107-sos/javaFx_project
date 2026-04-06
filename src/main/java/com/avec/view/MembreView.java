@@ -399,7 +399,7 @@ public class MembreView {
      */
     private void mettreAJourStatistiques(List<Membre> membres) {
         long total = membres.size();
-        long actifs = membres.stream().filter(m -> m.getStatut() == StatutMembre.ACTIF).count();
+        long actifs = membres.stream().filter(m -> m.getEstActif() == StatutMembre.ACTIF).count();
         java.math.BigDecimal totalEpargne = membres.stream()
                 .map(Membre::getTotalEpargne)
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
@@ -416,7 +416,7 @@ public class MembreView {
         List<Membre> tous = new ArrayList<>(membresObservable);
 
         List<Membre> filtres = tous.stream()
-                .filter(m -> filtreStatut.getValue() == null || m.getStatut() == filtreStatut.getValue())
+                .filter(m -> filtreStatut.getValue() == null || m.getEstActif() == filtreStatut.getValue())
                 .filter(m -> filtreRole.getValue() == null ||
                         filtreRole.getValue() == RoleComite.AUCUN ||
                         m.getRoleComite() == filtreRole.getValue())
@@ -449,7 +449,7 @@ public class MembreView {
             if (recherche == null || recherche.trim().isEmpty()) {
                 chargerMembresParAvecId(idAvec);
             } else {
-                List<Membre> resultats = membreService.rechercherMembres(idAvec, recherche);
+                List<Membre> resultats = membreService.getMembresByAvecId(idAvec);
                 tableMembres.setItems(FXCollections.observableArrayList(resultats));
             }
         } catch (SQLException e) {
@@ -487,8 +487,8 @@ public class MembreView {
         TextField prenomField = new TextField();
         prenomField.setPromptText("Prénom");
 
-        TextField professionField = new TextField();
-        professionField.setPromptText("Profession");
+        TextField numeroCarteField = new TextField();
+        numeroCarteField.setPromptText("Numéro de carte");
 
         TextField villageField = new TextField();
         villageField.setPromptText("Village");
@@ -500,8 +500,8 @@ public class MembreView {
         grid.add(nomField, 1, 0);
         grid.add(new Label("Prénom*:"), 0, 1);
         grid.add(prenomField, 1, 1);
-        grid.add(new Label("Profession:"), 0, 2);
-        grid.add(professionField, 1, 2);
+        grid.add(new Label("Numéro de carte:"), 0, 2);
+        grid.add(numeroCarteField, 1, 2);
         grid.add(new Label("Village:"), 0, 3);
         grid.add(villageField, 1, 3);
         grid.add(new Label("Téléphone:"), 0, 4);
@@ -523,7 +523,7 @@ public class MembreView {
                 Membre membre = new Membre();
                 membre.setNom(nomField.getText().trim());
                 membre.setPrenom(prenomField.getText().trim());
-                membre.setProfession(professionField.getText());
+                membre.setProfession(numeroCarteField.getText());
                 membre.setVillage(villageField.getText());
                 membre.setTelephone(telephoneField.getText());
                 return membre;
@@ -531,26 +531,19 @@ public class MembreView {
             return null;
         });
 
-        Optional<Membre> result = dialog.showAndWait();
-        result.ifPresent(membre -> {
-            try {
-                Membre created = membreService.creerMembre(
-                        membre.getNom(),
-                        membre.getPrenom(),
-                        idAvec,
-                        membre.getProfession(),
-                        membre.getVillage(),
-                        membre.getTelephone()
-                );
-
-                membresObservable.add(created);
-                mettreAJourStatistiques(membresObservable);
-                AlertUtils.showInfo("Succès", "Membre créé", "N° Membre: " + created.getNumeroCarte());
-
-            } catch (SQLException | IllegalArgumentException e) {
-                AlertUtils.showError("Erreur", "Impossible de créer le membre", e.getMessage());
-            }
-        });
+//        Optional<Membre> result = dialog.showAndWait();
+//        result.ifPresent(membre -> {
+//            try {
+//                Membre created =  membreService.creerMembre(nomField,prenomField, );
+//
+//                membresObservable.add(created);
+//                mettreAJourStatistiques(membresObservable);
+//                AlertUtils.showInfo("Succès", "Membre créé", "N° Membre: " + created.getNumeroCarte());
+//
+//            } catch (SQLException | IllegalArgumentException e) {
+//                AlertUtils.showError("Erreur", "Impossible de créer le membre", e.getMessage());
+//            }
+//        });
     }
 
     /**
@@ -572,20 +565,20 @@ public class MembreView {
 
         TextField nomField = new TextField(membre.getNom());
         TextField prenomField = new TextField(membre.getPrenom());
-        TextField professionField = new TextField(membre.getProfession());
+        TextField numeroCarteField = new TextField(membre.getNumeroCarte());
         TextField villageField = new TextField(membre.getVillage());
         TextField telephoneField = new TextField(membre.getTelephone());
 
         ComboBox<StatutMembre> statutCombo = new ComboBox<>();
         statutCombo.setItems(FXCollections.observableArrayList(StatutMembre.values()));
-        statutCombo.setValue(membre.getStatut());
+        statutCombo.setValue(membre.getEstActif());
 
         grid.add(new Label("Nom:"), 0, 0);
         grid.add(nomField, 1, 0);
         grid.add(new Label("Prénom:"), 0, 1);
         grid.add(prenomField, 1, 1);
         grid.add(new Label("Profession:"), 0, 2);
-        grid.add(professionField, 1, 2);
+        grid.add(numeroCarteField, 1, 2);
         grid.add(new Label("Village:"), 0, 3);
         grid.add(villageField, 1, 3);
         grid.add(new Label("Téléphone:"), 0, 4);
@@ -599,10 +592,10 @@ public class MembreView {
             if (dialogButton == saveButtonType) {
                 membre.setNom(nomField.getText().trim());
                 membre.setPrenom(prenomField.getText().trim());
-                membre.setProfession(professionField.getText());
+                membre.setProfession(numeroCarteField.getText());
                 membre.setVillage(villageField.getText());
                 membre.setTelephone(telephoneField.getText());
-                membre.setStatut(statutCombo.getValue());
+                membre.setEstActif(statutCombo.getValue());
                 return membre;
             }
             return null;
@@ -635,7 +628,7 @@ public class MembreView {
         if (confirm) {
             try {
                 if (membreService.desactiverMembre(membre.getId())) {
-                    membre.setStatut(StatutMembre.INACTIF);
+                    membre.setEstActif(StatutMembre.INACTIF);
                     tableMembres.refresh();
                     mettreAJourStatistiques(membresObservable);
                     AlertUtils.showInfo("Succès", "Membre désactivé", null);
@@ -692,7 +685,7 @@ public class MembreView {
                         "Téléphone: %s",
                 "N° Membre: " + membre.getNumeroCarte(),
                 membre.getNomComplet(),
-                membre.getStatut().getLibelle(),
+                membre.getEstActif().getLibelle(),
                 FormatUtils.formatDate(membre.getDateAdhesion()),
                 membre.getRoleComite().getDescription(),
                 membre.getRoleCle().getLibelle(),

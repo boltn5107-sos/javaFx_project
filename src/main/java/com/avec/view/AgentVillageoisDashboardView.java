@@ -9,7 +9,6 @@ import java.util.stream.Collectors;
 
 import com.avec.MainApp;
 import com.avec.config.Styles;
-import com.avec.enums.JourReunion;
 import com.avec.enums.RoleComite;
 import com.avec.enums.StatutMembre;
 import com.avec.model.AgentVillageois;
@@ -30,6 +29,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.PasswordField;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.TableCell;
@@ -56,6 +56,8 @@ public class AgentVillageoisDashboardView {
     
     private AgentVillageois agentVillageois;
     private TableView<Avec> avecTable;
+    private TableView<Membre> membreTable;
+    private Avec avecSelectionne;
     
     private static final String ICONE_TABLEAU_BORD = "📊";
     private static final String ICONE_FORMATION = "📚";
@@ -291,7 +293,7 @@ public class AgentVillageoisDashboardView {
         colPhase.setPrefWidth(120);
         
         TableColumn<Avec, Integer> colMembres = new TableColumn<>("Membres");
-        colMembres.setCellValueFactory(new PropertyValueFactory<>("nombreMembreMax"));
+        colMembres.setCellValueFactory(new PropertyValueFactory<>("nombreMembresMax"));
         colMembres.setPrefWidth(80);
         
         TableColumn<Avec, String> colAction = new TableColumn<>("Action");
@@ -322,7 +324,7 @@ public class AgentVillageoisDashboardView {
                     membresBtn.setStyle(Styles.BOUTON_ACCENT);
                     membresBtn.setOnAction(e -> {
                         Avec avec = getTableView().getItems().get(getIndex());
-                        //gererMembres(avec);
+                        gererMembres(avec);
                     });
                     
                     buttonBox.getChildren().addAll(formationBtn, comiteBtn, membresBtn);
@@ -374,19 +376,6 @@ public class AgentVillageoisDashboardView {
         prixPartField.setPromptText("Ex: 500");
         prixPartField.setStyle(Styles.CHAMP_TEXTE);
         
-        // Lieu de réunion
-        Label lieuLabel = new Label("Lieu de réunion *");
-        lieuLabel.setStyle("-fx-font-weight: bold;");
-        TextField lieuField = new TextField();
-        lieuField.setPromptText("Ex: Chez le président");
-        lieuField.setStyle(Styles.CHAMP_TEXTE);
-        
-        // Jour de réunion
-        Label jourLabel = new Label("Jour de réunion *");
-        jourLabel.setStyle("-fx-font-weight: bold;");
-        ComboBox<JourReunion> jourCombo = new ComboBox<>();
-        jourCombo.setItems(FXCollections.observableArrayList(JourReunion.values()));
-        jourCombo.setStyle(Styles.CHAMP_TEXTE);
         
         // Nombre max de membres
         Label nbMembresLabel = new Label("Nombre max de membres");
@@ -401,8 +390,6 @@ public class AgentVillageoisDashboardView {
         content.getChildren().addAll(
             nomLabel, nomField,
             prixLabel, prixPartField,
-            lieuLabel, lieuField,
-            jourLabel, jourCombo,
             nbMembresLabel, nbMembresSpinner,
             tauxLabel, tauxField
         );
@@ -413,10 +400,8 @@ public class AgentVillageoisDashboardView {
         dialog.setResultConverter(button -> {
             if (button == ButtonType.OK) {
                 try {
-                    String nom = nomField.getText().trim();
+                	String nom = nomField.getText().trim();
                     BigDecimal prixPart = new BigDecimal(prixPartField.getText().trim());
-                    String lieuReunion = lieuField.getText().trim();
-                    JourReunion jourReunion = jourCombo.getValue();
                     
                     if (nom.isEmpty() || prixPart.compareTo(BigDecimal.ZERO) <= 0) {
                         showAlert("Erreur", "Veuillez remplir tous les champs obligatoires");
@@ -455,6 +440,9 @@ public class AgentVillageoisDashboardView {
         dialog.showAndWait();
     }
     
+    
+    
+    
     /**
      * ✅ Gestion du comité de gestion
      */
@@ -462,7 +450,7 @@ public class AgentVillageoisDashboardView {
         try {
             List<Membre> membres = membreService.getMembresByAvecId(avec.getId());
             List<Membre> membresActifs = membres.stream()
-                    .filter(m -> m.getStatut() == StatutMembre.ACTIF)
+                    .filter(m -> m.getEstActif() == StatutMembre.ACTIF)
                     .collect(Collectors.toList());
             
             if (membresActifs.isEmpty()) {
@@ -795,6 +783,336 @@ public class AgentVillageoisDashboardView {
         card.getChildren().addAll(iconLabel, valueLabel, labelLabel);
         
         return card;
+    }
+    
+    /**
+     * ✅ Gestion des membres d'une AVEC (Agent Villageois peut ajouter des membres)
+     */
+    private void gererMembres(Avec avec) {
+        this.avecSelectionne = avec;
+        
+        VBox view = new VBox(15);
+        view.setPadding(new Insets(20));
+        
+        Label title = new Label("Gestion des membres - " + avec.getNom());
+        title.setStyle(Styles.TITRE_PRINCIPAL);
+        
+        // Barre d'outils
+        HBox toolbar = new HBox(10);
+        
+        Button ajouterBtn = new Button("➕ Ajouter un membre");
+        ajouterBtn.setStyle(Styles.BOUTON_PRINCIPAL);
+        ajouterBtn.setOnAction(e -> showAjoutMembre(avec));
+        
+        Button electionBtn = new Button("🗳️ Organiser l'élection");
+        electionBtn.setStyle(Styles.BOUTON_SECONDAIRE);
+        electionBtn.setOnAction(e -> showElectionComite(avec));
+        
+        Button actualiserBtn = new Button("🔄 Actualiser");
+        actualiserBtn.setStyle(Styles.BOUTON_ACCENT);
+        actualiserBtn.setOnAction(e -> chargerMembres(avec));
+        
+        toolbar.getChildren().addAll(ajouterBtn, electionBtn, actualiserBtn);
+        
+        // Tableau des membres
+        membreTable = new TableView<>();
+        membreTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        
+        TableColumn<Membre, Long> colId = new TableColumn<>("ID");
+        colId.setCellValueFactory(new PropertyValueFactory<>("id"));
+        colId.setPrefWidth(50);
+        
+        TableColumn<Membre, String> colNom = new TableColumn<>("Nom");
+        colNom.setCellValueFactory(new PropertyValueFactory<>("nom"));
+        colNom.setPrefWidth(100);
+        
+        TableColumn<Membre, String> colPrenom = new TableColumn<>("Prénom");
+        colPrenom.setCellValueFactory(new PropertyValueFactory<>("prenom"));
+        colPrenom.setPrefWidth(100);
+        
+        TableColumn<Membre, String> colCarte = new TableColumn<>("N° Carte");
+        colCarte.setCellValueFactory(new PropertyValueFactory<>("numeroCarte"));
+        colCarte.setPrefWidth(120);
+        
+        TableColumn<Membre, String> colRole = new TableColumn<>("Rôle");
+        colRole.setCellValueFactory(cellData -> {
+            Membre m = cellData.getValue();
+            return new javafx.beans.property.SimpleStringProperty(
+                m.getRoleComite() != null ? m.getRoleComite().getDescription() : "Membre"
+            );
+        });
+        colRole.setPrefWidth(120);
+        
+        TableColumn<Membre, String> colStatut = new TableColumn<>("Statut");
+        colStatut.setCellValueFactory(cellData -> {
+            Membre m = cellData.getValue();
+            return new javafx.beans.property.SimpleStringProperty(
+                m.getEstActif() != null ? m.getEstActif().getLibelle() : "Actif"
+            );
+        });
+        colStatut.setPrefWidth(80);
+        
+        membreTable.getColumns().addAll(colId, colNom, colPrenom, colCarte, colRole, colStatut);
+        
+        chargerMembres(avec);
+        
+        view.getChildren().addAll(title, toolbar, membreTable);
+        VBox.setVgrow(membreTable, Priority.ALWAYS);
+        
+        root.setCenter(view);
+    }
+    
+    /**
+     * ✅ Ajout d'un membre par l'Agent Villageois
+     */
+    private void showAjoutMembre(Avec avec) {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Ajouter un membre");
+        dialog.setHeaderText("Ajouter un nouveau membre à " + avec.getNom());
+        
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(20));
+        content.setPrefWidth(400);
+        
+        TextField nomField = new TextField();
+        nomField.setPromptText("Nom");
+        nomField.setStyle(Styles.CHAMP_TEXTE);
+        
+        TextField prenomField = new TextField();
+        prenomField.setPromptText("Prénom");
+        prenomField.setStyle(Styles.CHAMP_TEXTE);
+        
+        PasswordField passwordField = new PasswordField();
+        passwordField.setPromptText("Mot de passe (pour la connexion)");
+        passwordField.setStyle(Styles.CHAMP_TEXTE);
+        
+        TextField telephoneField = new TextField();
+        telephoneField.setPromptText("Téléphone");
+        telephoneField.setStyle(Styles.CHAMP_TEXTE);
+        
+        content.getChildren().addAll(
+            new Label("Nom:"), nomField,
+            new Label("Prénom:"), prenomField,
+            new Label("Mot de passe:"), passwordField,
+            new Label("Téléphone:"), telephoneField
+        );
+        
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        
+        dialog.setResultConverter(button -> {
+            if (button == ButtonType.OK) {
+                try {
+                    String nom = nomField.getText().trim();
+                    String prenom = prenomField.getText().trim();
+                    String password = passwordField.getText().trim();
+                    String telephone = telephoneField.getText().trim();
+                    
+                    if (nom.isEmpty() || prenom.isEmpty() || password.isEmpty() || telephone.isEmpty()) {
+                        showAlert("Erreur", "Tous les champs sont obligatoires");
+                        return null;
+                    }
+                    
+                    Membre membre = membreService.creerMembre(
+                        nom, prenom, avec.getId(), password,telephone
+                    );
+                    
+                    showInfo("Succès", "Membre ajouté avec succès!\n" +
+                            "Numéro de carte: " + membre.getNumeroCarte() + "\n" +
+                            "Mot de passe: " + password);
+                    
+                    chargerMembres(avec);
+                    
+                } catch (SQLException | IllegalArgumentException e) {
+                    showAlert("Erreur", "Erreur: " + e.getMessage());
+                }
+            }
+            return null;
+        });
+        
+        dialog.showAndWait();
+    }
+        
+       
+    
+    /**
+     * ✅ Élection du comité (après avoir ajouté au moins 5 membres)
+     */
+    private void showElectionComite(Avec avec) {
+        try {
+            List<Membre> membres = membreService.getMembresByAvecId(avec.getId());
+            List<Membre> actifs = membres.stream()
+                    .filter(m -> m.getEstActif() == StatutMembre.ACTIF)
+                    .collect(Collectors.toList());
+            
+            if (actifs.size() < 5) {
+                showAlert("Attention", "Il faut au moins 5 membres actifs pour élire le comité.\n" +
+                        "Membres actifs: " + actifs.size() + "\n" +
+                        "Ajoutez d'abord des membres.");
+                return;
+            }
+            
+            Dialog<ButtonType> dialog = new Dialog<>();
+            dialog.setTitle("Élection du comité");
+            dialog.setHeaderText("Élection du comité de gestion pour " + avec.getNom());
+            
+            VBox content = new VBox(10);
+            content.setPadding(new Insets(20));
+            content.setPrefWidth(400);
+            
+            Label infoLabel = new Label("Sélectionnez les résultats de l'élection (vote secret avec cailloux):");
+            infoLabel.setStyle("-fx-font-weight: bold;");
+            infoLabel.setWrapText(true);
+            
+            ComboBox<Membre> presidentCombo = new ComboBox<>();
+            presidentCombo.setPromptText("Président");
+            presidentCombo.setItems(FXCollections.observableArrayList(actifs));
+            presidentCombo.setStyle(Styles.CHAMP_TEXTE);
+            
+            ComboBox<Membre> secretaireCombo = new ComboBox<>();
+            secretaireCombo.setPromptText("Secrétaire");
+            secretaireCombo.setItems(FXCollections.observableArrayList(actifs));
+            secretaireCombo.setStyle(Styles.CHAMP_TEXTE);
+            
+            ComboBox<Membre> tresorierCombo = new ComboBox<>();
+            tresorierCombo.setPromptText("Trésorier");
+            tresorierCombo.setItems(FXCollections.observableArrayList(actifs));
+            tresorierCombo.setStyle(Styles.CHAMP_TEXTE);
+            
+            ComboBox<Membre> compteur1Combo = new ComboBox<>();
+            compteur1Combo.setPromptText("Compteur 1");
+            compteur1Combo.setItems(FXCollections.observableArrayList(actifs));
+            compteur1Combo.setStyle(Styles.CHAMP_TEXTE);
+            
+            ComboBox<Membre> compteur2Combo = new ComboBox<>();
+            compteur2Combo.setPromptText("Compteur 2");
+            compteur2Combo.setItems(FXCollections.observableArrayList(actifs));
+            compteur2Combo.setStyle(Styles.CHAMP_TEXTE);
+            
+            content.getChildren().addAll(
+                infoLabel,
+                new Separator(),
+                new Label("Président:"), presidentCombo,
+                new Label("Secrétaire:"), secretaireCombo,
+                new Label("Trésorier:"), tresorierCombo,
+                new Label("Compteur 1:"), compteur1Combo,
+                new Label("Compteur 2:"), compteur2Combo
+            );
+            
+            dialog.getDialogPane().setContent(content);
+            dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+            
+            dialog.setResultConverter(button -> {
+                if (button == ButtonType.OK) {
+                    try {
+                        List<MembreService.ResultatElection> resultats = new ArrayList<>();
+                        resultats.add(new MembreService.ResultatElection(presidentCombo.getValue().getId(), RoleComite.PRESIDENT));
+                        resultats.add(new MembreService.ResultatElection(secretaireCombo.getValue().getId(), RoleComite.SECRETAIRE));
+                        resultats.add(new MembreService.ResultatElection(tresorierCombo.getValue().getId(), RoleComite.TRESORIER));
+                        resultats.add(new MembreService.ResultatElection(compteur1Combo.getValue().getId(), RoleComite.COMPTEUR));
+                        resultats.add(new MembreService.ResultatElection(compteur2Combo.getValue().getId(), RoleComite.COMPTEUR));
+                        
+                        if (membreService.organiserElection(avec.getId(), resultats)) {
+                            String presidentNom = presidentCombo.getValue().getNomComplet();
+                            showInfo("Succès", "Comité de gestion élu avec succès!\n" +
+                                    "Président: " + presidentNom + "\n\n" +
+                                    "Le président peut maintenant se connecter avec sa carte pour gérer les membres.");
+                            chargerMembres(avec);
+                        } else {
+                            showAlert("Erreur", "Échec de l'élection");
+                        }
+                    } catch (Exception e) {
+                        showAlert("Erreur", "Erreur: " + e.getMessage());
+                    }
+                }
+                return null;
+            });
+            
+            dialog.showAndWait();
+            
+        } catch (SQLException e) {
+            showAlert("Erreur", "Impossible de charger les membres: " + e.getMessage());
+        }
+    }
+    
+    private void chargerMembres(Avec avec) {
+        try {
+            List<Membre> membres = membreService.getMembresByAvecId(avec.getId());
+            membreTable.setItems(FXCollections.observableArrayList(membres));
+        } catch (SQLException e) {
+            showAlert("Erreur", "Impossible de charger les membres: " + e.getMessage());
+        }
+    }
+    /*
+     * Désignation des gardiens de clés
+     */
+    private void showDesignerGardiens(Avec avec) {
+        try {
+            List<Membre> membres = membreService.getMembresByAvecId(avec.getId());
+            List<Membre> eligibles = membres.stream()
+                    .filter(m -> m.getEstActif() == StatutMembre.ACTIF && m.getRoleComite() == RoleComite.AUCUN)
+                    .collect(Collectors.toList());
+            
+            if (eligibles.size() < 3) {
+                showAlert("Attention", "Il faut au moins 3 membres éligibles (non au comité) pour être gardiens.");
+                return;
+            }
+            
+            Dialog<ButtonType> dialog = new Dialog<>();
+            dialog.setTitle("Désignation des gardiens");
+            dialog.setHeaderText("Désigner les 3 gardiens de clés pour " + avec.getNom());
+            
+            VBox content = new VBox(10);
+            content.setPadding(new Insets(20));
+            content.setPrefWidth(400);
+            
+            ComboBox<Membre> gardien1Combo = new ComboBox<>();
+            gardien1Combo.setPromptText("Gardien Clé 1");
+            gardien1Combo.setItems(FXCollections.observableArrayList(eligibles));
+            
+            ComboBox<Membre> gardien2Combo = new ComboBox<>();
+            gardien2Combo.setPromptText("Gardien Clé 2");
+            gardien2Combo.setItems(FXCollections.observableArrayList(eligibles));
+            
+            ComboBox<Membre> gardien3Combo = new ComboBox<>();
+            gardien3Combo.setPromptText("Gardien Clé 3");
+            gardien3Combo.setItems(FXCollections.observableArrayList(eligibles));
+            
+            content.getChildren().addAll(
+                new Label("Gardien Clé 1:"), gardien1Combo,
+                new Label("Gardien Clé 2:"), gardien2Combo,
+                new Label("Gardien Clé 3:"), gardien3Combo
+            );
+            
+            dialog.getDialogPane().setContent(content);
+            dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+            
+            dialog.setResultConverter(button -> {
+                if (button == ButtonType.OK) {
+                    try {
+                        List<Long> ids = new ArrayList<>();
+                        ids.add(gardien1Combo.getValue().getId());
+                        ids.add(gardien2Combo.getValue().getId());
+                        ids.add(gardien3Combo.getValue().getId());
+                        
+                        if (membreService.designerGardiensCles(avec.getId(), ids)) {
+                            showInfo("Succès", "Gardiens de clés désignés avec succès!");
+                            gererMembres(avec);
+                        } else {
+                            showAlert("Erreur", "Échec de la désignation");
+                        }
+                    } catch (Exception e) {
+                        showAlert("Erreur", "Erreur: " + e.getMessage());
+                    }
+                }
+                return null;
+            });
+            
+            dialog.showAndWait();
+            
+        } catch (SQLException e) {
+            showAlert("Erreur", "Impossible de charger les membres: " + e.getMessage());
+        }
     }
     
     private void showAlert(String title, String message) {

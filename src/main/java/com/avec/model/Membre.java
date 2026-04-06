@@ -20,7 +20,7 @@ public class Membre {
     private String prenom;
     private String nomComplet;
     private String numeroCarte;
-    private StatutMembre statut;
+    private StatutMembre estActif;
     private LocalDate dateAdhesion;
     private String profession;
     private String village;
@@ -42,7 +42,7 @@ public class Membre {
      * Constructeur par défaut
      */
     public Membre() {
-        this.statut = StatutMembre.ACTIF;
+        this.estActif = StatutMembre.ACTIF;
         this.roleComite = RoleComite.AUCUN;
         this.roleCle = RoleDetenteurCle.AUCUN;
         this.totalEpargne = BigDecimal.ZERO;
@@ -116,12 +116,12 @@ public class Membre {
         this.numeroCarte = numeroCarte;
     }
 
-    public StatutMembre getStatut() {
-        return statut;
+    public StatutMembre getEstActif() {
+        return estActif;
     }
 
-    public void setStatut(StatutMembre statut) {
-        this.statut = statut;
+    public void setEstActif(StatutMembre statut) {
+        this.estActif = statut;
     }
 
     public LocalDate getDateAdhesion() {
@@ -298,14 +298,14 @@ public class Membre {
      */
     public boolean isEligibleGardienCle() {
         return getRoleComite() == RoleComite.AUCUN &&
-                getStatut() == StatutMembre.ACTIF;
+                getEstActif() == StatutMembre.ACTIF;
     }
 
     /**
      * Vérifie si le membre est éligible pour un rôle au comité
      */
     public boolean isEligibleComite() {
-        return getStatut() == StatutMembre.ACTIF;
+        return getEstActif() == StatutMembre.ACTIF;
     }
 
     /**
