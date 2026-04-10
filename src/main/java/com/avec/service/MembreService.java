@@ -93,6 +93,60 @@ public class MembreService {
     }
     
     /**
+     * Crée un nouveau membre et son compte utilisateur
+     */
+    public Membre creerMembreSimple(String nom, String prenom, Long avecId, String telephone)
+            throws SQLException, IllegalArgumentException {
+
+        if (nom == null || nom.trim().isEmpty()) {
+            throw new IllegalArgumentException("Le nom est obligatoire");
+        }
+        if (prenom == null || prenom.trim().isEmpty()) {
+            throw new IllegalArgumentException("Le prénom est obligatoire");
+        }
+        if (avecId == null) {
+            throw new IllegalArgumentException("L'ID de l'AVEC est obligatoire");
+        }
+       
+        
+        
+        if (telephone == null || telephone.trim().isEmpty()) {
+            throw new IllegalArgumentException("Le numéro de téléphone est obligatoire");
+        }
+
+        // Vérifier que l'AVEC existe
+        Avec avec = avecDAO.findById(avecId);
+        if (avec == null) {
+            throw new IllegalArgumentException("AVEC non trouvée avec l'ID: " + avecId);
+        }
+
+        // Vérifier le nombre maximum de membres
+        int nombreMembresActifs = membreDAO.countActifsByAvecId(avecId);
+        if (nombreMembresActifs >= avec.getNombreMembresMax()) {
+            throw new IllegalArgumentException("Nombre maximum de membres atteint (" +
+                    avec.getNombreMembresMax() + ")");
+        }
+
+        // Générer un numéro de carte unique
+        String numeroCarte = genererNumeroCarte(avecId);
+
+       
+
+        // 2. Créer le membre dans la table membre
+        Membre membre = new Membre();
+        membre.setNom(nom);
+        membre.setPrenom(prenom);
+        membre.setNumeroCarte(numeroCarte);
+        membre.setEstActif(StatutMembre.ACTIF);
+        membre.setDateAdhesion(LocalDate.now());
+        membre.setAvecId(avecId);
+        membre.setRoleComite(RoleComite.AUCUN);
+        membre.setRoleCle(RoleDetenteurCle.AUCUN);
+
+        return membreDAO.insert(membre);
+    }
+    
+    /**
      * Cherche un membre par carte et mot de passe
      */
     public Membre chercherParCarteEtMotDePasse(String numeroCarte, String motDePasse) {

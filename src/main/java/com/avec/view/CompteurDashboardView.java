@@ -11,16 +11,21 @@ import com.avec.model.Membre;
 import com.avec.model.SessionUtilisateur;
 import com.avec.service.AvecService;
 import com.avec.service.MembreService;
+import com.avec.service.UtilisateurService;
 
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.DatePicker;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.Separator;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -39,6 +44,7 @@ public class CompteurDashboardView {
     private SessionUtilisateur session;
     private MembreService membreService;
     private AvecService avecService;
+    private UtilisateurService utilisateurService;
     private BorderPane root;
     
     private Membre compteur;
@@ -162,7 +168,12 @@ public class CompteurDashboardView {
             createMenuButton(ICONE_RAPPORTS, "Rapports de comptage", this::showRapports)
         );
         
-        sidebar.getChildren().addAll(profileBox, menuBox);
+     // Dans le header de chaque dashboard
+        Button btnChangerMdp = new Button("🔒 Changer mot de passe");
+        btnChangerMdp.setStyle(Styles.BOUTON_ACCENT);
+        btnChangerMdp.setOnAction(e -> showChangerMotDePasse());
+
+        sidebar.getChildren().addAll(profileBox, menuBox,btnChangerMdp);
         
         return sidebar;
     }
@@ -490,6 +501,95 @@ public class CompteurDashboardView {
         
         return card;
     }
+    
+    private void showChangerMotDePasse() {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Changer mon mot de passe");
+        dialog.setHeaderText("Modification du mot de passe");
+        
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(20));
+        content.setPrefWidth(400);
+        
+        Label infoLabel = new Label("Veuillez saisir vos informations :");
+        infoLabel.setStyle("-fx-font-weight: bold;");
+        
+        PasswordField ancienMdpField = new PasswordField();
+        ancienMdpField.setPromptText("Ancien mot de passe");
+        ancienMdpField.setStyle(Styles.CHAMP_TEXTE);
+        
+        PasswordField nouveauMdpField = new PasswordField();
+        nouveauMdpField.setPromptText("Nouveau mot de passe (min. 4 caractères)");
+        nouveauMdpField.setStyle(Styles.CHAMP_TEXTE);
+        
+        PasswordField confirmationMdpField = new PasswordField();
+        confirmationMdpField.setPromptText("Confirmer le nouveau mot de passe");
+        confirmationMdpField.setStyle(Styles.CHAMP_TEXTE);
+        
+        Label messageLabel = new Label();
+        messageLabel.setStyle("-fx-text-fill: red; -fx-font-size: 12px;");
+        messageLabel.setWrapText(true);
+        
+        content.getChildren().addAll(
+            infoLabel,
+            new Separator(),
+            new Label("Ancien mot de passe :"), ancienMdpField,
+            new Label("Nouveau mot de passe :"), nouveauMdpField,
+            new Label("Confirmation :"), confirmationMdpField,
+            messageLabel
+        );
+        
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        
+        Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
+        okButton.setText("Modifier");
+        
+        dialog.setResultConverter(button -> {
+            if (button == ButtonType.OK) {
+                String ancienMdp = ancienMdpField.getText();
+                String nouveauMdp = nouveauMdpField.getText();
+                String confirmation = confirmationMdpField.getText();
+                
+                // Validation
+                if (ancienMdp == null || ancienMdp.isEmpty()) {
+                    messageLabel.setText("Veuillez saisir votre ancien mot de passe");
+                    return null;
+                }
+                
+                if (nouveauMdp == null || nouveauMdp.isEmpty()) {
+                    messageLabel.setText("Veuillez saisir un nouveau mot de passe");
+                    return null;
+                }
+                
+                if (nouveauMdp.length() < 4) {
+                    messageLabel.setText("Le nouveau mot de passe doit contenir au moins 4 caractères");
+                    return null;
+                }
+                
+                if (!nouveauMdp.equals(confirmation)) {
+                    messageLabel.setText("Les nouveaux mots de passe ne correspondent pas");
+                    return null;
+                }
+                
+                // Appeler le service
+                Long userId = session.getId();
+                UtilisateurService userService = new UtilisateurService();
+                if (userService.changerMotDePasse(userId, ancienMdp, nouveauMdp, confirmation)) {
+                    showInfo("Succès", "Votre mot de passe a été modifié avec succès !");
+                    return ButtonType.OK;
+                } else {
+                    messageLabel.setText("Ancien mot de passe incorrect");
+                    return null;
+                }
+            }
+            return null;
+        });
+        
+        dialog.showAndWait();
+    }
+    
+
     
     private void showAlert(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR);

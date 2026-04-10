@@ -66,7 +66,7 @@ public class MembreDAO {
      * Met à jour un membre existant
      */
     public boolean update(Membre membre) throws SQLException {
-        String sql = "UPDATE membres SET nom = ?, prenom = ?, numeroCarte = ?, estActif = ?,dateAdhesion = ?," + 
+        String sql = "UPDATE membre SET nom = ?, prenom = ?, numeroCarte = ?, estActif = ?,dateAdhesion = ?," + 
         		 "avec_id = ?, roleComite = ?, roleCle = ? WHERE id = ?";
 
         try (Connection conn = DBConnection.getConnection();
@@ -75,8 +75,7 @@ public class MembreDAO {
         	stmt.setString(1, membre.getNom());
             stmt.setString(2, membre.getPrenom());
             stmt.setString(3, membre.getNumeroCarte());
-            boolean estActif = (membre.getEstActif() == StatutMembre.ACTIF);
-            stmt.setBoolean(4, estActif);
+            stmt.setBoolean(4, membre.getEstActif() == StatutMembre.ACTIF );
             stmt.setDate(5, Date.valueOf(membre.getDateAdhesion()));
             stmt.setLong(6, membre.getAvecId());
             stmt.setString(7, membre.getRoleComite().name());

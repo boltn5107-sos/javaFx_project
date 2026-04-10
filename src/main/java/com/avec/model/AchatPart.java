@@ -10,6 +10,8 @@ public class AchatPart {
 
     private Membre membre;
     private Reunion reunion;
+    private Long reunion_id;
+    private Long membre_id;
 
     public AchatPart(){}
 
@@ -58,4 +60,21 @@ public class AchatPart {
     public void setReunion(Reunion reunion) {
         this.reunion = reunion;
     }
+
+	public Long getReunionId() {
+		return reunion_id;
+	}
+
+	public void setReunionId(Long reunion_id) {
+		this.reunion_id = reunion_id;
+	}
+
+	public Long getMembreId() {
+		return membre_id;
+	}
+
+	public void setMembreId(Long membre_id) {
+		this.membre_id = membre_id;
+	}
+    
 }

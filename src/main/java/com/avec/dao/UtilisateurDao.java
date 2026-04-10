@@ -140,6 +140,7 @@ if (id == null) return null;
 			return ps.executeUpdate() > 0;
 
 		} catch (SQLException e) {
+			System.err.println("Erreur update: " + e.getMessage());
 			e.printStackTrace();
 		}
 		return false;
@@ -195,6 +196,8 @@ if (id == null) return null;
 		return 0;
 		
 	}
+	
+	
 
 	// Mapping ResultSet -> Utilisateur
 	private Utilisateur mapResultSetToUtilisateur(ResultSet rs) throws SQLException {

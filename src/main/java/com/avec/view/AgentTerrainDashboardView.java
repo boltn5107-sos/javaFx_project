@@ -8,7 +8,6 @@ import java.util.List;
 
 import com.avec.MainApp;
 import com.avec.config.Styles;
-import com.avec.enums.JourReunion;
 import com.avec.enums.PhaseCycle;
 import com.avec.enums.StatutAvec;
 import com.avec.model.AgentTerrain;
@@ -20,6 +19,7 @@ import com.avec.model.Visite;
 import com.avec.service.AgentVillageoisService;
 import com.avec.service.AvecService;
 import com.avec.service.MembreService;
+import com.avec.service.UtilisateurService;
 import com.avec.service.VisiteService;
 
 import javafx.application.Platform;
@@ -76,7 +76,6 @@ public class AgentTerrainDashboardView {
 	private static final String ICONE_AGENTS = "🌾";
 	private static final String ICONE_VISITES = "📍";
 	private static final String ICONE_RAPPORTS = "📋";
-	private static final String ICONE_VALIDATION = "✅";
 	private static final String ICONE_DECONNEXION = "🚪";
 
 	public AgentTerrainDashboardView(MainApp mainApp) {
@@ -127,17 +126,14 @@ public class AgentTerrainDashboardView {
 		visitesTab.setContent(createVisitesContent());
 		visitesTab.setClosable(false);
 
-		// Validation de phase
-		Tab validationTab = new Tab("Validation de phase");
-		validationTab.setContent(createValidationContent());
-		validationTab.setClosable(false);
+		
 
 		// Rapports
 		Tab rapportsTab = new Tab("Rapports");
 		rapportsTab.setContent(createRapportsContent());
 		rapportsTab.setClosable(false);
 
-		tabPane.getTabs().addAll(dashboardTab, avecTab, agentsTab, visitesTab, validationTab, rapportsTab);
+		tabPane.getTabs().addAll(dashboardTab, avecTab, agentsTab, visitesTab, rapportsTab);
 
 		root.setCenter(tabPane);
 	}
@@ -222,10 +218,16 @@ public class AgentTerrainDashboardView {
 				createMenuButton(ICONE_AVEC, "AVEC supervisées", () -> tabPane.getSelectionModel().select(1)),
 				createMenuButton(ICONE_AGENTS, "Agents Villageois", () -> tabPane.getSelectionModel().select(2)),
 				createMenuButton(ICONE_VISITES, "Visites de supervision", () -> tabPane.getSelectionModel().select(3)),
-				createMenuButton(ICONE_VALIDATION, "Validation de phase", () -> tabPane.getSelectionModel().select(4)),
-				createMenuButton(ICONE_RAPPORTS, "Rapports", () -> tabPane.getSelectionModel().select(5)));
+				createMenuButton(ICONE_RAPPORTS, "Rapports", () -> tabPane.getSelectionModel().select(4)));
+		
+		// Dans le header de chaque dashboard
+		Button btnChangerMdp = new Button("🔒 Changer mot de passe");
+		btnChangerMdp.setStyle(Styles.BOUTON_ACCENT);
+		btnChangerMdp.setOnAction(e -> showChangerMotDePasse());
 
-		sidebar.getChildren().addAll(profileBox, menuBox);
+		
+
+		sidebar.getChildren().addAll(profileBox, menuBox,btnChangerMdp);
 
 		return sidebar;
 	}
@@ -740,112 +742,8 @@ public class AgentTerrainDashboardView {
 
 	// ==================== VALIDATION DE PHASE ====================
 
-	private VBox createValidationContent() {
-		VBox content = new VBox(15);
-		content.setPadding(new Insets(20));
 
-		Label title = new Label("Validation des phases de formation");
-		title.setStyle(Styles.TITRE_SECONDAIRE);
-
-		Label description = new Label(
-				"Selon le guide AVEC, les phases de formation sont :\n" + "• Phase préparatoire (Réunions A et B)\n"
-						+ "• Phase intensive (12 semaines)\n" + "• Phase de développement (12 semaines)\n"
-						+ "• Phase de maturité (12 semaines)\n" + "• Répartition du capital et élections");
-		description.setStyle("-fx-text-fill: " + Styles.GRIS_FONCE + ";");
-		description.setWrapText(true);
-
-		TableView<Avec> validationTable = new TableView<>();
-		validationTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-
-		TableColumn<Avec, String> colNom = new TableColumn<>("AVEC");
-		colNom.setCellValueFactory(new PropertyValueFactory<>("nom"));
-		colNom.setPrefWidth(150);
-
-		TableColumn<Avec, String> colPhaseActuelle = new TableColumn<>("Phase actuelle");
-		colPhaseActuelle.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
-				cellData.getValue().getPhaseCourante().getLibelle()));
-		colPhaseActuelle.setPrefWidth(120);
-
-		TableColumn<Avec, String> colProchainePhase = new TableColumn<>("Prochaine phase");
-		colProchainePhase.setPrefWidth(120);
-
-		TableColumn<Avec, String> colAction = new TableColumn<>("Action");
-		colAction.setCellFactory(col -> new TableCell<Avec, String>() {
-			@Override
-			protected void updateItem(String item, boolean empty) {
-				super.updateItem(item, empty);
-				if (empty) {
-					setGraphic(null);
-				} else {
-					Button btn = new Button("✅ Valider");
-					btn.setStyle(Styles.BOUTON_PRINCIPAL);
-					btn.setOnAction(e -> {
-						Avec avec = getTableView().getItems().get(getIndex());
-						validerPhase(avec);
-					});
-					setGraphic(btn);
-				}
-			}
-		});
-		colAction.setPrefWidth(100);
-
-		validationTable.getColumns().addAll(colNom, colPhaseActuelle, colProchainePhase, colAction);
-
-		try {
-			List<Avec> avecs = avecService.getAvecsByAgentTerrainId(agentTerrain.getId());
-			validationTable.setItems(FXCollections.observableArrayList(avecs));
-		} catch (SQLException e) {
-			showAlert("Erreur", "Impossible de charger les AVEC: " + e.getMessage());
-		}
-
-		content.getChildren().addAll(title, description, validationTable);
-
-		return content;
-	}
-
-	private void validerPhase(Avec avec) {
-		Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-		confirm.setTitle("Validation de phase");
-		confirm.setHeaderText("Validation du passage de phase pour " + avec.getNom());
-		confirm.setContentText(
-				"Êtes-vous sûr que cette AVEC a complété la phase " + avec.getPhaseCourante().getLibelle() + " ?");
-
-		confirm.showAndWait().ifPresent(response -> {
-			if (response == ButtonType.OK) {
-				try {
-					// Passer à la phase suivante selon le guide
-					PhaseCycle phaseSuivante = getPhaseSuivante(avec.getPhaseCourante());
-					if (phaseSuivante != null) {
-						avecService.changerPhase(avec.getId(), phaseSuivante);
-						showInfo("Succès",
-								"Phase validée avec succès!\n" + avec.getNom() + " passe en phase " + phaseSuivante);
-						chargerAvecs();
-						chargerAgentsVillageois();
-					} else {
-						showInfo("Information", "Cycle terminé! L'AVEC est maintenant indépendante.");
-					}
-				} catch (Exception e) {
-					showAlert("Erreur", "Erreur lors de la validation: " + e.getMessage());
-				}
-			}
-		});
-	}
-
-	private PhaseCycle getPhaseSuivante(PhaseCycle phase) {
-		switch (phase) {
-		case PREPARATOIRE:
-			return PhaseCycle.INTENSIVE;
-		case INTENSIVE:
-			return PhaseCycle.DEVELOPPEMENT;
-		case DEVELOPPEMENT:
-			return PhaseCycle.MATURITE;
-		case MATURITE:
-			return PhaseCycle.TERMINE;
-		default:
-			return null;
-		}
-	}
-
+	
 	// ==================== RAPPORTS ====================
 
 	private VBox createRapportsContent() {
@@ -1222,6 +1120,97 @@ public class AgentTerrainDashboardView {
 		chargerAvecs();
 		chargerAgentsVillageois();
 	}
+	
+	/**
+     * Affiche le dialogue de changement de mot de passe
+     */
+    private void showChangerMotDePasse() {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Changer mon mot de passe");
+        dialog.setHeaderText("Modification du mot de passe");
+        
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(20));
+        content.setPrefWidth(400);
+        
+        Label infoLabel = new Label("Veuillez saisir vos informations :");
+        infoLabel.setStyle("-fx-font-weight: bold;");
+        
+        PasswordField ancienMdpField = new PasswordField();
+        ancienMdpField.setPromptText("Ancien mot de passe");
+        ancienMdpField.setStyle(Styles.CHAMP_TEXTE);
+        
+        PasswordField nouveauMdpField = new PasswordField();
+        nouveauMdpField.setPromptText("Nouveau mot de passe (min. 4 caractères)");
+        nouveauMdpField.setStyle(Styles.CHAMP_TEXTE);
+        
+        PasswordField confirmationMdpField = new PasswordField();
+        confirmationMdpField.setPromptText("Confirmer le nouveau mot de passe");
+        confirmationMdpField.setStyle(Styles.CHAMP_TEXTE);
+        
+        Label messageLabel = new Label();
+        messageLabel.setStyle("-fx-text-fill: red; -fx-font-size: 12px;");
+        messageLabel.setWrapText(true);
+        
+        content.getChildren().addAll(
+            infoLabel,
+            new Separator(),
+            new Label("Ancien mot de passe :"), ancienMdpField,
+            new Label("Nouveau mot de passe :"), nouveauMdpField,
+            new Label("Confirmation :"), confirmationMdpField,
+            messageLabel
+        );
+        
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        
+        Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
+        okButton.setText("Modifier");
+        
+        dialog.setResultConverter(button -> {
+            if (button == ButtonType.OK) {
+                String ancienMdp = ancienMdpField.getText();
+                String nouveauMdp = nouveauMdpField.getText();
+                String confirmation = confirmationMdpField.getText();
+                
+                // Validation
+                if (ancienMdp == null || ancienMdp.isEmpty()) {
+                    messageLabel.setText("Veuillez saisir votre ancien mot de passe");
+                    return null;
+                }
+                
+                if (nouveauMdp == null || nouveauMdp.isEmpty()) {
+                    messageLabel.setText("Veuillez saisir un nouveau mot de passe");
+                    return null;
+                }
+                
+                if (nouveauMdp.length() < 4) {
+                    messageLabel.setText("Le nouveau mot de passe doit contenir au moins 4 caractères");
+                    return null;
+                }
+                
+                if (!nouveauMdp.equals(confirmation)) {
+                    messageLabel.setText("Les nouveaux mots de passe ne correspondent pas");
+                    return null;
+                }
+                
+                // Appeler le service
+                Long userId = session.getId();
+                UtilisateurService userService = new UtilisateurService();
+                if (userService.changerMotDePasse(userId, ancienMdp, nouveauMdp, confirmation)) {
+                    showInfo("Succès", "Votre mot de passe a été modifié avec succès !");
+                    return ButtonType.OK;
+                } else {
+                    messageLabel.setText("Ancien mot de passe incorrect");
+                    return null;
+                }
+            }
+            return null;
+        });
+        
+        dialog.showAndWait();
+    }
+    
 
 	private void showAlert(String title, String message) {
 		Platform.runLater(() -> {

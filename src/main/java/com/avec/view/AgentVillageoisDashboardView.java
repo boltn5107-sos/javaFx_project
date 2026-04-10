@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 
 import com.avec.MainApp;
 import com.avec.config.Styles;
+import com.avec.enums.PhaseCycle;
 import com.avec.enums.RoleComite;
 import com.avec.enums.StatutMembre;
 import com.avec.model.AgentVillageois;
@@ -17,6 +18,7 @@ import com.avec.model.Membre;
 import com.avec.model.SessionUtilisateur;
 import com.avec.service.AvecService;
 import com.avec.service.MembreService;
+import com.avec.service.UtilisateurService;
 
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
@@ -64,6 +66,7 @@ public class AgentVillageoisDashboardView {
     private static final String ICONE_AVEC = "🤝";
     private static final String ICONE_MODULES = "📖";
     private static final String ICONE_CALENDRIER = "📅";
+    private static final String ICONE_VALIDATION = "✅";
     private static final String ICONE_HONORAIRES = "💰";
     private static final String ICONE_DECONNEXION = "🚪";
     
@@ -170,10 +173,17 @@ public class AgentVillageoisDashboardView {
             createMenuButton(ICONE_AVEC, "Mes AVEC", this::showMesAvec),
             createMenuButton(ICONE_MODULES, "Modules de formation", this::showModules),
             createMenuButton(ICONE_CALENDRIER, "Planning visites", this::showPlanning),
+            createMenuButton(ICONE_VALIDATION, "Validation de phase", this::createValidationContent),
             createMenuButton(ICONE_HONORAIRES, "Mes honoraires", this::showHonoraires)
         );
         
-        sidebar.getChildren().addAll(profileBox, menuBox);
+     // Dans le header de chaque dashboard
+        Button btnChangerMdp = new Button("🔒 Changer mot de passe");
+        btnChangerMdp.setStyle(Styles.BOUTON_ACCENT);
+        btnChangerMdp.setOnAction(e -> showChangerMotDePasse());
+
+        
+        sidebar.getChildren().addAll(profileBox, menuBox,btnChangerMdp);
         
         return sidebar;
     }
@@ -243,112 +253,7 @@ public class AgentVillageoisDashboardView {
         root.setCenter(dashboard);
     }
     
-    private void showMesAvec() {
-        VBox view = new VBox(15);
-        view.setPadding(new Insets(20));
-        
-        Label title = new Label("AVEC sous ma responsabilité");
-        title.setStyle(Styles.TITRE_PRINCIPAL);
-        
-        HBox toolbar = new HBox(10);
-        
-        // ✅ Bouton pour créer une AVEC
-        Button creerAvecBtn = new Button("➕ Créer une AVEC");
-        creerAvecBtn.setStyle(Styles.BOUTON_PRINCIPAL);
-        creerAvecBtn.setOnAction(e -> showCreerAvec());
-        
-        Button actualiserBtn = new Button("🔄 Actualiser");
-        actualiserBtn.setStyle(Styles.BOUTON_SECONDAIRE);
-        actualiserBtn.setOnAction(e -> {
-            try {
-                List<Avec> avecs = avecService.getAvecsByAgentVillageois(agentVillageois.getId());
-                if (avecs != null) {
-                    avecTable.setItems(FXCollections.observableArrayList(avecs));
-                }
-            } catch (SQLException ex) {
-                showAlert("Erreur", "Impossible de charger les AVEC: " + ex.getMessage());
-            }
-        });
-        
-        toolbar.getChildren().addAll(creerAvecBtn, actualiserBtn);
-        
-        avecTable = new TableView<>();
-        avecTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        
-        TableColumn<Avec, Long> colId = new TableColumn<>("ID");
-        colId.setCellValueFactory(new PropertyValueFactory<>("id"));
-        colId.setPrefWidth(50);
-        
-        TableColumn<Avec, String> colNom = new TableColumn<>("Nom AVEC");
-        colNom.setCellValueFactory(new PropertyValueFactory<>("nom"));
-        colNom.setPrefWidth(150);
-        
-        TableColumn<Avec, String> colCode = new TableColumn<>("Code");
-        colCode.setCellValueFactory(new PropertyValueFactory<>("codeUnique"));
-        colCode.setPrefWidth(100);
-        
-        TableColumn<Avec, String> colPhase = new TableColumn<>("Phase");
-        colPhase.setCellValueFactory(cellData -> 
-            new javafx.beans.property.SimpleStringProperty(cellData.getValue().getPhaseCourante().getLibelle()));
-        colPhase.setPrefWidth(120);
-        
-        TableColumn<Avec, Integer> colMembres = new TableColumn<>("Membres");
-        colMembres.setCellValueFactory(new PropertyValueFactory<>("nombreMembresMax"));
-        colMembres.setPrefWidth(80);
-        
-        TableColumn<Avec, String> colAction = new TableColumn<>("Action");
-        colAction.setCellFactory(col -> new TableCell<Avec, String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty) {
-                    setGraphic(null);
-                } else {
-                    HBox buttonBox = new HBox(5);
-                    
-                    Button formationBtn = new Button("📖 Formation");
-                    formationBtn.setStyle(Styles.BOUTON_PRINCIPAL);
-                    formationBtn.setOnAction(e -> {
-                        Avec avec = getTableView().getItems().get(getIndex());
-                        demarrerFormation(avec);
-                    });
-                    
-                    Button comiteBtn = new Button("👥 Comité");
-                    comiteBtn.setStyle(Styles.BOUTON_SECONDAIRE);
-                    comiteBtn.setOnAction(e -> {
-                        Avec avec = getTableView().getItems().get(getIndex());
-                        gererComite(avec);
-                    });
-                    
-                    Button membresBtn = new Button("👤 Membres");
-                    membresBtn.setStyle(Styles.BOUTON_ACCENT);
-                    membresBtn.setOnAction(e -> {
-                        Avec avec = getTableView().getItems().get(getIndex());
-                        gererMembres(avec);
-                    });
-                    
-                    buttonBox.getChildren().addAll(formationBtn, comiteBtn, membresBtn);
-                    setGraphic(buttonBox);
-                }
-            }
-        });
-        colAction.setPrefWidth(250);
-        
-        avecTable.getColumns().addAll(colId, colNom, colCode, colPhase, colMembres, colAction);
-        
-        try {
-            List<Avec> avecs = avecService.getAvecsByAgentVillageois(agentVillageois.getId());
-            if (avecs != null) {
-                avecTable.setItems(FXCollections.observableArrayList(avecs));
-            }
-        } catch (SQLException e) {
-            showAlert("Erreur", "Impossible de charger les AVEC: " + e.getMessage());
-        }
-        
-        view.getChildren().addAll(title, toolbar, avecTable);
-        VBox.setVgrow(avecTable, Priority.ALWAYS);
-        root.setCenter(view);
-    }
+   
     
     /**
      * ✅ Création d'une AVEC par l'agent villageois
@@ -762,6 +667,274 @@ public class AgentVillageoisDashboardView {
         root.setCenter(view);
     }
     
+    private VBox createValidationContent() {
+		VBox content = new VBox(15);
+		content.setPadding(new Insets(20));
+
+		Label title = new Label("Validation des phases de formation");
+		title.setStyle(Styles.TITRE_SECONDAIRE);
+
+		Label description = new Label(
+				"Selon le guide AVEC, les phases de formation sont :\n" + "• Phase préparatoire (Réunions A et B)\n"
+						+ "• Phase intensive (12 semaines)\n" + "• Phase de développement (12 semaines)\n"
+						+ "• Phase de maturité (12 semaines)\n" + "• Répartition du capital et élections");
+		description.setStyle("-fx-text-fill: " + Styles.GRIS_FONCE + ";");
+		description.setWrapText(true);
+
+		TableView<Avec> validationTable = new TableView<>();
+		validationTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+		TableColumn<Avec, String> colNom = new TableColumn<>("AVEC");
+		colNom.setCellValueFactory(new PropertyValueFactory<>("nom"));
+		colNom.setPrefWidth(150);
+
+		TableColumn<Avec, String> colPhaseActuelle = new TableColumn<>("Phase actuelle");
+		colPhaseActuelle.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
+				cellData.getValue().getPhaseCourante().getLibelle()));
+		colPhaseActuelle.setPrefWidth(120);
+
+		TableColumn<Avec, String> colProchainePhase = new TableColumn<>("Prochaine phase");
+		colProchainePhase.setPrefWidth(120);
+
+		TableColumn<Avec, String> colAction = new TableColumn<>("Action");
+		colAction.setCellFactory(col -> new TableCell<Avec, String>() {
+			@Override
+			protected void updateItem(String item, boolean empty) {
+				super.updateItem(item, empty);
+				if (empty) {
+					setGraphic(null);
+				} else {
+					Button btn = new Button("✅ Valider");
+					btn.setStyle(Styles.BOUTON_PRINCIPAL);
+					btn.setOnAction(e -> {
+						Avec avec = getTableView().getItems().get(getIndex());
+						validerPhase(avec);
+					});
+					setGraphic(btn);
+				}
+			}
+		});
+		colAction.setPrefWidth(100);
+
+		validationTable.getColumns().addAll(colNom, colPhaseActuelle, colProchainePhase, colAction);
+
+		try {
+			List<Avec> avecs = avecService.getAvecsByAgentTerrainId(agentVillageois.getId());
+			validationTable.setItems(FXCollections.observableArrayList(avecs));
+		} catch (SQLException e) {
+			showAlert("Erreur", "Impossible de charger les AVEC: " + e.getMessage());
+		}
+
+		content.getChildren().addAll(title, description, validationTable);
+
+		return content;
+	}
+    
+    /**
+     * ✅ Retourne la phase suivante selon le guide AVEC
+     */
+    private PhaseCycle getPhaseSuivante(PhaseCycle phaseActuelle) {
+        if (phaseActuelle == null) return PhaseCycle.PREPARATOIRE;
+        
+        switch (phaseActuelle) {
+            case PREPARATOIRE:
+                return PhaseCycle.INTENSIVE;
+            case INTENSIVE:
+                return PhaseCycle.DEVELOPPEMENT;
+            case DEVELOPPEMENT:
+                return PhaseCycle.MATURITE;
+            case MATURITE:
+                return PhaseCycle.TERMINE;
+            default:
+                return null;
+        }
+    }
+    
+    /**
+     * ✅ Valider le passage à la phase suivante (Agent Villageois)
+     */
+    private void validerPhase(Avec avec) {
+        PhaseCycle phaseActuelle = avec.getPhaseCourante();
+        PhaseCycle phaseSuivante = getPhaseSuivante(phaseActuelle);
+        
+        if (phaseSuivante == null) {
+            showAlert("Information", "L'AVEC a déjà terminé son cycle de formation.");
+            return;
+        }
+        
+        String message = String.format(
+            "Validation du passage de phase pour %s\n\n" +
+            "Phase actuelle: %s\n" +
+            "Phase suivante: %s\n\n" +
+            "Confirmez-vous que cette AVEC a complété la phase %s ?",
+            avec.getNom(),
+            phaseActuelle.getLibelle(),
+            phaseSuivante.getLibelle(),
+            phaseActuelle.getLibelle()
+        );
+        
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Validation de phase");
+        confirm.setHeaderText("Passage à la phase suivante");
+        confirm.setContentText(message);
+        
+        confirm.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                try {
+                    avecService.changerPhase(avec.getId(), phaseSuivante);
+                    showInfo("Succès", String.format(
+                        "Phase validée avec succès!\n" +
+                        "%s passe en phase %s",
+                        avec.getNom(),
+                        phaseSuivante.getLibelle()
+                    ));
+                    // Rafraîchir la liste des AVEC
+                    rafraichirListeAvec();
+                } catch (Exception e) {
+                    showAlert("Erreur", "Erreur lors de la validation: " + e.getMessage());
+                }
+            }
+        });
+    }
+    
+    /**
+     * ✅ Rafraîchir la liste des AVEC
+     */
+    private void rafraichirListeAvec() {
+        try {
+            List<Avec> avecs = avecService.getAvecsByAgentVillageois(agentVillageois.getId());
+            if (avecs != null) {
+                avecTable.setItems(FXCollections.observableArrayList(avecs));
+            }
+        } catch (SQLException e) {
+            showAlert("Erreur", "Impossible de rafraîchir la liste: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * ✅ Modifier la colonne d'action dans showMesAvec() pour inclure la validation de phase
+     */
+    private void showMesAvec() {
+        VBox view = new VBox(15);
+        view.setPadding(new Insets(20));
+        
+        Label title = new Label("AVEC sous ma responsabilité");
+        title.setStyle(Styles.TITRE_PRINCIPAL);
+        
+        HBox toolbar = new HBox(10);
+        
+        Button creerAvecBtn = new Button("➕ Créer une AVEC");
+        creerAvecBtn.setStyle(Styles.BOUTON_PRINCIPAL);
+        creerAvecBtn.setOnAction(e -> showCreerAvec());
+        
+        Button actualiserBtn = new Button("🔄 Actualiser");
+        actualiserBtn.setStyle(Styles.BOUTON_SECONDAIRE);
+        actualiserBtn.setOnAction(e -> rafraichirListeAvec());
+        
+        toolbar.getChildren().addAll(creerAvecBtn, actualiserBtn);
+        
+        avecTable = new TableView<>();
+        avecTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        
+        TableColumn<Avec, Long> colId = new TableColumn<>("ID");
+        colId.setCellValueFactory(new PropertyValueFactory<>("id"));
+        colId.setPrefWidth(50);
+        
+        TableColumn<Avec, String> colNom = new TableColumn<>("Nom AVEC");
+        colNom.setCellValueFactory(new PropertyValueFactory<>("nom"));
+        colNom.setPrefWidth(150);
+        
+        TableColumn<Avec, String> colCode = new TableColumn<>("Code");
+        colCode.setCellValueFactory(new PropertyValueFactory<>("codeUnique"));
+        colCode.setPrefWidth(100);
+        
+        TableColumn<Avec, String> colPhase = new TableColumn<>("Phase");
+        colPhase.setCellValueFactory(cellData -> 
+            new javafx.beans.property.SimpleStringProperty(cellData.getValue().getPhaseCourante().getLibelle()));
+        colPhase.setPrefWidth(120);
+        
+        TableColumn<Avec, Integer> colMembres = new TableColumn<>("Membres");
+        colMembres.setCellValueFactory(new PropertyValueFactory<>("nombreMembresMax"));
+        colMembres.setPrefWidth(80);
+        
+        // ✅ Colonne d'action avec bouton de validation de phase
+        TableColumn<Avec, String> colAction = new TableColumn<>("Action");
+        colAction.setCellFactory(col -> new TableCell<Avec, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    HBox buttonBox = new HBox(5);
+                    
+                    Button formationBtn = new Button("📖 Formation");
+                    formationBtn.setStyle(Styles.BOUTON_PRINCIPAL);
+                    formationBtn.setOnAction(e -> {
+                        Avec avec = getTableView().getItems().get(getIndex());
+                        demarrerFormation(avec);
+                    });
+                    
+                    Button comiteBtn = new Button("👥 Comité");
+                    comiteBtn.setStyle(Styles.BOUTON_SECONDAIRE);
+                    comiteBtn.setOnAction(e -> {
+                        Avec avec = getTableView().getItems().get(getIndex());
+                        gererComite(avec);
+                    });
+                    
+                    Button membresBtn = new Button("👤 Membres");
+                    membresBtn.setStyle(Styles.BOUTON_ACCENT);
+                    membresBtn.setOnAction(e -> {
+                        Avec avec = getTableView().getItems().get(getIndex());
+                        gererMembres(avec);
+                    });
+                    
+                    // ✅ Bouton de validation de phase
+                    Button validerPhaseBtn = new Button("✅ Valider phase");
+                    PhaseCycle phase = getTableView().getItems().get(getIndex()).getPhaseCourante();
+                    
+                    if (phase == PhaseCycle.TERMINE) {
+                        validerPhaseBtn.setDisable(true);
+                        validerPhaseBtn.setText("✅ Cycle terminé");
+                        validerPhaseBtn.setStyle("-fx-background-color: #2E7D32; -fx-text-fill: white;");
+                    } else {
+                        validerPhaseBtn.setStyle("-fx-background-color: #2E7D32;" +
+                        	    "-fx-text-fill: white;" +
+                        	    "-fx-font-weight: bold;" +
+                        	    "-fx-font-size: 12px;" +
+                        	    "-fx-padding: 5 10;" +
+                        	    "-fx-background-radius: 5;" +
+                        	    "-fx-cursor: hand;");
+                        validerPhaseBtn.setOnAction(e -> {
+                            Avec avec = getTableView().getItems().get(getIndex());
+                            validerPhase(avec);
+                        });
+                    }
+                    
+                    buttonBox.getChildren().addAll(formationBtn, comiteBtn, membresBtn, validerPhaseBtn);
+                    setGraphic(buttonBox);
+                }
+            }
+        });
+        colAction.setPrefWidth(350);
+        
+        avecTable.getColumns().addAll(colId, colNom, colCode, colPhase, colMembres, colAction);
+        
+        try {
+            List<Avec> avecs = avecService.getAvecsByAgentVillageois(agentVillageois.getId());
+            if (avecs != null) {
+                avecTable.setItems(FXCollections.observableArrayList(avecs));
+            }
+        } catch (SQLException e) {
+            showAlert("Erreur", "Impossible de charger les AVEC: " + e.getMessage());
+        }
+        
+        view.getChildren().addAll(title, toolbar, avecTable);
+        VBox.setVgrow(avecTable, Priority.ALWAYS);
+        root.setCenter(view);
+    }
+
+    
     private VBox createStatCard(String icon, String label, String value, String color) {
         VBox card = new VBox(10);
         card.setStyle("-fx-background-color: " + Styles.BLANC + ";" +
@@ -932,8 +1105,8 @@ public class AgentVillageoisDashboardView {
         
         dialog.showAndWait();
     }
-        
-       
+    
+    
     
     /**
      * ✅ Élection du comité (après avoir ajouté au moins 5 membres)
@@ -1113,6 +1286,93 @@ public class AgentVillageoisDashboardView {
         } catch (SQLException e) {
             showAlert("Erreur", "Impossible de charger les membres: " + e.getMessage());
         }
+    }
+    
+    private void showChangerMotDePasse() {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Changer mon mot de passe");
+        dialog.setHeaderText("Modification du mot de passe");
+        
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(20));
+        content.setPrefWidth(400);
+        
+        Label infoLabel = new Label("Veuillez saisir vos informations :");
+        infoLabel.setStyle("-fx-font-weight: bold;");
+        
+        PasswordField ancienMdpField = new PasswordField();
+        ancienMdpField.setPromptText("Ancien mot de passe");
+        ancienMdpField.setStyle(Styles.CHAMP_TEXTE);
+        
+        PasswordField nouveauMdpField = new PasswordField();
+        nouveauMdpField.setPromptText("Nouveau mot de passe (min. 4 caractères)");
+        nouveauMdpField.setStyle(Styles.CHAMP_TEXTE);
+        
+        PasswordField confirmationMdpField = new PasswordField();
+        confirmationMdpField.setPromptText("Confirmer le nouveau mot de passe");
+        confirmationMdpField.setStyle(Styles.CHAMP_TEXTE);
+        
+        Label messageLabel = new Label();
+        messageLabel.setStyle("-fx-text-fill: red; -fx-font-size: 12px;");
+        messageLabel.setWrapText(true);
+        
+        content.getChildren().addAll(
+            infoLabel,
+            new Separator(),
+            new Label("Ancien mot de passe :"), ancienMdpField,
+            new Label("Nouveau mot de passe :"), nouveauMdpField,
+            new Label("Confirmation :"), confirmationMdpField,
+            messageLabel
+        );
+        
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        
+        Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
+        okButton.setText("Modifier");
+        
+        dialog.setResultConverter(button -> {
+            if (button == ButtonType.OK) {
+                String ancienMdp = ancienMdpField.getText();
+                String nouveauMdp = nouveauMdpField.getText();
+                String confirmation = confirmationMdpField.getText();
+                
+                // Validation
+                if (ancienMdp == null || ancienMdp.isEmpty()) {
+                    messageLabel.setText("Veuillez saisir votre ancien mot de passe");
+                    return null;
+                }
+                
+                if (nouveauMdp == null || nouveauMdp.isEmpty()) {
+                    messageLabel.setText("Veuillez saisir un nouveau mot de passe");
+                    return null;
+                }
+                
+                if (nouveauMdp.length() < 4) {
+                    messageLabel.setText("Le nouveau mot de passe doit contenir au moins 4 caractères");
+                    return null;
+                }
+                
+                if (!nouveauMdp.equals(confirmation)) {
+                    messageLabel.setText("Les nouveaux mots de passe ne correspondent pas");
+                    return null;
+                }
+                
+                // Appeler le service
+                Long userId = session.getId();
+                UtilisateurService userService = new UtilisateurService();
+                if (userService.changerMotDePasse(userId, ancienMdp, nouveauMdp, confirmation)) {
+                    showInfo("Succès", "Votre mot de passe a été modifié avec succès !");
+                    return ButtonType.OK;
+                } else {
+                    messageLabel.setText("Ancien mot de passe incorrect");
+                    return null;
+                }
+            }
+            return null;
+        });
+        
+        dialog.showAndWait();
     }
     
     private void showAlert(String title, String message) {
