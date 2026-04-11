@@ -130,6 +130,7 @@ public class MembreDAO {
         List<Membre> membres = new ArrayList<>();
         String sql = "SELECT m.id, m.nom, m.prenom, m.numeroCarte, m.estActif, m.dateAdhesion, " +
                 "m.avec_id, m.roleComite, m.roleCle, " +
+                "COALESCE((SELECT SUM(a.nombreParts) FROM achatsparts a WHERE a.membre_id = m.id), 0) AS totalParts, " +
                 "u.telephone " +
                 "FROM membre m " +
                 "LEFT JOIN utilisateur u ON u.email = CONCAT(m.numeroCarte, '@membre.avec.com') " +
@@ -576,9 +577,15 @@ public class MembreDAO {
         membre.setEstActif(estActif ? StatutMembre.ACTIF : StatutMembre.INACTIF);
         Date dateAdhesion = rs.getDate("dateAdhesion");
         if (dateAdhesion != null) {
-            membre.setDateAdhesion(dateAdhesion.toLocalDate());
+membre.setDateAdhesion(dateAdhesion.toLocalDate());
         }
         membre.setAvecId(rs.getLong("avec_id"));
+        
+        try {
+            membre.setNombreParts(rs.getInt("totalParts"));
+        } catch (SQLException e) {
+            membre.setNombreParts(0);
+        }
         
         String roleComiteStr = rs.getString("roleComite");
         if (roleComiteStr != null) {
@@ -589,9 +596,7 @@ public class MembreDAO {
         if (roleCleStr != null) {
             membre.setRoleCle(RoleDetenteurCle.valueOf(roleCleStr));
         }
-   
         
-
         return membre;
     }
 }

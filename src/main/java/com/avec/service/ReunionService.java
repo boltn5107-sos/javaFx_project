@@ -105,6 +105,22 @@ public class ReunionService {
             return null;
         }
     }
+    
+    /**
+     * Trouve la réunion en cours pour une AVEC (via le cycle)
+     */
+    public Reunion getReunionEnCoursParAvec(Long avecId) {
+        if (avecId == null) return null;
+        
+        ReunionDAO rDAO = new ReunionDAO();
+        try {
+            Reunion reunion = rDAO.findReunionEnCoursByAvecId(avecId);
+            return reunion;
+        } catch (SQLException e) {
+            System.err.println("Erreur: " + e.getMessage());
+            return null;
+        }
+    }
 
     /**
      * Trouve la prochaine réunion planifiée

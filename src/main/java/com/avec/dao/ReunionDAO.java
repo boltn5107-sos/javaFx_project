@@ -22,9 +22,7 @@ public class ReunionDAO {
      * Enregistre une nouvelle réunion
      */
     public boolean enregistrer(Reunion reunion) {
-        String sql = "INSERT INTO reunion (date, type, statut, cycle_id, solde_fond_credit_avant, " +
-                     "soldes_fonds_credit_apres, solde_caisse_solidarites_apres) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO reunion (date, type, statut, cycle_id) VALUES (?, ?, ?, ?)";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -38,10 +36,6 @@ public class ReunionDAO {
             } else {
                 ps.setNull(4, Types.BIGINT);
             }
-            
-            ps.setBigDecimal(5, reunion.getSoldeFondCreditAvant());
-            ps.setBigDecimal(6, reunion.getSoldesFondsCreditApres());
-            ps.setBigDecimal(7, reunion.getSoldeCaisseSolidaritesApres());
 
             int affectedRows = ps.executeUpdate();
             
@@ -209,6 +203,28 @@ public class ReunionDAO {
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setLong(1, cycleId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return mapResultSetToReunion(rs);
+                }
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Trouve la réunion en cours pour une AVEC directement
+     */
+    public Reunion findReunionEnCoursByAvecId(Long avecId) throws SQLException {
+        String sql = "SELECT r.* FROM reunion r " +
+                    "INNER JOIN cycle c ON r.cycle_id = c.id " +
+                    "WHERE c.avec_id = ? AND r.statut = 'EN_COURS' LIMIT 1";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setLong(1, avecId);
 
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {

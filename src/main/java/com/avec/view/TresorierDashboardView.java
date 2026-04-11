@@ -8,12 +8,8 @@ import java.util.List;
 
 import com.avec.MainApp;
 import com.avec.config.Styles;
-import com.avec.model.Avec;
-import com.avec.model.Membre;
-import com.avec.model.Pret;
-import com.avec.model.Remboursement;
-import com.avec.model.Reunion;
-import com.avec.model.SessionUtilisateur;
+import com.avec.model.*;
+import com.avec.view.ReunionView;
 import com.avec.service.AvecService;
 import com.avec.service.MembreService;
 import com.avec.service.PretService;
@@ -90,8 +86,7 @@ public class TresorierDashboardView {
         try {
             if (tresorier != null && tresorier.getAvecId() != null) {
                 this.avec = avecService.getAvecById(tresorier.getAvecId());
-                // Récupérer la réunion en cours
-                this.reunionEnCours = reunionService.getReunionEnCours(tresorier.getAvecId());
+                this.reunionEnCours = reunionService.getReunionEnCoursParAvec(tresorier.getAvecId());
             }
         } catch (Exception e) {
             showAlert("Erreur", "Impossible de charger les données: " + e.getMessage());
@@ -233,6 +228,15 @@ public class TresorierDashboardView {
         button.setOnAction(e -> action.run());
         
         return button;
+    }
+    
+    private void showGestionReunion() {
+        if (tresorier != null && tresorier.getAvecId() != null) {
+            ReunionView rv = new ReunionView(tresorier.getAvecId());
+            rv.afficher();
+        } else {
+            showAlert("Erreur", "Aucune AVEC associée au trésorier");
+        }
     }
     
     private void showDashboard() {

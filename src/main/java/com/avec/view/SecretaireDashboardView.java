@@ -1,36 +1,26 @@
 package com.avec.view;
-
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-
+import java.util.Optional;
 import com.avec.MainApp;
 import com.avec.config.Styles;
 import com.avec.model.Avec;
+import com.avec.model.Cycle;
 import com.avec.model.Membre;
+import com.avec.model.Reunion;
 import com.avec.model.SessionUtilisateur;
+import com.avec.service.AchatPartService;
 import com.avec.service.AvecService;
+import com.avec.service.CycleService;
 import com.avec.service.MembreService;
+import com.avec.service.ReunionService;
 import com.avec.service.UtilisateurService;
-
 import javafx.collections.FXCollections;
+import javafx.scene.control.*;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.DatePicker;
-import javafx.scene.control.Dialog;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.Separator;
-import javafx.scene.control.TableCell;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
-import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -38,20 +28,24 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-
 public class SecretaireDashboardView {
-    
+
     private MainApp mainApp;
     private SessionUtilisateur session;
     private MembreService membreService;
     private AvecService avecService;
+    private AchatPartService achatPartService;
+    private CycleService cycleService;
+    private ReunionService reunionService;
     private BorderPane root;
-    
+
     private Membre secretaire;
     private Avec avec;
-    
+
     private TableView<Membre> presenceTable;
-    
+    private TableView<Membre> membresTable;
+    private TableView<Membre> dashboardMembersTable;
+
     private static final String ICONE_TABLEAU_BORD = "📊";
     private static final String ICONE_PRESENCE = "📝";
     private static final String ICONE_PV = "📄";
@@ -59,17 +53,20 @@ public class SecretaireDashboardView {
     private static final String ICONE_MEMBRES = "👥";
     private static final String ICONE_REUNIONS = "📅";
     private static final String ICONE_DECONNEXION = "🚪";
-    
+
     public SecretaireDashboardView(MainApp mainApp) {
         this.mainApp = mainApp;
         this.session = SessionUtilisateur.getInstance();
         this.membreService = new MembreService();
         this.avecService = new AvecService();
+        this.achatPartService = new AchatPartService();
+        this.cycleService = new CycleService();
+        this.reunionService = new ReunionService();
         this.secretaire = session.getMembre();
         initData();
         createView();
     }
-    
+
     private void initData() {
         try {
             if (secretaire != null && secretaire.getAvecId() != null) {
@@ -79,7 +76,7 @@ public class SecretaireDashboardView {
             showAlert("Erreur", "Impossible de charger les données: " + e.getMessage());
         }
     }
-    
+
     private void createView() {
         root = new BorderPane();
         root.setStyle("-fx-background-color: " + Styles.GRIS_CLAIR + ";");
@@ -87,218 +84,276 @@ public class SecretaireDashboardView {
         root.setLeft(createSidebar());
         showDashboard();
     }
-    
+
     private HBox createHeader() {
         HBox header = new HBox();
         header.setAlignment(Pos.CENTER_RIGHT);
         header.setPadding(new Insets(15, 20, 15, 20));
         header.setStyle("-fx-background-color: " + Styles.BLANC + ";" +
-                       "-fx-border-color: " + Styles.GRIS_CLAIR + ";" +
-                       "-fx-border-width: 0 0 2 0;");
-        
+                "-fx-border-color: " + Styles.GRIS_CLAIR + ";" +
+                "-fx-border-width: 0 0 2 0;");
+
         HBox titleBox = new HBox(10);
         titleBox.setAlignment(Pos.CENTER_LEFT);
-        
+
         Label logoLabel = new Label("📝");
         logoLabel.setStyle("-fx-font-size: 24px;");
-        
+
         String titre = avec != null ? "SECRÉTAIRE - " + avec.getNom() : "SECRÉTAIRE";
         Label titleLabel = new Label(titre);
         titleLabel.setStyle(Styles.TITRE_PRINCIPAL);
-        
+
         titleBox.getChildren().addAll(logoLabel, titleLabel);
-        
+
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        
+
         HBox userBox = new HBox(15);
         userBox.setAlignment(Pos.CENTER_RIGHT);
-        
+
         Label userIcon = new Label("👤");
         userIcon.setStyle("-fx-font-size: 20px;");
-        
+
         Label userLabel = new Label(secretaire.getPrenom() + " " + secretaire.getNom());
         userLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: " + Styles.VERT_PRINCIPAL + ";");
-        
+
         Label roleLabel = new Label("(Secrétaire)");
         roleLabel.setStyle("-fx-text-fill: " + Styles.GRIS_FONCE + ";");
-        
+
         Label dateLabel = new Label(LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
         dateLabel.setStyle("-fx-text-fill: " + Styles.GRIS_FONCE + ";");
-        
+
         Button logoutButton = new Button(ICONE_DECONNEXION + " Déconnexion");
         logoutButton.setStyle(Styles.BOUTON_SECONDAIRE);
         logoutButton.setOnMouseEntered(e -> logoutButton.setStyle(Styles.BOUTON_SECONDAIRE_HOVER));
         logoutButton.setOnMouseExited(e -> logoutButton.setStyle(Styles.BOUTON_SECONDAIRE));
         logoutButton.setOnAction(e -> logout());
-        
+
         userBox.getChildren().addAll(userIcon, userLabel, roleLabel, dateLabel, logoutButton);
-        
+
         header.getChildren().addAll(titleBox, spacer, userBox);
         return header;
     }
-    
+
     private VBox createSidebar() {
         VBox sidebar = new VBox(10);
         sidebar.setPadding(new Insets(20));
         sidebar.setPrefWidth(280);
         sidebar.setStyle("-fx-background-color: " + Styles.BLANC + ";" +
-                        "-fx-border-color: " + Styles.GRIS_CLAIR + ";" +
-                        "-fx-border-width: 0 2 0 0;");
-        
+                "-fx-border-color: " + Styles.GRIS_CLAIR + ";" +
+                "-fx-border-width: 0 2 0 0;");
+
         VBox profileBox = new VBox(10);
         profileBox.setAlignment(Pos.CENTER);
         profileBox.setPadding(new Insets(0, 0, 20, 0));
         profileBox.setStyle("-fx-border-color: " + Styles.GRIS_CLAIR + ";" +
-                           "-fx-border-width: 0 0 2 0;");
-        
+                "-fx-border-width: 0 0 2 0;");
+
         Label avatarLabel = new Label("📝");
         avatarLabel.setStyle("-fx-font-size: 48px;");
-        
+
         String nomAvec = avec != null ? avec.getNom() : "AVEC";
         Label avecLabel = new Label(nomAvec);
         avecLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
-        
+
         profileBox.getChildren().addAll(avatarLabel, avecLabel);
-        
+
         VBox menuBox = new VBox(5);
         menuBox.setPadding(new Insets(20, 0, 0, 0));
-        
+
         menuBox.getChildren().addAll(
-            createMenuButton(ICONE_TABLEAU_BORD, "Tableau de bord", this::showDashboard),
-            createMenuButton(ICONE_PRESENCE, "Gestion des présences", this::showPresence),
-            createMenuButton(ICONE_PV, "Procès-verbaux", this::showPV),
-            createMenuButton(ICONE_AMENDES, "Liste des amendes", this::showAmendes),
-            createMenuButton(ICONE_MEMBRES, "Liste des membres", this::showMembres),
-            createMenuButton(ICONE_REUNIONS, "Calendrier", this::showCalendrier)
+                createMenuButton(ICONE_TABLEAU_BORD, "Tableau de bord", this::showDashboard),
+                createMenuButton(ICONE_PRESENCE, "Gestion des présences", this::showPresence),
+                createMenuButton(ICONE_PV, "Procès-verbaux", this::showPV),
+                createMenuButton(ICONE_AMENDES, "Liste des amendes", this::showAmendes),
+                createMenuButton(ICONE_MEMBRES, "Liste des membres", this::showMembres),
+                createMenuButton(ICONE_REUNIONS, "Calendrier", this::showCalendrier)
         );
-        
-     // Dans le header de chaque dashboard
+
         Button btnChangerMdp = new Button("🔒 Changer mot de passe");
         btnChangerMdp.setStyle(Styles.BOUTON_ACCENT);
         btnChangerMdp.setOnAction(e -> showChangerMotDePasse());
 
-        
-        sidebar.getChildren().addAll(profileBox, menuBox,btnChangerMdp);
-        
+        sidebar.getChildren().addAll(profileBox, menuBox, btnChangerMdp);
+
         return sidebar;
     }
-    
+
     private Button createMenuButton(String icon, String text, Runnable action) {
         Button button = new Button(icon + "  " + text);
         button.setStyle("-fx-background-color: transparent; " +
-                       "-fx-text-fill: " + Styles.NOIR + "; " +
-                       "-fx-font-size: 14px; " +
-                       "-fx-padding: 10 15; " +
-                       "-fx-alignment: CENTER_LEFT; " +
-                       "-fx-cursor: hand;");
+                "-fx-text-fill: " + Styles.NOIR + "; " +
+                "-fx-font-size: 14px; " +
+                "-fx-padding: 10 15; " +
+                "-fx-alignment: CENTER_LEFT; " +
+                "-fx-cursor: hand;");
         button.setMaxWidth(Double.MAX_VALUE);
-        
-        button.setOnMouseEntered(e -> 
-            button.setStyle("-fx-background-color: " + Styles.GRIS_CLAIR + "; " +
-                           "-fx-text-fill: " + Styles.VERT_PRINCIPAL + "; " +
-                           "-fx-font-size: 14px; " +
-                           "-fx-padding: 10 15; " +
-                           "-fx-alignment: CENTER_LEFT; " +
-                           "-fx-cursor: hand;")
+
+        button.setOnMouseEntered(e ->
+                button.setStyle("-fx-background-color: " + Styles.GRIS_CLAIR + "; " +
+                        "-fx-text-fill: " + Styles.VERT_PRINCIPAL + "; " +
+                        "-fx-font-size: 14px; " +
+                        "-fx-padding: 10 15; " +
+                        "-fx-alignment: CENTER_LEFT; " +
+                        "-fx-cursor: hand;")
         );
-        
-        button.setOnMouseExited(e -> 
-            button.setStyle("-fx-background-color: transparent; " +
-                           "-fx-text-fill: " + Styles.NOIR + "; " +
-                           "-fx-font-size: 14px; " +
-                           "-fx-padding: 10 15; " +
-                           "-fx-alignment: CENTER_LEFT; " +
-                           "-fx-cursor: hand;")
+
+        button.setOnMouseExited(e ->
+                button.setStyle("-fx-background-color: transparent; " +
+                        "-fx-text-fill: " + Styles.NOIR + "; " +
+                        "-fx-font-size: 14px; " +
+                        "-fx-padding: 10 15; " +
+                        "-fx-alignment: CENTER_LEFT; " +
+                        "-fx-cursor: hand;")
         );
-        
+
         button.setOnAction(e -> action.run());
-        
+
         return button;
     }
-    
+
     private void showDashboard() {
         VBox dashboard = new VBox(20);
         dashboard.setPadding(new Insets(20));
         dashboard.setAlignment(Pos.TOP_CENTER);
-        
+
         try {
             int totalMembres = membreService.getMembresByAvecId(secretaire.getAvecId()).size();
-            
+            List<Membre> membres = membreService.getMembresByAvecId(secretaire.getAvecId());
+
             Label welcomeLabel = new Label("Tableau de bord du Secrétaire");
             welcomeLabel.setStyle(Styles.TITRE_PRINCIPAL);
-            
+
             HBox statsBox = new HBox(20);
             statsBox.setAlignment(Pos.CENTER);
             statsBox.setPadding(new Insets(20, 0, 20, 0));
-            
+
             VBox carte1 = createStatCard("👥", "Membres", String.valueOf(totalMembres), Styles.VERT_PRINCIPAL);
             VBox carte2 = createStatCard("📅", "Réunions", "4", Styles.BLEU_SECONDAIRE);
             VBox carte3 = createStatCard("💰", "Amendes", "---", Styles.ACCENT_DORE);
-            
+
             statsBox.getChildren().addAll(carte1, carte2, carte3);
-            
-            // Dernière réunion
+
             VBox lastMeetingBox = new VBox(10);
             lastMeetingBox.setStyle("-fx-background-color: " + Styles.BLANC + ";" +
-                                   "-fx-background-radius: 10;" +
-                                   "-fx-padding: 20;" +
-                                   "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 5, 0, 0, 2);");
-            
+                    "-fx-background-radius: 10;" +
+                    "-fx-padding: 20;" +
+                    "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 5, 0, 0, 2);");
+
             Label lastMeetingTitle = new Label("Dernière réunion");
             lastMeetingTitle.setStyle(Styles.TITRE_SECONDAIRE);
-            
+
             GridPane infoGrid = new GridPane();
             infoGrid.setHgap(15);
             infoGrid.setVgap(10);
-            
+
             infoGrid.add(new Label("Date:"), 0, 0);
             infoGrid.add(new Label("Non encore tenue"), 1, 0);
             infoGrid.add(new Label("Type:"), 0, 1);
             infoGrid.add(new Label("---"), 1, 1);
             infoGrid.add(new Label("Présents:"), 0, 2);
             infoGrid.add(new Label("0/" + totalMembres), 1, 2);
-            
-            lastMeetingBox.getChildren().addAll(lastMeetingTitle, infoGrid);
-            
-            dashboard.getChildren().addAll(welcomeLabel, statsBox, lastMeetingBox);
-            
+
+           // lastMeetingBox.getChildren().addAll(lastMeetingTitle, infoGrid);
+
+            VBox membresBox = new VBox(10);
+            membresBox.setStyle("-fx-background-color: " + Styles.BLANC + ";" +
+                    "-fx-background-radius: 10;" +
+                    "-fx-padding: 20;" +
+                    "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 5, 0, 0, 2);");
+            membresBox.setMaxHeight(500);
+
+            Label membresTitle = new Label("Membres - Achat de Parts");
+            membresTitle.setStyle(Styles.TITRE_SECONDAIRE);
+
+            TableView<Membre> table = new TableView<>();
+            table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+            table.setPrefHeight(400);
+            table.setStyle("-fx-fixed-cell-size: 35;");
+
+            TableColumn<Membre, String> colNom = new TableColumn<>("Nom");
+            colNom.setCellValueFactory(new PropertyValueFactory<>("nom"));
+            colNom.setPrefWidth(150);
+
+            TableColumn<Membre, String> colPrenom = new TableColumn<>("Prénom");
+            colPrenom.setCellValueFactory(new PropertyValueFactory<>("prenom"));
+            colPrenom.setPrefWidth(150);
+
+            TableColumn<Membre, String> colTelephone = new TableColumn<>("Téléphone");
+            colTelephone.setCellValueFactory(new PropertyValueFactory<>("telephone"));
+            colTelephone.setPrefWidth(120);
+
+            TableColumn<Membre, Integer> colParts = new TableColumn<>("Parts");
+            colParts.setCellValueFactory(new PropertyValueFactory<>("nombreParts"));
+            colParts.setPrefWidth(80);
+            colParts.setStyle("-fx-alignment: CENTER;");
+
+            TableColumn<Membre, Void> colAction = new TableColumn<>("Action");
+            colAction.setPrefWidth(120);
+            colAction.setCellFactory(col -> new TableCell<Membre, Void>() {
+                private final Button btnAcheter = new Button("Acheter");
+
+                {
+                    btnAcheter.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-padding: 5 15; -fx-font-size: 12px;");
+                    btnAcheter.setOnAction(e -> {
+                        Membre membre = getTableView().getItems().get(getIndex());
+                        afficherDialogAchatParts(membre);
+                    });
+                }
+
+                @Override
+                protected void updateItem(Void item, boolean empty) {
+                    super.updateItem(item, empty);
+                    setGraphic(empty ? null : btnAcheter);
+                }
+            });
+
+            table.getColumns().addAll(colNom, colPrenom, colTelephone, colParts, colAction);
+            table.setItems(FXCollections.observableArrayList(membres));
+            table.setPrefHeight(300);
+            dashboardMembersTable = table;
+
+            Label infoLabel = new Label("Cliquez sur 'Acheter' pour ajouter 1 à 5 parts pour un membre");
+            infoLabel.setStyle("-fx-text-fill: " + Styles.GRIS_FONCE + ";");
+
+            membresBox.getChildren().addAll(membresTitle, infoLabel, table);
+
+            dashboard.getChildren().addAll(welcomeLabel, statsBox, lastMeetingBox, membresBox);
+
         } catch (SQLException e) {
             showAlert("Erreur", "Erreur chargement données: " + e.getMessage());
         }
-        
+
         root.setCenter(dashboard);
     }
-    
+
     private void showPresence() {
         VBox view = new VBox(15);
         view.setPadding(new Insets(20));
-        
+
         Label title = new Label("Gestion des présences");
         title.setStyle(Styles.TITRE_PRINCIPAL);
-        
-        // Sélection de la date
+
         HBox dateBox = new HBox(10);
         DatePicker datePicker = new DatePicker(LocalDate.now());
         datePicker.setStyle(Styles.CHAMP_TEXTE);
-        
+
         Button chargerButton = new Button("Charger");
         chargerButton.setStyle(Styles.BOUTON_PRINCIPAL);
-        
+
         dateBox.getChildren().addAll(new Label("Date de la réunion:"), datePicker, chargerButton);
-        
-        // Tableau des présences
+
         presenceTable = new TableView<>();
         presenceTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        
+
         TableColumn<Membre, String> colNom = new TableColumn<>("Nom");
         colNom.setCellValueFactory(new PropertyValueFactory<>("nom"));
         colNom.setPrefWidth(150);
-        
+
         TableColumn<Membre, String> colPrenom = new TableColumn<>("Prénom");
         colPrenom.setCellValueFactory(new PropertyValueFactory<>("prenom"));
         colPrenom.setPrefWidth(150);
-        
+
         TableColumn<Membre, Boolean> colPresent = new TableColumn<>("Présent");
         colPresent.setCellFactory(col -> new TableCell<Membre, Boolean>() {
             @Override
@@ -314,76 +369,70 @@ public class SecretaireDashboardView {
             }
         });
         colPresent.setPrefWidth(80);
-        
-        
+
+
         presenceTable.getColumns().addAll(colNom, colPrenom, colPresent);
-        
-        // Charger les membres
+
         try {
             List<Membre> membres = membreService.getMembresByAvecId(secretaire.getAvecId());
             presenceTable.setItems(FXCollections.observableArrayList(membres));
         } catch (SQLException e) {
             showAlert("Erreur", "Impossible de charger les membres: " + e.getMessage());
         }
-        
-        // Bouton enregistrer
+
         Button saveButton = new Button("💾 Enregistrer les présences");
         saveButton.setStyle(Styles.BOUTON_PRINCIPAL);
         saveButton.setPrefWidth(300);
-        
+
         saveButton.setOnAction(e -> {
-            // TODO: Sauvegarder les présences dans la base
             showInfo("Succès", "Présences enregistrées avec succès!");
         });
-        
+
         view.getChildren().addAll(title, dateBox, presenceTable, saveButton);
         root.setCenter(view);
     }
-    
+
     private void showPV() {
         VBox view = new VBox(15);
         view.setPadding(new Insets(20));
-        
+
         Label title = new Label("Procès-verbaux des réunions");
         title.setStyle(Styles.TITRE_PRINCIPAL);
-        
-        // Liste des PV existants
+
         ListView<String> pvList = new ListView<>();
         pvList.setPrefHeight(300);
         pvList.getItems().addAll(
-            "PV Réunion du 15/03/2024 - Réunion d'épargne",
-            "PV Réunion du 08/03/2024 - Réunion de crédit",
-            "PV Réunion du 01/03/2024 - Réunion d'épargne"
+                "PV Réunion du 15/03/2024 - Réunion d'épargne",
+                "PV Réunion du 08/03/2024 - Réunion de crédit",
+                "PV Réunion du 01/03/2024 - Réunion d'épargne"
         );
-        
-        // Boutons
+
         HBox buttonBox = new HBox(10);
-        
+
         Button nouveauPV = new Button("📝 Nouveau PV");
         nouveauPV.setStyle(Styles.BOUTON_PRINCIPAL);
-        
+
         Button modifierPV = new Button("✏️ Modifier");
         modifierPV.setStyle(Styles.BOUTON_SECONDAIRE);
-        
-        Button imprimerPV = new Button("🖨️ Imprimer");
-        imprimerPV.setStyle(Styles.BOUTON_ACCENT);
-        
-        buttonBox.getChildren().addAll(nouveauPV, modifierPV, imprimerPV);
-        
+
+        Button imprimeButton = new Button("🖨️ Imprimer");
+        imprimeButton.setStyle(Styles.BOUTON_ACCENT);
+
+        buttonBox.getChildren().addAll(nouveauPV, modifierPV, imprimeButton);
+
         view.getChildren().addAll(title, pvList, buttonBox);
         root.setCenter(view);
     }
-    
+
     private void showAmendes() {
         VBox view = new VBox(15);
         view.setPadding(new Insets(20));
-        
+
         Label title = new Label("Gestion des amendes");
         title.setStyle(Styles.TITRE_PRINCIPAL);
-        
-        // Tableau des amendes
+
         TableView<Object> amendesTable = new TableView<>();
-        
+
         TableColumn<Object, String> colDate = new TableColumn<>("Date");
         colDate.setPrefWidth(100);
         TableColumn<Object, String> colMembre = new TableColumn<>("Membre");
@@ -394,22 +443,22 @@ public class SecretaireDashboardView {
         colMontant.setPrefWidth(100);
         TableColumn<Object, String> colStatut = new TableColumn<>("Statut");
         colStatut.setPrefWidth(80);
-        
+
         amendesTable.getColumns().addAll(colDate, colMembre, colMotif, colMontant, colStatut);
-        
+
         view.getChildren().addAll(title, amendesTable);
         root.setCenter(view);
     }
-    
+
     private void showMembres() {
         VBox view = new VBox(15);
         view.setPadding(new Insets(20));
-        
+
         Label title = new Label("Liste des membres");
         title.setStyle(Styles.TITRE_PRINCIPAL);
-        
-        TableView<Membre> table = new TableView<>();
-        
+
+        membresTable = new TableView<>();
+
         TableColumn<Membre, String> colNom = new TableColumn<>("Nom");
         colNom.setCellValueFactory(new PropertyValueFactory<>("nom"));
         TableColumn<Membre, String> colPrenom = new TableColumn<>("Prénom");
@@ -418,150 +467,258 @@ public class SecretaireDashboardView {
         colCarte.setCellValueFactory(new PropertyValueFactory<>("numeroCarte"));
         TableColumn<Membre, String> colTelephone = new TableColumn<>("Téléphone");
         colTelephone.setCellValueFactory(new PropertyValueFactory<>("telephone"));
-        
-        table.getColumns().addAll(colNom, colPrenom, colCarte, colTelephone);
-        
+
+        membresTable.getColumns().addAll(colNom, colPrenom, colCarte, colTelephone);
+
         try {
             List<Membre> membres = membreService.getMembresByAvecId(secretaire.getAvecId());
-            table.setItems(FXCollections.observableArrayList(membres));
+            membresTable.setItems(FXCollections.observableArrayList(membres));
+            membresTable.setPrefHeight(300);
         } catch (SQLException e) {
             showAlert("Erreur", "Impossible de charger les membres: " + e.getMessage());
         }
-        
-        view.getChildren().addAll(title, table);
+
+        view.getChildren().addAll(title, membresTable);
         root.setCenter(view);
     }
     
+    private void rafraichirListeMembres() {
+        try {
+            java.util.List<Membre> liste = membreService.getMembresByAvecId(secretaire.getAvecId());
+            if (membresTable != null) {
+                membresTable.setItems(FXCollections.observableArrayList(liste));
+            }
+            if (dashboardMembersTable != null) {
+                dashboardMembersTable.setItems(FXCollections.observableArrayList(liste));
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur: " + e.getMessage());
+        }
+    }
+
     private void showCalendrier() {
         VBox view = new VBox(15);
         view.setPadding(new Insets(20));
-        
+
         Label title = new Label("Calendrier des réunions");
         title.setStyle(Styles.TITRE_PRINCIPAL);
-        
+
         GridPane calendar = new GridPane();
         calendar.setHgap(10);
         calendar.setVgap(10);
         calendar.setPadding(new Insets(20));
         calendar.setStyle("-fx-background-color: " + Styles.BLANC + ";" +
-                         "-fx-background-radius: 10;");
-        
-        // Jours de la semaine
+                "-fx-background-radius: 10;");
+
         String[] jours = {"Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"};
         for (int i = 0; i < jours.length; i++) {
             Label jourLabel = new Label(jours[i]);
             jourLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: " + Styles.VERT_PRINCIPAL + ";");
             calendar.add(jourLabel, i, 0);
         }
-        
-        // TODO: Remplir avec les dates réelles
+
         for (int i = 1; i <= 31; i++) {
             int col = (i - 1) % 7;
             int row = (i - 1) / 7 + 1;
             Label dayLabel = new Label(String.valueOf(i));
             dayLabel.setStyle("-fx-padding: 10; -fx-background-color: " + Styles.GRIS_CLAIR + ";" +
-                             "-fx-background-radius: 5;");
+                    "-fx-background-radius: 5;");
             calendar.add(dayLabel, col, row);
         }
-        
+
         view.getChildren().addAll(title, calendar);
         root.setCenter(view);
     }
-    
+
+    private void afficherDialogAchatParts(Membre membre) {
+        Reunion reunion = null;
+
+        try {
+            reunion = reunionService.getReunionEnCoursParAvec(secretaire.getAvecId());
+        } catch (Exception e) {
+            System.err.println("Erreur: " + e.getMessage());
+        }
+
+        Dialog<Integer> dialog = new Dialog<>();
+        dialog.setTitle("Acheter des Parts");
+        String infoReunion = reunion != null ? 
+            "\nRéunion: " + reunion.getDateFormatted() + " - " + reunion.getType() : 
+            "\nAucune réunion en cours";
+        dialog.setHeaderText("Achat de parts pour " + membre.getNomComplet() + infoReunion);
+
+        ButtonType saveButtonType = new ButtonType("Enregistrer", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(15);
+        grid.setPadding(new Insets(20));
+
+        Label lblMembre = new Label("Membre:");
+        Label lblNomMembre = new Label(membre.getNomComplet());
+        lblNomMembre.setStyle("-fx-font-weight: bold;");
+
+        Label lblPartsActuelles = new Label("Parts actuelles:");
+        Label lblNbParts = new Label(String.valueOf(membre.getNombreParts()));
+
+        Label lblReunion = new Label("Réunion:");
+        Label lblNomReunion = new Label(reunion != null ? 
+            reunion.getDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + " - " + reunion.getType() :
+            "Aucune réunion en cours");
+
+        Label lblNbPartsLabel = new Label("Nombre de parts (1-5):");
+        Spinner<Integer> spinnerParts = new Spinner<>(1, 5, 1);
+        spinnerParts.setEditable(true);
+        spinnerParts.setPrefWidth(150);
+
+        Label lblTotalLabel = new Label("Montant total:");
+        Label lblTotal = new Label();
+
+        final java.math.BigDecimal[] prixPart = {java.math.BigDecimal.ZERO};
+        try {
+            if (avec != null && avec.getPrixPart() != null) {
+                prixPart[0] = avec.getPrixPart();
+            }
+        } catch (Exception ex) {
+            prixPart[0] = java.math.BigDecimal.ZERO;
+        }
+
+        lblTotal.setText(com.avec.utils.FormatUtils.formatCurrency(prixPart[0]));
+        spinnerParts.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && prixPart[0] != null) {
+                java.math.BigDecimal total = prixPart[0].multiply(java.math.BigDecimal.valueOf(newVal));
+                lblTotal.setText(com.avec.utils.FormatUtils.formatCurrency(total));
+            }
+        });
+
+        grid.add(lblMembre, 0, 0);
+        grid.add(lblNomMembre, 1, 0);
+        grid.add(lblPartsActuelles, 0, 1);
+        grid.add(lblNbParts, 1, 1);
+        grid.add(lblReunion, 0, 2);
+        grid.add(lblNomReunion, 1, 2);
+        grid.add(lblNbPartsLabel, 0, 3);
+        grid.add(spinnerParts, 1, 3);
+        grid.add(lblTotalLabel, 0, 4);
+        grid.add(lblTotal, 1, 4);
+
+        dialog.getDialogPane().setContent(grid);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == saveButtonType) {
+                return spinnerParts.getValue();
+            }
+            return null;
+        });
+
+        Optional<Integer> result = dialog.showAndWait();
+        Reunion finalReunion = reunion;
+        result.ifPresent(nbParts -> {
+            try {
+                long idReunion = finalReunion != null ? finalReunion.getId() : 0;
+                achatPartService.acheterParts(nbParts, membre.getId(), idReunion);
+
+                rafraichirListeMembres();
+
+                showInfo("Succès", nbParts + " part(s) achetée(s) pour " + membre.getNomComplet());
+            } catch (SQLException | IllegalArgumentException e) {
+                showAlert("Erreur", "Impossible d'enregistrer l'achat: " + e.getMessage());
+            }
+        });
+    }
+
     private VBox createStatCard(String icon, String label, String value, String color) {
         VBox card = new VBox(10);
         card.setStyle("-fx-background-color: " + Styles.BLANC + ";" +
-                     "-fx-background-radius: 10;" +
-                     "-fx-padding: 20;" +
-                     "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 5, 0, 0, 2);");
+                "-fx-background-radius: 10;" +
+                "-fx-padding: 20;" +
+                "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 5, 0, 0, 2);");
         card.setPrefWidth(180);
         card.setAlignment(Pos.CENTER);
-        
+
         Label iconLabel = new Label(icon);
         iconLabel.setStyle("-fx-font-size: 28px;");
-        
+
         Label valueLabel = new Label(value);
         valueLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: " + color + ";");
-        
+
         Label labelLabel = new Label(label);
         labelLabel.setStyle("-fx-text-fill: " + Styles.GRIS_FONCE + ";");
-        
+
         card.getChildren().addAll(iconLabel, valueLabel, labelLabel);
-        
+
         return card;
     }
-    
+
     private void showChangerMotDePasse() {
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle("Changer mon mot de passe");
         dialog.setHeaderText("Modification du mot de passe");
-        
+
         VBox content = new VBox(10);
         content.setPadding(new Insets(20));
         content.setPrefWidth(400);
-        
+
         Label infoLabel = new Label("Veuillez saisir vos informations :");
         infoLabel.setStyle("-fx-font-weight: bold;");
-        
+
         PasswordField ancienMdpField = new PasswordField();
         ancienMdpField.setPromptText("Ancien mot de passe");
         ancienMdpField.setStyle(Styles.CHAMP_TEXTE);
-        
+
         PasswordField nouveauMdpField = new PasswordField();
         nouveauMdpField.setPromptText("Nouveau mot de passe (min. 4 caractères)");
         nouveauMdpField.setStyle(Styles.CHAMP_TEXTE);
-        
+
         PasswordField confirmationMdpField = new PasswordField();
         confirmationMdpField.setPromptText("Confirmer le nouveau mot de passe");
         confirmationMdpField.setStyle(Styles.CHAMP_TEXTE);
-        
+
         Label messageLabel = new Label();
         messageLabel.setStyle("-fx-text-fill: red; -fx-font-size: 12px;");
         messageLabel.setWrapText(true);
-        
+
         content.getChildren().addAll(
-            infoLabel,
-            new Separator(),
-            new Label("Ancien mot de passe :"), ancienMdpField,
-            new Label("Nouveau mot de passe :"), nouveauMdpField,
-            new Label("Confirmation :"), confirmationMdpField,
-            messageLabel
+                infoLabel,
+                new Separator(),
+                new Label("Ancien mot de passe :"), ancienMdpField,
+                new Label("Nouveau mot de passe :"), nouveauMdpField,
+                new Label("Confirmation :"), confirmationMdpField,
+                messageLabel
         );
-        
+
         dialog.getDialogPane().setContent(content);
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-        
+
         Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
         okButton.setText("Modifier");
-        
+
         dialog.setResultConverter(button -> {
             if (button == ButtonType.OK) {
                 String ancienMdp = ancienMdpField.getText();
                 String nouveauMdp = nouveauMdpField.getText();
                 String confirmation = confirmationMdpField.getText();
-                
-                // Validation
+
                 if (ancienMdp == null || ancienMdp.isEmpty()) {
                     messageLabel.setText("Veuillez saisir votre ancien mot de passe");
                     return null;
                 }
-                
+
                 if (nouveauMdp == null || nouveauMdp.isEmpty()) {
                     messageLabel.setText("Veuillez saisir un nouveau mot de passe");
                     return null;
                 }
-                
+
                 if (nouveauMdp.length() < 4) {
                     messageLabel.setText("Le nouveau mot de passe doit contenir au moins 4 caractères");
                     return null;
                 }
-                
+
                 if (!nouveauMdp.equals(confirmation)) {
                     messageLabel.setText("Les nouveaux mots de passe ne correspondent pas");
                     return null;
                 }
-                
-                // Appeler le service
+
                 Long userId = session.getId();
                 UtilisateurService userService = new UtilisateurService();
                 if (userService.changerMotDePasse(userId, ancienMdp, nouveauMdp, confirmation)) {
@@ -574,12 +731,10 @@ public class SecretaireDashboardView {
             }
             return null;
         });
-        
+
         dialog.showAndWait();
     }
-    
- 
-    
+
     private void showAlert(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
         alert.setTitle(title);
@@ -587,7 +742,7 @@ public class SecretaireDashboardView {
         alert.setContentText(message);
         alert.showAndWait();
     }
-    
+
     private void showInfo(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(title);
@@ -595,7 +750,7 @@ public class SecretaireDashboardView {
         alert.setContentText(message);
         alert.showAndWait();
     }
-    
+
     private void logout() {
         session.deconnecter();
         LoginView loginView = new LoginView(mainApp);
@@ -603,7 +758,7 @@ public class SecretaireDashboardView {
         mainApp.getPrimaryStage().setMaximized(false);
         mainApp.getPrimaryStage().centerOnScreen();
     }
-    
+
     public BorderPane getRoot() {
         return root;
     }
