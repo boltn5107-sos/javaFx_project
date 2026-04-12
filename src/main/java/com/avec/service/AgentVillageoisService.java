@@ -15,6 +15,7 @@ public class AgentVillageoisService {
     
     public AgentVillageoisService() {
         this.agentVillageoisDao = new AgentVillageoisDao();
+        this.avecService = new AvecService();
     }
     
     // CRUD operations

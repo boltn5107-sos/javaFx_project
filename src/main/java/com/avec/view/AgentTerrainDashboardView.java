@@ -84,6 +84,7 @@ public class AgentTerrainDashboardView {
 		this.agentTerrain = session.getAgentTerrain();
 		this.agentVillageoisService = new AgentVillageoisService();
 		this.avecService = new AvecService();
+		this.membreService = new MembreService();
 		this.visiteService = new VisiteService();
 		createView();
 		loadData();
@@ -392,7 +393,7 @@ public class AgentTerrainDashboardView {
 		colAgent.setPrefWidth(150);
 
 		TableColumn<Avec, Integer> colMembres = new TableColumn<>("Membres");
-		colMembres.setCellValueFactory(new PropertyValueFactory<>("nombreMembreMax"));
+		colMembres.setCellValueFactory(new PropertyValueFactory<>("nombreMembresMax"));
 		colMembres.setPrefWidth(80);
 
 		TableColumn<Avec, String> colAction = new TableColumn<>("Action");
@@ -1004,7 +1005,7 @@ public class AgentTerrainDashboardView {
 	            avecCombo.setStyle(Styles.CHAMP_TEXTE);
 	            
 	            // Charger les AVEC terminées
-	            List<Avec> avecsTerminees = avecService.getAvecsByStatut(StatutAvec.TERMINE);
+	            List<Avec> avecsTerminees = avecService.getAvecsByPhase(PhaseCycle.TERMINE);
 	            avecCombo.setItems(FXCollections.observableArrayList(avecsTerminees));
 	            
 	            // 2. Sélectionner un membre de cette AVEC
@@ -1027,9 +1028,7 @@ public class AgentTerrainDashboardView {
 	            passwordField.setPromptText("Mot de passe (pour la connexion)");
 	            passwordField.setStyle(Styles.CHAMP_TEXTE);
 	            
-	            TextField telephoneField = new TextField();
-	            telephoneField.setPromptText("Téléphone");
-	            telephoneField.setStyle(Styles.CHAMP_TEXTE);
+	            
 	            
 	            // Remplir les membres quand une AVEC est sélectionnée
 	            avecCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
@@ -1051,8 +1050,8 @@ public class AgentTerrainDashboardView {
 	                new Separator(),
 	                infoLabel,
 	                new Label("Email:"), emailField,
-	                new Label("Mot de passe:"), passwordField,
-	                new Label("Téléphone:"), telephoneField
+	                new Label("Mot de passe:"), passwordField
+	                
 	            );
 	            
 	            dialog.getDialogPane().setContent(content);
@@ -1071,7 +1070,7 @@ public class AgentTerrainDashboardView {
 	                        
 	                        String email = emailField.getText().trim();
 	                        String password = passwordField.getText().trim();
-	                        String telephone = telephoneField.getText().trim();
+	                        
 	                        
 	                        if (email.isEmpty() || password.isEmpty()) {
 	                            showAlert("Erreur", "L'email et le mot de passe sont obligatoires");
@@ -1084,8 +1083,9 @@ public class AgentTerrainDashboardView {
 	                        agent.setPrenom(membre.getPrenom());
 	                        agent.setEmail(email);
 	                        agent.setMotDePasse(password);
-	                        agent.setTelephone(telephone);
+	                        agent.setTelephone(membre.getTelephone());
 	                        agent.setAgentTerrain(agentTerrain);
+	                        agent.setAvecOrigineId(avec.getId()); 
 	                        
 	                        // Ajouter l'agent villageois
 	                        if (agentVillageoisService.enregistrerAgentVillageoisParAt(agent)) {
