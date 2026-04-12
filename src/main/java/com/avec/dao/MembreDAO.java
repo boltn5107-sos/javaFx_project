@@ -469,7 +469,7 @@ public class MembreDAO {
     * Compte le nombre de membres actifs (toutes AVEC confondues)
     */
    public int countActifs() throws SQLException {
-       String sql = "SELECT COUNT(*) FROM membre WHERE estActif = 'true'";
+       String sql = "SELECT COUNT(*) FROM membre WHERE estActif = 1";
 
        try (Connection conn = DBConnection.getConnection();
     		   Statement stmt = conn.createStatement();
