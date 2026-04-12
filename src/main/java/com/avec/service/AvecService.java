@@ -17,6 +17,7 @@ import com.avec.enums.StatutMembre;
 import com.avec.model.AgentTerrain;
 import com.avec.model.AgentVillageois;
 import com.avec.model.Avec;
+import com.avec.model.Cycle;
 import com.avec.model.Membre;
 
 /**

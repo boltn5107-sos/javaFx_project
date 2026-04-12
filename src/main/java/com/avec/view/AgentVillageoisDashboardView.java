@@ -14,9 +14,11 @@ import com.avec.enums.RoleComite;
 import com.avec.enums.StatutMembre;
 import com.avec.model.AgentVillageois;
 import com.avec.model.Avec;
+import com.avec.model.Cycle;
 import com.avec.model.Membre;
 import com.avec.model.SessionUtilisateur;
 import com.avec.service.AvecService;
+import com.avec.service.CycleService;
 import com.avec.service.MembreService;
 import com.avec.service.UtilisateurService;
 
@@ -54,6 +56,7 @@ public class AgentVillageoisDashboardView {
     private SessionUtilisateur session;
     private AvecService avecService;
     private MembreService membreService;
+    private CycleService cycleService;
     private BorderPane root;
     
     private AgentVillageois agentVillageois;
@@ -75,6 +78,7 @@ public class AgentVillageoisDashboardView {
         this.session = SessionUtilisateur.getInstance();
         this.avecService = new AvecService();
         this.membreService = new MembreService();
+        this.cycleService = new CycleService();
         this.agentVillageois = session.getAgentVillageois();
         
         if (this.agentVillageois == null) {
@@ -798,8 +802,74 @@ public class AgentVillageoisDashboardView {
         });
     }
     
-    /**
+/**
      * ✅ Rafraîchir la liste des AVEC
+     */
+//    private void rafraichirListeAvec() {
+//        try {
+//            List<Avec> avecs = avecService.getAvecsByAgentVillageois(agentVillageois.getId());
+//            if (avecs != null) {
+//                avecTable.setItems(FXCollections.observableArrayList(avecs));
+//            }
+//        } catch (SQLException e) {
+//            showAlert("Erreur", "Impossible de rafraîchir la liste: " + e.getMessage());
+//        }
+//    }
+    
+    /**
+     * ✅ Démarrer un nouveau cycle pour une AVEC
+     */
+    private void demarrerCycle(Avec avec) {
+        try {
+            Cycle cycleExist = cycleService.getCycleEnCours(avec.getId());
+            if (cycleExist != null) {
+                showAlert("Information", "Un cycle est déjà en cours pour " + avec.getNom() + 
+                    "\nPhase actuelle: " + cycleExist.getStatut());
+                return;
+            }
+            
+            String message = String.format(
+                "Démarrer un nouveau cycle pour %s ?\n\n" +
+                "Ce cycle sera automatiquement lié à la phase %s",
+                avec.getNom(),
+                PhaseCycle.PREPARATOIRE.getLibelle()
+            );
+            
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+            confirm.setTitle("Démarrer un cycle");
+            confirm.setHeaderText("Nouveau cycle");
+            confirm.setContentText(message);
+            
+            confirm.showAndWait().ifPresent(response -> {
+                if (response == ButtonType.OK) {
+                    Cycle nouveauCycle = null;
+                    try {
+                        nouveauCycle = cycleService.demarrerCycle(avec.getId());
+                    } catch (SQLException e) {
+                        throw new RuntimeException(e);
+                    }
+                    try {
+                        avecService.changerPhase(avec.getId(), PhaseCycle.PREPARATOIRE);
+                    } catch (SQLException e) {
+                        throw new RuntimeException(e);
+                    }
+                    showInfo("Succès", String.format(
+                        "Cycle %d démarré avec succès pour %s!\n" +
+                        "Phase: %s",
+                        nouveauCycle.getNumeroCycle(),
+                        avec.getNom(),
+                        PhaseCycle.PREPARATOIRE.getLibelle()
+                    ));
+                    rafraichirListeAvec();
+                }
+            });
+        } catch (Exception e) {
+            showAlert("Erreur", "Erreur lors du démarrage du cycle: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * ✅ Modifier la colonne d'action dans showMesPour inclure la validation de phase
      */
     private void rafraichirListeAvec() {
         try {
@@ -913,6 +983,14 @@ public class AgentVillageoisDashboardView {
                     }
                     
                     buttonBox.getChildren().addAll(formationBtn, comiteBtn, membresBtn, validerPhaseBtn);
+                    
+                    Button demarrerCycleBtn = new Button("🚀 Démarrer cycle");
+                    demarrerCycleBtn.setStyle("-fx-background-color: #FF9800; -fx-text-fill: white; -fx-font-weight: bold;");
+                    demarrerCycleBtn.setOnAction(e -> {
+                        Avec avec = getTableView().getItems().get(getIndex());
+                        demarrerCycle(avec);
+                    });
+                    buttonBox.getChildren().add(demarrerCycleBtn);
                     setGraphic(buttonBox);
                 }
             }

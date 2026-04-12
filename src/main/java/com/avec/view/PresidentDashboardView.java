@@ -11,10 +11,14 @@ import com.avec.enums.RoleComite;
 import com.avec.enums.StatutMembre;
 import com.avec.model.Avec;
 import com.avec.model.Membre;
+import com.avec.model.Reunion;
 import com.avec.model.SessionUtilisateur;
 import com.avec.service.AvecService;
+import com.avec.service.CycleService;
 import com.avec.service.MembreService;
+import com.avec.service.ReunionService;
 import com.avec.service.UtilisateurService;
+import com.avec.view.ReunionView;
 
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -48,6 +52,8 @@ public class PresidentDashboardView {
 	private SessionUtilisateur session;
 	private MembreService membreService;
 	private AvecService avecService;
+	private CycleService cycleService;
+	private ReunionService reunionService;
 	private BorderPane root;
 
 	private Membre president;
@@ -60,12 +66,15 @@ public class PresidentDashboardView {
 	private static final String ICONE_COMITE = "👤";
 	private static final String ICONE_DECONNEXION = "🚪";
 	private static final String ICONE_AMENDES = "💰";
+	private static final String ICONE_REUNION = "📅";
 
 	public PresidentDashboardView(MainApp mainApp) {
 		this.mainApp = mainApp;
 		this.session = SessionUtilisateur.getInstance();
 		this.membreService = new MembreService();
 		this.avecService = new AvecService();
+		this.cycleService = new CycleService();
+		this.reunionService = new ReunionService();
 		this.president = session.getMembre();
 		initData();
 		createView();
@@ -157,6 +166,7 @@ public class PresidentDashboardView {
 		menuBox.setPadding(new Insets(20, 0, 0, 0));
 
 		menuBox.getChildren().addAll(createMenuButton(ICONE_MEMBRES, "Gestion des membres", this::showMembres),
+				createMenuButton(ICONE_REUNION, "Réunions", this::showGestionReunion),
 				createMenuButton(ICONE_COMITE, "Comité de gestion", this::showComite),
 				createMenuButton(ICONE_AMENDES, "Gestion des amendes", this::showAmende),
 				createMenuButton(ICONE_AMENDES, "Liste des amendes", this::showAmendes),
@@ -242,8 +252,20 @@ public class PresidentDashboardView {
         root.setCenter(view);
 	}
 
+private void showGestionReunion() {
+		if (president != null && president.getAvecId() != null) {
+			System.out.println(">>> President avecId: " + president.getAvecId());
+			ReunionView rv = new ReunionView(president.getAvecId());
+			rv.afficher();
+		} else {
+			showAlert("Erreur", "Aucune AVEC associée au président\n" +
+				"-president: " + president + "\n" +
+				"-avecId: " + (president != null ? president.getAvecId() : "null"));
+		}
+	}
+	
 	/**
-	 * ✅ Gestion des membres - UNIQUEMENT les champs de la base
+	 * ✅ Gestion des membres
 	 */
 	private void showMembres() {
 		VBox view = new VBox(15);
