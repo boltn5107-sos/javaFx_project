@@ -216,10 +216,11 @@ public class ReunionDAO {
     /**
      * Trouve la réunion en cours pour une AVEC directement
      */
-    public Reunion findReunionEnCoursByAvecId(Long avecId) throws SQLException {
+    public Reunion findLatestReunionByAvecId(Long avecId) throws SQLException {
         String sql = "SELECT r.* FROM reunion r " +
-                    "INNER JOIN cycle c ON r.cycle_id = c.id " +
-                    "WHERE c.avec_id = ? AND r.statut = 'EN_COURS' LIMIT 1";
+                     "LEFT JOIN cycle c ON r.cycle_id = c.id " +
+                     "WHERE c.avec_id = ? OR r.cycle_id IS NULL " +
+                     "ORDER BY r.id DESC LIMIT 1";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -233,6 +234,50 @@ public class ReunionDAO {
             }
         }
         return null;
+    }
+    
+    public Reunion findReunionEnCoursByAvecId(Long avecId) throws SQLException {
+        String sql = "SELECT DISTINCT r.* FROM reunion r " +
+                    "LEFT JOIN cycle c ON r.cycle_id = c.id " +
+                    "WHERE (c.avec_id = ? OR r.cycle_id IS NULL) AND r.statut = 'EN_COURS' " +
+                    "ORDER BY r.date DESC LIMIT 1";
+        
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setLong(1, avecId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return mapResultSetToReunion(rs);
+                }
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Trouve toutes les réunions pour une AVEC
+     */
+    public List<Reunion> findByAvecId(Long avecId) throws SQLException {
+        List<Reunion> reunions = new ArrayList<>();
+        String sql = "SELECT r.* FROM reunion r " +
+                     "LEFT JOIN cycle c ON r.cycle_id = c.id " +
+                     "WHERE c.avec_id = ? OR r.cycle_id IS NULL " +
+                     "ORDER BY r.date DESC";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setLong(1, avecId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    reunions.add(mapResultSetToReunion(rs));
+                }
+            }
+        }
+        return reunions;
     }
 
     /**
@@ -367,9 +412,9 @@ public class ReunionDAO {
             reunion.setCycleId(cycleId);
         }
         
-        reunion.setSoldeFondCreditAvant(rs.getBigDecimal("solde_fond_credit_avant"));
-        reunion.setSoldesFondsCreditApres(rs.getBigDecimal("soldes_fonds_credit_apres"));
-        reunion.setSoldeCaisseSolidaritesApres(rs.getBigDecimal("solde_caisse_solidarites_apres"));
+        reunion.setSoldeFondCreditAvant(rs.getBigDecimal("soldeFondCreditAvant"));
+        reunion.setSoldesFondsCreditApres(rs.getBigDecimal("soldesFondsCreditApres"));
+        reunion.setSoldeCaisseSolidaritesApres(rs.getBigDecimal("soldeCaisseSolidaritesApres"));
 
         return reunion;
     }

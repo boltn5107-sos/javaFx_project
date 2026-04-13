@@ -18,16 +18,13 @@ public class Reunion {
 
     private StatutReunion statut;
     private Long cycleId;
+    private Long avecId;
     private BigDecimal soldeFondCreditAvant;
     private BigDecimal soldesFondsCreditApres;
     private BigDecimal soldeCaisseSolidaritesApres;
 
-
     public Reunion() {
         this.statut = StatutReunion.PLANIFIEE;
-        this.soldeFondCreditAvant = BigDecimal.ZERO;
-        this.soldesFondsCreditApres = BigDecimal.ZERO;
-        this.soldeCaisseSolidaritesApres = BigDecimal.ZERO;
     }
 
     // Getters et Setters
@@ -45,6 +42,9 @@ public class Reunion {
 
     public Long getCycleId() { return cycleId; }
     public void setCycleId(Long cycleId) { this.cycleId = cycleId; }
+
+    public Long getAvecId() { return avecId; }
+    public void setAvecId(Long avecId) { this.avecId = avecId; }
 
     public BigDecimal getSoldeFondCreditAvant() { return soldeFondCreditAvant; }
     public void setSoldeFondCreditAvant(BigDecimal soldeFondCreditAvant) { 
@@ -108,7 +108,10 @@ public class Reunion {
 
     @Override
     public String toString() {
-        return type != null ? type.describeConstable() + " - " + getDateFormatted() : "";
+        if (date != null && type != null) {
+            return date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + " - " + type.name();
+        }
+        return date != null ? date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "";
     }
 }
 

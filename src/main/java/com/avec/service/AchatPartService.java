@@ -68,6 +68,49 @@ public class AchatPartService {
         return acheterParts(nombreParts, membreId, 0);
     }
 
+    public AchatPart vendreParts(int nombreParts, long membreId, long reunionId) 
+            throws SQLException, IllegalArgumentException {
+        
+        if (nombreParts <= 0) {
+            throw new IllegalArgumentException("Le nombre de parts doit être positif");
+        }
+        if (membreId <= 0) {
+            throw new IllegalArgumentException("ID du membre invalide");
+        }
+
+        int partsActuelles = achatPartDAO.countByMembreId(membreId);
+        if (nombreParts > partsActuelles) {
+            throw new IllegalArgumentException("Le membre n'a que " + partsActuelles + " parts");
+        }
+
+        Membre membre = membreDAO.findById(membreId);
+        if (membre == null) {
+            throw new IllegalArgumentException("Membre non trouvé");
+        }
+
+       Avec avec = avecDAO.findById(membre.getAvecId());
+        if (avec == null) {
+            throw new IllegalArgumentException("AVEC non trouvée");
+        }
+        if (avec.getPrixPart() == null) {
+            throw new IllegalArgumentException("Le prix d'une part n'est pas défini");
+        }
+
+        BigDecimal montantTotal = avec.getPrixPart().multiply(BigDecimal.valueOf(nombreParts));
+
+        AchatPart vente = new AchatPart();
+        vente.setNombreParts(-nombreParts);
+        vente.setMontantTotal(montantTotal.negate());
+        vente.setMembreId(membreId);
+        vente.setReunionId(reunionId);
+
+        AchatPart saved = achatPartDAO.insert(vente);
+
+        mettreAJourNombrePartsMembre(membreId);
+
+        return saved;
+    }
+
     public boolean modifierAchat(AchatPart achat) throws SQLException, IllegalArgumentException {
         if (achat == null || achat.getId() == null) {
             throw new IllegalArgumentException("Achat invalide");
@@ -151,6 +194,19 @@ public class AchatPartService {
             return BigDecimal.ZERO;
         }
         return avec.getPrixPart() != null ? avec.getPrixPart() : BigDecimal.ZERO;
+    }
+    
+    public boolean enregistrerAchatPart(AchatPart achat) {
+        if (achat == null) return false;
+        if (achat.getNombreParts() == 0) return false;
+        
+        try {
+            AchatPart result = achatPartDAO.insert(achat);
+            return result != null;
+        } catch (SQLException e) {
+            System.err.println("Erreur enregistrement achat part: " + e.getMessage());
+            return false;
+        }
     }
 
     private void mettreAJourNombrePartsMembre(long membreId) throws SQLException {

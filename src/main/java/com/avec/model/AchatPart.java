@@ -1,12 +1,16 @@
 package com.avec.model;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 public class AchatPart {
 
     private Long id;
     private int nombreParts;
     private BigDecimal montantTotal;
+    private LocalDate date;
+    private String typeAchat;
+    private BigDecimal montant;
 
     private Membre membre;
     private Reunion reunion;
@@ -44,6 +48,30 @@ public class AchatPart {
     public void setMontantTotal(BigDecimal montantTotal) {
         this.montantTotal = montantTotal;
     }
+    
+    public BigDecimal getMontant() {
+        return montant;
+    }
+    
+    public void setMontant(BigDecimal montant) {
+        this.montant = montant;
+    }
+    
+    public LocalDate getDate() {
+        return date;
+    }
+    
+    public void setDate(LocalDate date) {
+        this.date = date;
+    }
+    
+    public String getTypeAchat() {
+        return typeAchat;
+    }
+    
+    public void setTypeAchat(String typeAchat) {
+        this.typeAchat = typeAchat;
+    }
 
     public Membre getMembre() {
         return membre;
@@ -61,20 +89,28 @@ public class AchatPart {
         this.reunion = reunion;
     }
 
-	public Long getReunionId() {
-		return reunion_id;
-	}
+ 	public Long getReunionId() {
+ 		return reunion_id;
+ 	}
 
-	public void setReunionId(Long reunion_id) {
-		this.reunion_id = reunion_id;
-	}
+ 	public void setReunionId(Long reunion_id) {
+ 		this.reunion_id = reunion_id;
+ 	}
 
-	public Long getMembreId() {
-		return membre_id;
-	}
+ 	public Long getMembreId() {
+ 		return membre_id;
+ 	}
 
-	public void setMembreId(Long membre_id) {
+public void setMembreId(Long membre_id) {
 		this.membre_id = membre_id;
 	}
-    
+
+	public boolean isVente() {
+		return nombreParts < 0;
+	}
+
+public boolean isAchat() {
+		return nombreParts > 0;
+	}
+      
 }

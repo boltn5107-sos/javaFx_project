@@ -483,7 +483,7 @@ public class MembreDAO {
     * Calcule le total de l'épargne de tous les membres
     */
    public BigDecimal sumTotalPretEnCours() throws SQLException {
-       String sql = "SELECT COALESCE(SUM(montantRestantDu), 0) FROM pret WHERE statut <> 'REMBOURSE' ";
+       String sql = "SELECT COALESCE(SUM(montant_restant_du), 0) FROM pret WHERE statut <> 'REMBOURSE' ";
 
        try (Connection conn = DBConnection.getConnection();
     		   Statement stmt = conn.createStatement();

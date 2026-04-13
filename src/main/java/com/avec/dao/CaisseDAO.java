@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * DAO pour la gestion des caisses dans la base de données
+ * DAO pour la gestion des caisse dans la base de données
  */
 public class CaisseDAO {
 
@@ -22,7 +22,7 @@ public class CaisseDAO {
      * Crée une caisse pour une AVEC
      */
     public Caisse creerCaissePourAvec(long avecId) throws SQLException {
-        String sql = "INSERT INTO caisses (code_securite, avec_id) VALUES (?, ?)";
+        String sql = "INSERT INTO caisse (code_securite, avec_id) VALUES (?, ?)";
 
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -54,7 +54,7 @@ public class CaisseDAO {
      * Trouve une caisse par son ID
      */
     public Caisse findById(long id) throws SQLException {
-        String sql = "SELECT * FROM caisses WHERE id = ?";
+        String sql = "SELECT * FROM caisse WHERE id = ?";
 
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -74,7 +74,7 @@ public class CaisseDAO {
      * Trouve une caisse par l'ID de l'AVEC
      */
     public Caisse findByAvecId(long avecId) throws SQLException {
-        String sql = "SELECT * FROM caisses WHERE avec_id = ?";
+        String sql = "SELECT * FROM caisse WHERE avec_id = ?";
 
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -94,7 +94,7 @@ public class CaisseDAO {
      * Met à jour le code de sécurité d'une caisse
      */
     public boolean updateCodeSecurite(long caisseId, String nouveauCode) throws SQLException {
-        String sql = "UPDATE caisses SET code_securite = ? WHERE id = ?";
+        String sql = "UPDATE caisse SET code_securite = ? WHERE id = ?";
 
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -110,7 +110,7 @@ public class CaisseDAO {
      * Supprime une caisse
      */
     public boolean delete(long id) throws SQLException {
-        String sql = "DELETE FROM caisses WHERE id = ?";
+        String sql = "DELETE FROM caisse WHERE id = ?";
 
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -122,28 +122,28 @@ public class CaisseDAO {
     }
 
     /**
-     * Récupère toutes les caisses
+     * Récupère toutes les caisse
      */
     public List<Caisse> findAll() throws SQLException {
-        List<Caisse> caisses = new ArrayList<>();
-        String sql = "SELECT * FROM caisses ORDER BY id";
+        List<Caisse> caisse = new ArrayList<>();
+        String sql = "SELECT * FROM caisse ORDER BY id";
 
         try (Connection conn = dbConnection.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
-                caisses.add(mapResultSetToCaisse(rs));
+                caisse.add(mapResultSetToCaisse(rs));
             }
         }
-        return caisses;
+        return caisse;
     }
 
     /**
      * Vérifie si une AVEC a une caisse
      */
     public boolean existePourAvec(long avecId) throws SQLException {
-        String sql = "SELECT COUNT(*) FROM caisses WHERE avec_id = ?";
+        String sql = "SELECT COUNT(*) FROM caisse WHERE avec_id = ?";
 
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {

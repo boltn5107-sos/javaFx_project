@@ -22,6 +22,53 @@ public class PretService {
      * Enregistre un nouveau prêt
      */
     public boolean enregistrerPret(Pret pret) {
+        System.out.println("=== PretService.enregistrerPret() ===");
+        if (pret == null) {
+            System.out.println("pret est null");
+            return false;
+        }
+        System.out.println("montantInitial = " + pret.getMontantInitial());
+        if (pret.getMontantInitial() == null || pret.getMontantInitial().compareTo(BigDecimal.ZERO) <= 0) {
+            System.out.println("montantInitial invalide");
+            return false;
+        }
+        System.out.println("emprunteurId = " + pret.getEmprunteurId());
+        if (pret.getEmprunteurId() == null) {
+            System.out.println("emprunteurId est null");
+            return false;
+        }
+
+        System.out.println("Pret: numero=" + pret.getNumeroPret() + ", montant=" + pret.getMontantInitial() + ", emprunteurId=" + pret.getEmprunteurId());
+        
+        // Statut par défaut selon si c'est une demande ou un prêt déjà approuvé
+        if (pret.getStatut() == null) {
+            pret.setStatut(StatutPret.EN_ATTENTE);
+        }
+        
+        System.out.println(">>> Statut du prêt: " + pret.getStatut().name());
+
+        // Générer un numéro de prêt unique
+        if (pret.getNumeroPret() == null || pret.getNumeroPret().isEmpty()) {
+            pret.setNumeroPret(genererNumeroPret());
+        }
+        
+        System.out.println(">>> Numéro de prêt: " + pret.getNumeroPret());
+
+        // Calculer le montant restant dû (principal + intérêts)
+        BigDecimal montantTotal = pret.getMontantTotalDu();
+        pret.setMontantRestantDu(montantTotal);
+        
+        System.out.println(">>> Montant total dû: " + montantTotal);
+
+        boolean result = pretDAO.enregistrer(pret);
+        System.out.println(">>> Résultat insertion: " + result);
+        return result;
+    }
+
+    /**
+     * Enregistre et approuve un prêt (pour décaissement)
+     */
+    public boolean enregistrerEtApprouverPret(Pret pret, Long reunionId) {
         if (pret == null) return false;
         if (pret.getMontantInitial() == null || pret.getMontantInitial().compareTo(BigDecimal.ZERO) <= 0) {
             return false;
@@ -29,7 +76,7 @@ public class PretService {
         if (pret.getEmprunteurId() == null) {
             return false;
         }
-        if (pret.getReunionDecaissementId() == null) {
+        if (reunionId == null) {
             return false;
         }
 
@@ -42,20 +89,109 @@ public class PretService {
         BigDecimal montantTotal = pret.getMontantTotalDu();
         pret.setMontantRestantDu(montantTotal);
 
-        // Définir la date d'échéance
-        if (pret.getDateEcheance() == null && pret.getReunionDecaissement() != null) {
-            LocalDate dateDecaissement = pret.getReunionDecaissement().getDate();
-            if (dateDecaissement != null) {
-                pret.setDateEcheance(dateDecaissement.plusWeeks(pret.getDureeEnSemaines()));
-            }
-        }
+        // Définir la date d'échéance basée sur la réunion de décaissement
+        pret.setReunionDecaissementId(reunionId);
 
-        // Statut par défaut
-        if (pret.getStatut() == null) {
-            pret.setStatut(StatutPret.ACTIF);
-        }
+        // Définir la date d'échéance
+        pret.setDateEcheance(LocalDate.now().plusWeeks(pret.getDureeEnSemaines()));
+
+        // Statut ACTIF car le prêt est déjà décaissé
+        pret.setStatut(StatutPret.ACTIF);
 
         return pretDAO.enregistrer(pret);
+    }
+
+    /**
+     * Approuve une demande de prêt (transforme EN_ATTENTE en ACTIF)
+     */
+    public boolean approuverPret(Long pretId, Long reunionId, Long approbateurId) {
+        System.out.println("=== approuverPret() ===");
+        System.out.println("pretId: " + pretId + ", reunionId: " + reunionId);
+        if (pretId == null || reunionId == null) {
+            System.out.println("ERROR: pretId ou reunionId null");
+            return false;
+        }
+        
+        try {
+            Pret pret = pretDAO.chercherId(pretId);
+            if (pret == null) {
+                System.out.println("ERROR: pret null");
+                return false;
+            }
+            System.out.println("Statut actuel: " + pret.getStatut());
+            System.out.println("ReunionDecaissementId actuel: " + pret.getReunionDecaissementId());
+            
+            if (pret.getStatut() != StatutPret.EN_ATTENTE) {
+                System.out.println("ERROR: statut != EN_ATTENTE");
+                return false;
+            }
+            
+            pret.setStatut(StatutPret.ACTIF);
+            pret.setReunionDecaissementId(reunionId);
+            
+            // Définir la date d'échéance
+            pret.setDateEcheance(LocalDate.now().plusWeeks(pret.getDureeEnSemaines()));
+            
+            // Calculer le montant restant dû
+            BigDecimal montantTotal = pret.getMontantTotalDu();
+            pret.setMontantRestantDu(montantTotal);
+            
+            System.out.println("pret.dateEcheance: " + pret.getDateEcheance());
+            System.out.println("pret.reunionDecaissementId: " + pret.getReunionDecaissementId());
+            
+            boolean result = pretDAO.update(pret);
+            System.out.println("update result: " + result);
+            return result;
+        } catch (SQLException e) {
+            System.err.println("Erreur lors de l'approbation du prêt: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Rejette une demande de prêt
+     */
+    public boolean rejeterPret(Long pretId) {
+        if (pretId == null) return false;
+        
+        try {
+            Pret pret = pretDAO.chercherId(pretId);
+            if (pret == null) return false;
+            if (pret.getStatut() != StatutPret.EN_ATTENTE) return false;
+            
+            pret.setStatut(StatutPret.REJET);
+            
+            return pretDAO.updateStatut(pretId, StatutPret.REJET);
+        } catch (SQLException e) {
+            System.err.println("Erreur lors du rejet du prêt: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Liste les demandes de prêt en attente
+     */
+    public List<Pret> listerDemandesEnAttente() {
+        try {
+            return pretDAO.listerParStatut(StatutPret.EN_ATTENTE);
+        } catch (SQLException e) {
+            System.err.println("Erreur lors du listage des demandes en attente: " + e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * Liste les demandes de prêt en attente par AVEC
+     */
+    public List<Pret> listerDemandesEnAttenteParAvecId(Long avecId) {
+        if (avecId == null) return List.of();
+        try {
+            return pretDAO.listerEnAttenteParAvecId(avecId);
+        } catch (SQLException e) {
+            System.err.println("Erreur: " + e.getMessage());
+            return List.of();
+        }
     }
 
     /**

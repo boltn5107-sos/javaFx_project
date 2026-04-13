@@ -1,10 +1,11 @@
 package com.avec.enums;
 
 public enum StatutPret {
+    EN_ATTENTE("En attente"),
     ACTIF("Actif"),
     REMBOURSE("Remboursé"),
     EN_RETARD("En retard"),
-    EN_ATTENTE("En attente"),
+    REJET("Rejetee"),
     IMPAYE("Impayé");
 
     private final String libelle;

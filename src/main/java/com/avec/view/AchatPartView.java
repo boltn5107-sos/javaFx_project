@@ -279,7 +279,7 @@ public class AchatPartView {
             return;
         }
 
-        Reunion reunion = comboReunion.getValue();
+        Reunion selectedReunion = comboReunion.getValue();
 
         Dialog<AchatPart> dialog = new Dialog<>();
         dialog.initOwner(primaryStage);
@@ -327,15 +327,47 @@ public class AchatPartView {
         });
         lblTotalValue.setText("0 XAF");
 
-        //Reunion reunion = comboReunion.getValue();
-        Label lblReunion = new Label("Réunion (optionnel):");
+        Label lblReunion = new Label("Réunion:");
         ComboBox<Reunion> comboReunionDialog = new ComboBox<>();
-        comboReunionDialog.getItems().add(null);
-        if (comboReunion.getItems() != null) {
-            comboReunionDialog.getItems().addAll(comboReunion.getItems());
-        }
-        if (reunion != null) {
-            comboReunionDialog.setValue(reunion);
+        comboReunionDialog.setPromptText("Sélectionner une réunion...");
+        comboReunionDialog.setPrefWidth(300);
+        
+        chargerDonnees();
+        
+        try {
+            List<Reunion> reunions = reunionService.listerReunions();
+            if (reunions.isEmpty()) {
+                System.out.println("Aucune réunion trouvée");
+            } else {
+                ObservableList<Reunion> observableReunions = FXCollections.observableArrayList(reunions);
+                comboReunionDialog.setItems(observableReunions);
+                comboReunionDialog.setCellFactory(param -> new ListCell<Reunion>() {
+                    @Override
+                    protected void updateItem(Reunion item, boolean empty) {
+                        super.updateItem(item, empty);
+                        if (empty || item == null) {
+                            setText(null);
+                        } else {
+                            setText(item.toString());
+                        }
+                    }
+                });
+                comboReunionDialog.setButtonCell(new ListCell<Reunion>() {
+                    @Override
+                    protected void updateItem(Reunion item, boolean empty) {
+                        super.updateItem(item, empty);
+                        if (empty || item == null) {
+                            setText("Sélectionner une réunion...");
+                        } else {
+                            setText(item.toString());
+                        }
+                    }
+                });
+                System.out.println("Réunions chargées: " + reunions.size());
+            }
+        } catch (Exception e) {
+            System.err.println("Erreur: " + e.getMessage());
+            e.printStackTrace();
         }
 
         grid.add(lblMembre, 0, 0);
@@ -356,8 +388,10 @@ public class AchatPartView {
                 AchatPart achat = new AchatPart();
                 achat.setNombreParts(spinnerParts.getValue());
                 achat.setMembreId(membre.getId());
-                if (reunion != null) {
-                    achat.setReunionId(reunion.getId());
+                
+                Reunion reunionChoisie = comboReunionDialog.getValue();
+                if (reunionChoisie != null) {
+                    achat.setReunionId(reunionChoisie.getId());
                 }
                 return achat;
             }

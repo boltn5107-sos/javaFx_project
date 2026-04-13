@@ -422,12 +422,6 @@ public class TresorierDashboardView {
         montantField.setPromptText("Montant en FCFA");
         montantField.setStyle(Styles.CHAMP_TEXTE);
         
-        Label objetLabel = new Label("Objet du prêt:");
-        objetLabel.setStyle("-fx-font-weight: bold;");
-        TextField objetField = new TextField();
-        objetField.setPromptText("Activité génératrice de revenus");
-        objetField.setStyle(Styles.CHAMP_TEXTE);
-        
         Label dureeLabel = new Label("Durée (semaines):");
         dureeLabel.setStyle("-fx-font-weight: bold;");
         ComboBox<Integer> dureeCombo = new ComboBox<>();
@@ -458,12 +452,10 @@ public class TresorierDashboardView {
         form.add(membreCombo, 1, 0);
         form.add(montantLabel, 0, 1);
         form.add(montantField, 1, 1);
-        form.add(objetLabel, 0, 2);
-        form.add(objetField, 1, 2);
-        form.add(dureeLabel, 0, 3);
-        form.add(dureeCombo, 1, 3);
-        form.add(fraisLabel, 0, 4);
-        form.add(fraisValue, 1, 4);
+        form.add(dureeLabel, 0, 2);
+        form.add(dureeCombo, 1, 2);
+        form.add(fraisLabel, 0, 3);
+        form.add(fraisValue, 1, 3);
         
         decaissementPane.setContent(form);
         
@@ -515,7 +507,7 @@ public class TresorierDashboardView {
         
         Button decaisserButton = new Button("💸 Décaisser");
         decaisserButton.setStyle(Styles.BOUTON_PRINCIPAL);
-        decaisserButton.setOnAction(e -> decaisserPret(membreCombo, montantField, objetField, dureeCombo));
+        decaisserButton.setOnAction(e -> decaisserPret(membreCombo, montantField, dureeCombo));
         
         Button annulerButton = new Button("❌ Annuler");
         annulerButton.setStyle(Styles.BOUTON_SECONDAIRE);
@@ -535,7 +527,7 @@ public class TresorierDashboardView {
     }
     
     private void decaisserPret(ComboBox<Membre> membreCombo, TextField montantField, 
-                                TextField objetField, ComboBox<Integer> dureeCombo) {
+                                ComboBox<Integer> dureeCombo) {
         try {
             Membre emprunteur = membreCombo.getValue();
             if (emprunteur == null) {
@@ -552,12 +544,6 @@ public class TresorierDashboardView {
             BigDecimal montant = new BigDecimal(montantText);
             if (montant.compareTo(BigDecimal.ZERO) <= 0) {
                 showAlert("Erreur", "Le montant doit être supérieur à 0");
-                return;
-            }
-            
-            String objet = objetField.getText().trim();
-            if (objet.isEmpty()) {
-                showAlert("Erreur", "Veuillez saisir l'objet du prêt");
                 return;
             }
             
@@ -584,12 +570,18 @@ public class TresorierDashboardView {
                 return;
             }
             
+            // Vérifier que la réunion est de type CREDIT
+            if (reunionEnCours.getType() != com.avec.enums.TypeReunion.CREDIT) {
+                showAlert("Erreur", "Les prêts ne peuvent être accordés que lors d'une réunion de type CRÉDIT.\n" +
+                         "La réunion actuelle est de type: " + reunionEnCours.getType());
+                return;
+            }
+            
             // Créer le prêt
             Pret pret = new Pret();
             pret.setEmprunteur(emprunteur);
             pret.setEmprunteurId(emprunteur.getId());
             pret.setMontantInitial(montant);
-            pret.setObjetPret(objet);
             pret.setDureeEnSemaines(duree);
             pret.setFraisServiceMensuel(avec.getTauxFraisServiceMensuel());
             pret.setReunionDecaissement(reunionEnCours);
@@ -611,7 +603,6 @@ public class TresorierDashboardView {
                 
                 // Réinitialiser le formulaire
                 montantField.clear();
-                objetField.clear();
                 dureeCombo.setValue(12);
                 membreCombo.setValue(null);
                 

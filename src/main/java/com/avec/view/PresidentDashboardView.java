@@ -4,6 +4,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 
 import com.avec.MainApp;
 import com.avec.config.Styles;
@@ -11,11 +12,13 @@ import com.avec.enums.RoleComite;
 import com.avec.enums.StatutMembre;
 import com.avec.model.Avec;
 import com.avec.model.Membre;
+import com.avec.model.Pret;
 import com.avec.model.Reunion;
 import com.avec.model.SessionUtilisateur;
 import com.avec.service.AvecService;
 import com.avec.service.CycleService;
 import com.avec.service.MembreService;
+import com.avec.service.PretService;
 import com.avec.service.ReunionService;
 import com.avec.service.UtilisateurService;
 import com.avec.view.ReunionView;
@@ -58,6 +61,7 @@ public class PresidentDashboardView {
 
 	private Membre president;
 	private Avec avec;
+	private PretService pretService;
 
 	private TableView<Membre> membresTable;
 	private TableView<Membre> amendeTable;
@@ -67,6 +71,7 @@ public class PresidentDashboardView {
 	private static final String ICONE_DECONNEXION = "🚪";
 	private static final String ICONE_AMENDES = "💰";
 	private static final String ICONE_REUNION = "📅";
+	private static final String ICONE_PRET = "💳";
 
 	public PresidentDashboardView(MainApp mainApp) {
 		this.mainApp = mainApp;
@@ -75,6 +80,7 @@ public class PresidentDashboardView {
 		this.avecService = new AvecService();
 		this.cycleService = new CycleService();
 		this.reunionService = new ReunionService();
+		this.pretService = new PretService();
 		this.president = session.getMembre();
 		initData();
 		createView();
@@ -167,6 +173,7 @@ public class PresidentDashboardView {
 
 		menuBox.getChildren().addAll(createMenuButton(ICONE_MEMBRES, "Gestion des membres", this::showMembres),
 				createMenuButton(ICONE_REUNION, "Réunions", this::showGestionReunion),
+				createMenuButton(ICONE_PRET, "Demandes de prêts", this::showDemandesPrets),
 				createMenuButton(ICONE_COMITE, "Comité de gestion", this::showComite),
 				createMenuButton(ICONE_AMENDES, "Gestion des amendes", this::showAmende),
 				createMenuButton(ICONE_AMENDES, "Liste des amendes", this::showAmendes),
@@ -263,7 +270,164 @@ private void showGestionReunion() {
 				"-avecId: " + (president != null ? president.getAvecId() : "null"));
 		}
 	}
-	
+
+	/**
+	 * ✅ Gestion des demandes de prêts
+	 */
+	private void showDemandesPrets() {
+		VBox view = new VBox(15);
+		view.setPadding(new Insets(20));
+
+		Label title = new Label("Demandes de prêts en attente");
+		title.setStyle(Styles.TITRE_PRINCIPAL);
+
+		TableView<Pret> table = new TableView<>();
+		table.setPrefHeight(400);
+
+		TableColumn<Pret, String> colNumero = new TableColumn<>("N° Prêt");
+		colNumero.setCellValueFactory(new PropertyValueFactory<>("numeroPret"));
+		colNumero.setPrefWidth(120);
+
+		TableColumn<Pret, String> colMembre = new TableColumn<>("Membre");
+		colMembre.setCellValueFactory(cellData -> {
+			if (cellData.getValue().getEmprunteur() != null) {
+				return new javafx.beans.property.SimpleStringProperty(
+					cellData.getValue().getEmprunteur().getNomComplet());
+			}
+			return new javafx.beans.property.SimpleStringProperty("-");
+		});
+		colMembre.setPrefWidth(150);
+
+		TableColumn<Pret, String> colMontant = new TableColumn<>("Montant");
+		colMontant.setCellValueFactory(cellData -> {
+			java.math.BigDecimal montant = cellData.getValue().getMontantInitial();
+			String formatted = montant != null ? montant.toString() + " XAF" : "-";
+			return new javafx.beans.property.SimpleStringProperty(formatted);
+		});
+		colMontant.setPrefWidth(120);
+
+		TableColumn<Pret, String> colDuree = new TableColumn<>("Durée");
+		colDuree.setCellValueFactory(cellData -> 
+			new javafx.beans.property.SimpleStringProperty(
+				cellData.getValue().getDureeEnSemaines() + " sem.")
+		);
+		colDuree.setPrefWidth(80);
+
+		TableColumn<Pret, Void> colAction = new TableColumn<>("Actions");
+		colAction.setPrefWidth(200);
+		colAction.setCellFactory(col -> new javafx.scene.control.TableCell<Pret, Void>() {
+			private final HBox buttons = new HBox(5);
+			private final Button btnApprouver = new Button("✅ Approuver");
+			private final Button btnRejeter = new Button("❌ Rejeter");
+
+			{
+				btnApprouver.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-padding: 5 10;");
+				btnRejeter.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-padding: 5 10;");
+				
+				btnApprouver.setOnAction(e -> {
+					Pret pret = getTableView().getItems().get(getIndex());
+					approuverDemandePret(pret);
+				});
+				
+				btnRejeter.setOnAction(e -> {
+					Pret pret = getTableView().getItems().get(getIndex());
+					rejeterDemandePret(pret);
+				});
+				
+				buttons.getChildren().addAll(btnApprouver, btnRejeter);
+			}
+
+			@Override
+			protected void updateItem(Void item, boolean empty) {
+				super.updateItem(item, empty);
+				setGraphic(empty ? null : buttons);
+			}
+		});
+
+		table.getColumns().addAll(colNumero, colMembre, colMontant, colDuree, colAction);
+
+		try {
+			List<Pret> demandes = pretService.listerDemandesEnAttenteParAvecId(president.getAvecId());
+			
+			// Charger les membres emprunteurs
+			for (Pret pret : demandes) {
+				if (pret.getEmprunteurId() != null) {
+					try {
+						Membre membre = membreService.getMembreById(pret.getEmprunteurId());
+						pret.setEmprunteur(membre);
+					} catch (Exception e) {
+						System.err.println("Erreur chargement membre: " + e.getMessage());
+					}
+				}
+			}
+			
+			table.setItems(javafx.collections.FXCollections.observableArrayList(demandes));
+			
+			if (demandes.isEmpty()) {
+				Label emptyLabel = new Label("Aucune demande de prêt en attente");
+				emptyLabel.setStyle("-fx-text-fill: gray; -fx-font-size: 14px;");
+				view.getChildren().add(emptyLabel);
+			}
+		} catch (Exception e) {
+			showAlert("Erreur", "Impossible de charger les demandes: " + e.getMessage());
+			e.printStackTrace();
+		}
+
+		view.getChildren().addAll(title, table);
+		root.setCenter(view);
+	}
+
+	private void approuverDemandePret(Pret pret) {
+		// Vérifier que le prêt a une réunion de décaissement associée
+		if (pret.getReunionDecaissementId() == null) {
+			showAlert("Erreur", "Aucune réunion associée à cette demande de prêt.");
+			return;
+		}
+		
+		String nomMembre = (pret.getEmprunteur() != null) ? pret.getEmprunteur().getNomComplet() : "Membre #" + pret.getEmprunteurId();
+		
+		boolean confirm = showConfirmation("Confirmer", "Approuver la demande",
+			"Êtes-vous sûr d'approuver ce prêt de " + pret.getMontantInitial() + " XAF pour " +
+			nomMembre + "?");
+		
+		if (confirm) {
+			// Utiliser la réunion déjà associée au prêt
+			boolean success = pretService.approuverPret(pret.getId(), pret.getReunionDecaissementId(), president.getId());
+			if (success) {
+				showInfo("Succès", "Prêt approuvé avec succès!");
+				showDemandesPrets();
+			} else {
+				showAlert("Erreur", "Impossible d'approuver le prêt");
+			}
+		}
+	}
+
+	private void rejeterDemandePret(Pret pret) {
+		String nomMembre = (pret.getEmprunteur() != null) ? pret.getEmprunteur().getNomComplet() : "Membre #" + pret.getEmprunteurId();
+		
+		boolean confirm = showConfirmation("Confirmer", "Rejeter la demande",
+			"Êtes-vous sûr de rejeter ce prêt pour " + nomMembre + "?");
+		
+		if (confirm) {
+			boolean success = pretService.rejeterPret(pret.getId());
+			if (success) {
+				showInfo("Succès", "Demande de prêt rejetée");
+				showDemandesPrets();
+			} else {
+				showAlert("Erreur", "Impossible de rejeter le prêt");
+			}
+		}
+	}
+
+	private boolean showConfirmation(String title, String header, String content) {
+		Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+		alert.setTitle(title);
+		alert.setHeaderText(header);
+		alert.setContentText(content);
+		Optional<ButtonType> result = alert.showAndWait();
+		return result.isPresent() && result.get() == ButtonType.OK;
+	}
+
 	/**
 	 * ✅ Gestion des membres
 	 */

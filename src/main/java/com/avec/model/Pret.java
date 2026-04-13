@@ -37,7 +37,7 @@ public class Pret {
     public Pret(){
         this.remboursements = new ArrayList<>();
         this.decaissements = new ArrayList<>();
-        this.statut = StatutPret.ACTIF;
+        this.statut = StatutPret.EN_ATTENTE;
     }
 
     public Pret(Long id, String numeroPret, BigDecimal montantInitial) {
@@ -60,7 +60,7 @@ public class Pret {
     }
     
     public void setNumeroPret(String text) {
-        this.numeroPret = numeroPret;
+        this.numeroPret = text;
     }
 
     public BigDecimal getMontantInitial() {
@@ -68,7 +68,7 @@ public class Pret {
     }
 
     public void setMontantInitial(BigDecimal bigDecimal) { 
-        this.montantInitial = montantInitial;
+        this.montantInitial = bigDecimal;
      }
 
     public StatutPret getStatut() {
@@ -98,9 +98,11 @@ public class Pret {
     }
 
     public void setEmprunteur(Membre membre) {
+        this.emprunteur = membre;
     }
 
     public void setEmprunteurId(Long id) {
+        this.emprunteurId = id;
     }
 
 

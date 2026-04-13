@@ -1,7 +1,9 @@
 package com.avec.dao;
 
 import com.avec.config.DBConnection;
+import com.avec.enums.TypeReunion;
 import com.avec.model.AchatPart;
+import com.avec.model.Reunion;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -100,7 +102,10 @@ public class AchatPartDAO {
 
     public List<AchatPart> findByMembreId(long membreId) throws SQLException {
         List<AchatPart> achats = new ArrayList<>();
-        String sql = "SELECT * FROM achatsparts WHERE membre_id = ? ORDER BY id DESC";
+        String sql = "SELECT a.*, r.date as reunion_date, r.type as reunion_type " +
+                   "FROM achatsparts a " +
+                   "LEFT JOIN reunion r ON a.reunion_id = r.id " +
+                   "WHERE a.membre_id = ? ORDER BY a.id DESC";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -109,7 +114,17 @@ public class AchatPartDAO {
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    achats.add(mapResultSetToAchatPart(rs));
+                    AchatPart achat = mapResultSetToAchatPart(rs);
+                    try {
+                        java.sql.Date dateReunion = rs.getDate("reunion_date");
+                        if (dateReunion != null) {
+                            Reunion reunion = new Reunion();
+                            reunion.setDate(dateReunion.toLocalDate());
+                            reunion.setType(TypeReunion.valueOf(rs.getString("reunion_type")));
+                            achat.setReunion(reunion);
+                        }
+                    } catch (Exception e) {}
+                    achats.add(achat);
                 }
             }
         }

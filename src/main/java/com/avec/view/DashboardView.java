@@ -18,6 +18,8 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
+import java.sql.SQLException;
+
 public class DashboardView {
 	Stage primaryStage;
 	private MainApp mainApp;
@@ -38,14 +40,14 @@ public class DashboardView {
 	private static final String ICONE_DECONNEXION = "🚪";
 	public static final String ICONE_AVEC = "🏘️";
 
-	public DashboardView(MainApp mainApp, Utilisateur utilisateur) {
+	public DashboardView(MainApp mainApp, Utilisateur utilisateur) throws SQLException {
 		this.mainApp = mainApp;
 		this.utilisateur = utilisateur;
 		this.session = SessionUtilisateur.getInstance();
 		createView();
 	}
 
-	private void createView() {
+	private void createView() throws SQLException {
 		root = new BorderPane();
 		root.setStyle("-fx-background-color: " + Styles.GRIS_CLAIR + ";");
 

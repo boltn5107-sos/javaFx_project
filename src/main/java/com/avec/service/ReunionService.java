@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.avec.dao.ReunionDAO;
 import com.avec.enums.StatutReunion;
@@ -60,8 +61,26 @@ public class ReunionService {
      */
     public List<Reunion> listerReunions() {
         try {
-            return reunionDAO.lister();
+            List<Reunion> reunions = reunionDAO.lister();
+            System.out.println("ReunionService.listerReunions() - Trouvées: " + reunions.size());
+            return reunions;
         } catch (SQLException e) {
+            System.err.println("Erreur lors du listage des réunions: " + e.getMessage());
+            return List.of();
+        }
+    }
+    
+    /**
+     * Liste les réunions de type CREDIT (approuvées) par AVEC
+     */
+    public List<Reunion> getReunionsApprouveesParAvecId(Long avecId) {
+        if (avecId == null) return List.of();
+        try {
+            List<Reunion> reunions = reunionDAO.findByAvecId(avecId);
+            return reunions.stream()
+                .filter(r -> r.getType() == TypeReunion.CREDIT)
+                .collect(Collectors.toList());
+        } catch (Exception e) {
             System.err.println("Erreur lors du listage des réunions: " + e.getMessage());
             return List.of();
         }
@@ -109,15 +128,36 @@ public class ReunionService {
     /**
      * Trouve la réunion en cours pour une AVEC (via le cycle)
      */
+    public Reunion getReunionParDefaut(Long avecId) {
+        ReunionDAO rDAO = new ReunionDAO();
+        try {
+            return rDAO.findLatestReunionByAvecId(avecId);
+        } catch (Exception e) {
+            System.err.println("Erreur: " + e.getMessage());
+            return null;
+        }
+    }
+    
     public Reunion getReunionEnCoursParAvec(Long avecId) {
         if (avecId == null) return null;
         
         ReunionDAO rDAO = new ReunionDAO();
         try {
-            Reunion reunion = rDAO.findReunionEnCoursByAvecId(avecId);
+            Reunion reunion = null;
+            
+            try {
+                reunion = rDAO.findReunionEnCoursByAvecId(avecId);
+            } catch (Exception e) {}
+            
+            if (reunion == null) {
+                try {
+                    reunion = rDAO.findLatestReunionByAvecId(avecId);
+                } catch (Exception e) {}
+            }
+            
             return reunion;
-        } catch (SQLException e) {
-            System.err.println("Erreur: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("Erreur getReunion: " + e.getMessage());
             return null;
         }
     }

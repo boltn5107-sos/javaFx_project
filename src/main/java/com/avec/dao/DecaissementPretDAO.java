@@ -18,8 +18,8 @@ public class DecaissementPretDAO {
      * Insère un nouveau décaissement
      */
     public DecaissementPret insert(DecaissementPret decaissement) throws SQLException {
-        String sql = "INSERT INTO decaissements_prets (numero_decaissement, montant, date_decaissement, " +
-                "mode_paiement, observations, pret_id, reunion_id, encaisse_par_id, approuve_par_id) " +
+        String sql = "INSERT INTO decaissementPrets (numeroDecaissement, montant, dateDecaissement, " +
+                "modePaiement, observations, pretId, reunionId, encaisseParId, approuveParId) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = DBConnection.getConnection();
@@ -65,8 +65,8 @@ public class DecaissementPretDAO {
      * Met à jour un décaissement existant
      */
     public boolean update(DecaissementPret decaissement) throws SQLException {
-        String sql = "UPDATE decaissements_prets SET montant = ?, date_decaissement = ?, " +
-                "mode_paiement = ?, observations = ? WHERE id = ?";
+        String sql = "UPDATE decaissementPrets SET montant = ?, dateDecaissement = ?, " +
+                "modePaiement = ?, observations = ? WHERE id = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -85,7 +85,7 @@ public class DecaissementPretDAO {
      * Supprime un décaissement
      */
     public boolean delete(long id) throws SQLException {
-        String sql = "DELETE FROM decaissements_prets WHERE id = ?";
+        String sql = "DELETE FROM decaissementPrets WHERE id = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -99,7 +99,7 @@ public class DecaissementPretDAO {
      * Trouve un décaissement par son ID
      */
     public DecaissementPret findById(long id) throws SQLException {
-        String sql = "SELECT * FROM decaissements_prets WHERE id = ?";
+        String sql = "SELECT * FROM decaissementPrets WHERE id = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -120,7 +120,7 @@ public class DecaissementPretDAO {
      */
     public List<DecaissementPret> findByPretId(long pretId) throws SQLException {
         List<DecaissementPret> decaissements = new ArrayList<>();
-        String sql = "SELECT * FROM decaissements_prets WHERE pret_id = ? ORDER BY date_decaissement DESC";
+        String sql = "SELECT * FROM decaissementPrets WHERE pretId = ? ORDER BY dateDecaissement DESC";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -141,7 +141,7 @@ public class DecaissementPretDAO {
      */
     public List<DecaissementPret> findByReunionId(long reunionId) throws SQLException {
         List<DecaissementPret> decaissements = new ArrayList<>();
-        String sql = "SELECT * FROM decaissements_prets WHERE reunion_id = ? ORDER BY date_decaissement DESC";
+        String sql = "SELECT * FROM decaissementPrets WHERE reunionId = ? ORDER BY dateDecaissement DESC";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -162,7 +162,7 @@ public class DecaissementPretDAO {
      */
     public List<DecaissementPret> findByEncaisseurId(long membreId) throws SQLException {
         List<DecaissementPret> decaissements = new ArrayList<>();
-        String sql = "SELECT * FROM decaissements_prets WHERE encaisse_par_id = ? ORDER BY date_decaissement DESC";
+        String sql = "SELECT * FROM decaissementPrets WHERE encaisseParId = ? ORDER BY dateDecaissement DESC";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -183,7 +183,7 @@ public class DecaissementPretDAO {
      */
     public List<DecaissementPret> findByPeriode(LocalDateTime debut, LocalDateTime fin) throws SQLException {
         List<DecaissementPret> decaissements = new ArrayList<>();
-        String sql = "SELECT * FROM decaissements_prets WHERE date_decaissement BETWEEN ? AND ? ORDER BY date_decaissement DESC";
+        String sql = "SELECT * FROM decaissementPrets WHERE dateDecaissement BETWEEN ? AND ? ORDER BY dateDecaissement DESC";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -204,7 +204,7 @@ public class DecaissementPretDAO {
      * Calcule le total des décaissements pour un prêt
      */
     public BigDecimal sumMontantByPretId(long pretId) throws SQLException {
-        String sql = "SELECT COALESCE(SUM(montant), 0) FROM decaissements_prets WHERE pret_id = ?";
+        String sql = "SELECT COALESCE(SUM(montant), 0) FROM decaissementPrets WHERE pretId = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -224,7 +224,7 @@ public class DecaissementPretDAO {
      * Compte le nombre de décaissements pour une réunion
      */
     public int countByReunionId(long reunionId) throws SQLException {
-        String sql = "SELECT COUNT(*) FROM decaissements_prets WHERE reunion_id = ?";
+        String sql = "SELECT COUNT(*) FROM decaissementPrets WHERE reunionId = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -247,20 +247,20 @@ public class DecaissementPretDAO {
         DecaissementPret decaissement = new DecaissementPret();
 
         decaissement.setId(rs.getLong("id"));
-        decaissement.setNumeroDecaissement(rs.getString("numero_decaissement"));
+        decaissement.setNumeroDecaissement(rs.getString("numeroDecaissement"));
         decaissement.setMontant(rs.getBigDecimal("montant"));
-        decaissement.setDateDecaissement(rs.getTimestamp("date_decaissement").toLocalDateTime());
-        decaissement.setModePaiement(rs.getString("mode_paiement"));
+        decaissement.setDateDecaissement(rs.getTimestamp("dateDecaissement").toLocalDateTime());
+        decaissement.setModePaiement(rs.getString("modePaiement"));
         decaissement.setObservations(rs.getString("observations"));
-        decaissement.setPretId(rs.getLong("pret_id"));
-        decaissement.setReunionId(rs.getLong("reunion_id"));
+        decaissement.setPretId(rs.getLong("pretId"));
+        decaissement.setReunionId(rs.getLong("reunionId"));
 
-        long encaisseParId = rs.getLong("encaisse_par_id");
+        long encaisseParId = rs.getLong("encaisseParId");
         if (!rs.wasNull()) {
             decaissement.setEncaisseParId(encaisseParId);
         }
 
-        long approuveParId = rs.getLong("approuve_par_id");
+        long approuveParId = rs.getLong("approuveParId");
         if (!rs.wasNull()) {
             decaissement.setApprouveParId(approuveParId);
         }
