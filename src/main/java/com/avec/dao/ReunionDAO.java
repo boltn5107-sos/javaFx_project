@@ -160,37 +160,6 @@ public class ReunionDAO {
         return reunions;
     }
     
-    /**
-     * Récupère toutes les réunions d'une AVEC
-     * @param avecId L'ID de l'AVEC
-     * @return Liste des réunions de l'AVEC
-     */
-    public List<Reunion> findByAvecId(Long avecId) throws SQLException {
-        List<Reunion> reunions = new ArrayList<>();
-        
-        // La table reunion a une colonne avec_id ou cycle_id
-        // Selon votre structure, adaptez la requête
-        String sql = "SELECT r.* FROM reunion r " +
-                     "INNER JOIN cycle c ON r.cycle_id = c.id " +
-                     "WHERE c.avec_id = ? " +
-                     "ORDER BY r.date DESC";
-        
-        // Si votre table reunion a directement une colonne avec_id, utilisez :
-        // String sql = "SELECT * FROM reunion WHERE avec_id = ? ORDER BY date DESC";
-        
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
-            stmt.setLong(1, avecId);
-            
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    reunions.add(mapResultSetToReunion(rs));
-                }
-            }
-        }
-        return reunions;
-    }
     
 
     /**
