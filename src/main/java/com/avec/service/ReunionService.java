@@ -31,6 +31,17 @@ public class ReunionService {
             reunion.setStatut(StatutReunion.PLANIFIEE);
         }
         
+        if (reunion.getSoldeFondCreditAvant() == null) {
+            reunion.setSoldeFondCreditAvant(BigDecimal.ZERO);
+        }
+        if (reunion.getSoldesFondsCreditApres() == null) {
+            reunion.setSoldesFondsCreditApres(BigDecimal.ZERO);
+        }
+        if (reunion.getSoldeCaisseSolidaritesApres() == null) {
+            reunion.setSoldeCaisseSolidaritesApres(BigDecimal.ZERO);
+        }
+        
+        
         return reunionDAO.enregistrer(reunion);
     }
 
@@ -66,6 +77,17 @@ public class ReunionService {
             return List.of();
         }
     }
+    
+    /**
+     * Récupère toutes les réunions d'une AVEC
+     * @param avecId L'ID de l'AVEC
+     * @return Liste des réunions de l'AVEC
+     */
+    public List<Reunion> getReunionsByAvecId(Long avecId) throws SQLException {
+        if (avecId == null) return List.of();
+        return reunionDAO.findByAvecId(avecId);
+    }
+
 
     /**
      * Liste les réunions par cycle

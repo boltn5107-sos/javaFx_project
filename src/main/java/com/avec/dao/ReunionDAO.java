@@ -18,31 +18,61 @@ import com.avec.model.Reunion;
 
 public class ReunionDAO {
 
-    /**
-     * Enregistre une nouvelle réunion
+	 /**
+     * Enregistre une nouvelle réunion - VERSION CORRIGÉE
      */
     public boolean enregistrer(Reunion reunion) {
-        String sql = "INSERT INTO reunion (date, type, statut, cycle_id) VALUES (?, ?, ?, ?)";
+        // ✅ Requête avec le bon nombre de paramètres (7 colonnes)
+        String sql = "INSERT INTO reunion (date, type, statut, cycle_id, " +
+                     "soldeFondCreditAvant, soldesFondsCreditApres, soldeCaisseSolidaritesApres) " +
+                     "VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+        System.out.println(">>> DAO: Enregistrement réunion");
+        System.out.println(">>> SQL: " + sql);
+        System.out.println(">>> Date: " + reunion.getDate());
+        System.out.println(">>> Type: " + reunion.getType());
+        System.out.println(">>> Statut: " + reunion.getStatut());
+        System.out.println(">>> CycleId: " + reunion.getCycleId());
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
+            // Paramètre 1: date
             ps.setDate(1, Date.valueOf(reunion.getDate()));
-            ps.setString(2, reunion.getType().name());
-            ps.setString(3, reunion.getStatut() != null ? reunion.getStatut().name() : StatutReunion.PLANIFIEE.name());
             
+            // Paramètre 2: type
+            ps.setString(2, reunion.getType().name());
+            
+            // Paramètre 3: statut
+            ps.setString(3, reunion.getStatut().name());
+            
+            // Paramètre 4: cycle_id (peut être null)
             if (reunion.getCycleId() != null) {
                 ps.setLong(4, reunion.getCycleId());
             } else {
                 ps.setNull(4, Types.BIGINT);
             }
+            
+            // Paramètre 5: soldeFondCreditAvant
+            ps.setBigDecimal(5, reunion.getSoldeFondCreditAvant() != null ? 
+                             reunion.getSoldeFondCreditAvant() : java.math.BigDecimal.ZERO);
+            
+            // Paramètre 6: soldesFondsCreditApres
+            ps.setBigDecimal(6, reunion.getSoldesFondsCreditApres() != null ? 
+                             reunion.getSoldesFondsCreditApres() : java.math.BigDecimal.ZERO);
+            
+            // Paramètre 7: soldeCaisseSolidaritesApres
+            ps.setBigDecimal(7, reunion.getSoldeCaisseSolidaritesApres() != null ? 
+                             reunion.getSoldeCaisseSolidaritesApres() : java.math.BigDecimal.ZERO);
 
             int affectedRows = ps.executeUpdate();
+            System.out.println(">>> Affected rows: " + affectedRows);
             
             if (affectedRows > 0) {
                 try (ResultSet generatedKeys = ps.getGeneratedKeys()) {
                     if (generatedKeys.next()) {
                         reunion.setId(generatedKeys.getLong(1));
+                        System.out.println(">>> ID généré: " + reunion.getId());
                     }
                 }
                 return true;
@@ -56,14 +86,14 @@ public class ReunionDAO {
             return false;
         }
     }
-
+    
     /**
      * Met à jour une réunion existante
      */
     public boolean update(Reunion reunion) {
         String sql = "UPDATE reunion SET date = ?, type = ?, statut = ?, cycle_id = ?, " +
-                     "solde_fond_credit_avant = ?, soldes_fonds_credit_apres = ?, " +
-                     "solde_caisse_solidarites_apres = ? WHERE id = ?";
+                     "soldeFondCreditAvant = ?, soldesFondsCreditApres = ?, " +
+                     "soldeCaisseSolidaritesApres = ? WHERE id = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -86,12 +116,12 @@ public class ReunionDAO {
             return ps.executeUpdate() > 0;
 
         } catch (SQLException e) {
-            System.err.println("Erreur lors de la mise à jour de la réunion: " + e.getMessage());
+            System.err.println("Erreur lors de la mise à jour: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
     }
-
+    
     /**
      * Cherche une réunion par son ID
      */
@@ -129,6 +159,39 @@ public class ReunionDAO {
         }
         return reunions;
     }
+    
+    /**
+     * Récupère toutes les réunions d'une AVEC
+     * @param avecId L'ID de l'AVEC
+     * @return Liste des réunions de l'AVEC
+     */
+    public List<Reunion> findByAvecId(Long avecId) throws SQLException {
+        List<Reunion> reunions = new ArrayList<>();
+        
+        // La table reunion a une colonne avec_id ou cycle_id
+        // Selon votre structure, adaptez la requête
+        String sql = "SELECT r.* FROM reunion r " +
+                     "INNER JOIN cycle c ON r.cycle_id = c.id " +
+                     "WHERE c.avec_id = ? " +
+                     "ORDER BY r.date DESC";
+        
+        // Si votre table reunion a directement une colonne avec_id, utilisez :
+        // String sql = "SELECT * FROM reunion WHERE avec_id = ? ORDER BY date DESC";
+        
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setLong(1, avecId);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    reunions.add(mapResultSetToReunion(rs));
+                }
+            }
+        }
+        return reunions;
+    }
+    
 
     /**
      * Liste les réunions par cycle

@@ -1,24 +1,28 @@
 package com.avec.view;
 
+import java.math.BigDecimal;
 import java.sql.SQLException;
-import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 import com.avec.MainApp;
 import com.avec.config.Styles;
 import com.avec.enums.RoleComite;
 import com.avec.enums.StatutMembre;
+import com.avec.model.Amende;
 import com.avec.model.Avec;
 import com.avec.model.Membre;
 import com.avec.model.Reunion;
 import com.avec.model.SessionUtilisateur;
+import com.avec.model.TypeInfraction;
+import com.avec.service.AmendeService;
 import com.avec.service.AvecService;
 import com.avec.service.CycleService;
 import com.avec.service.MembreService;
 import com.avec.service.ReunionService;
+import com.avec.service.TypeInfractionService;
 import com.avec.service.UtilisateurService;
-import com.avec.view.ReunionView;
 
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -27,9 +31,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.DatePicker;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
@@ -37,7 +39,9 @@ import javafx.scene.control.Separator;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TitledPane;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -168,8 +172,7 @@ public class PresidentDashboardView {
 		menuBox.getChildren().addAll(createMenuButton(ICONE_MEMBRES, "Gestion des membres", this::showMembres),
 				createMenuButton(ICONE_REUNION, "Réunions", this::showGestionReunion),
 				createMenuButton(ICONE_COMITE, "Comité de gestion", this::showComite),
-				createMenuButton(ICONE_AMENDES, "Gestion des amendes", this::showAmende),
-				createMenuButton(ICONE_AMENDES, "Liste des amendes", this::showAmendes),
+				createMenuButton(ICONE_AMENDES, "Gestion des amendes", this::showAmendes),
 	            createMenuButton(ICONE_MEMBRES, "Liste des membres", this::showMembre));
 		
 		// Dans le header de chaque dashboard
@@ -194,32 +197,7 @@ public class PresidentDashboardView {
 		return button;
 	}
 	
-	private void showAmendes() {
-        VBox view = new VBox(15);
-        view.setPadding(new Insets(20));
-        
-        Label title = new Label("Gestion des amendes");
-        title.setStyle(Styles.TITRE_PRINCIPAL);
-        
-        // Tableau des amendes
-        TableView<Object> amendesTable = new TableView<>();
-        
-        TableColumn<Object, String> colDate = new TableColumn<>("Date");
-        colDate.setPrefWidth(100);
-        TableColumn<Object, String> colMembre = new TableColumn<>("Membre");
-        colMembre.setPrefWidth(150);
-        TableColumn<Object, String> colMotif = new TableColumn<>("Motif");
-        colMotif.setPrefWidth(200);
-        TableColumn<Object, String> colMontant = new TableColumn<>("Montant");
-        colMontant.setPrefWidth(100);
-        TableColumn<Object, String> colStatut = new TableColumn<>("Statut");
-        colStatut.setPrefWidth(80);
-        
-        amendesTable.getColumns().addAll(colDate, colMembre, colMotif, colMontant, colStatut);
-        
-        view.getChildren().addAll(title, amendesTable);
-        root.setCenter(view);
-    }
+	
 	
 	private void showMembre() {
         VBox view = new VBox(15);
@@ -359,90 +337,356 @@ private void showGestionReunion() {
 		root.setCenter(view);
 	}
 	
-	private void showAmende() {
-        VBox view = new VBox(15);
-        view.setPadding(new Insets(20));
-        
-        Label title = new Label("Gestion des Amendes");
-        title.setStyle(Styles.TITRE_PRINCIPAL);
-        
-        // Sélection de la date
-        HBox dateBox = new HBox(10);
-        DatePicker datePicker = new DatePicker(LocalDate.now());
-        datePicker.setStyle(Styles.CHAMP_TEXTE);
-        
-        Button chargerButton = new Button("Charger");
-        chargerButton.setStyle(Styles.BOUTON_PRINCIPAL);
-        
-        dateBox.getChildren().addAll(new Label("Date de la réunion:"), datePicker, chargerButton);
-        
-        // Tableau des Amendes
-        amendeTable = new TableView<>();
-        amendeTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        
-        TableColumn<Membre, String> colNom = new TableColumn<>("Nom");
-        colNom.setCellValueFactory(new PropertyValueFactory<>("nom"));
-        colNom.setPrefWidth(150);
-        
-        TableColumn<Membre, String> colPrenom = new TableColumn<>("Prénom");
-        colPrenom.setCellValueFactory(new PropertyValueFactory<>("prenom"));
-        colPrenom.setPrefWidth(150);
-        
-        TableColumn<Membre, Boolean> colRetard = new TableColumn<>("Retard");
-        colRetard.setCellFactory(col -> new TableCell<Membre, Boolean>() {
-            @Override
-            protected void updateItem(Boolean item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty) {
-                    setGraphic(null);
-                } else {
-                    CheckBox checkBox = new CheckBox();
-                    checkBox.setSelected(item != null && item);
-                    setGraphic(checkBox);
-                }
-            }
-        });
-        colRetard.setPrefWidth(80);
-        
-        
-        TableColumn<Membre, String> colAmende = new TableColumn<>("Amende");
-        colAmende.setCellFactory(col -> new TableCell<Membre, String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty) {
-                    setGraphic(null);
-                } else {
-                    TextField textField = new TextField(item);
-                    textField.setPromptText("Montant");
-                    setGraphic(textField);
-                }
-            }
-        });
-        colAmende.setPrefWidth(100);
-        
-        amendeTable.getColumns().addAll(colNom, colPrenom, colRetard, colAmende);
-        
-        // Charger les membres
-        try {
-            List<Membre> membres = membreService.getMembresByAvecId(president.getAvecId());
-            amendeTable.setItems(FXCollections.observableArrayList(membres));
-        } catch (SQLException e) {
-            showAlert("Erreur", "Impossible de charger les membres: " + e.getMessage());
-        }
-        
-     // Bouton enregistrer
-        Button saveButton = new Button("💾 Enregistrer les amendes");
-        saveButton.setStyle(Styles.BOUTON_PRINCIPAL);
-        saveButton.setPrefWidth(300);
-        
-        saveButton.setOnAction(e -> {
-            // TODO: Sauvegarder les présences dans la base
-            showInfo("Succès", "Amendes enregistrées avec succès!");
-        });
-        
-        view.getChildren().addAll(title, dateBox, amendeTable,saveButton);
-        root.setCenter(view);
+	/**
+	 * Affiche la vue de gestion des amendes
+	 */
+	private void showAmendes() {
+	    VBox view = new VBox(15);
+	    view.setPadding(new Insets(20));
+	    
+	    Label title = new Label("Gestion des amendes");
+	    title.setStyle(Styles.TITRE_PRINCIPAL);
+	    
+	    // Sélection de la réunion
+	    HBox reunionBox = new HBox(10);
+	    reunionBox.setAlignment(Pos.CENTER_LEFT);
+	    
+	    Label reunionLabel = new Label("Sélectionner une réunion:");
+	    reunionLabel.setStyle("-fx-font-weight: bold;");
+	    
+	    ComboBox<Reunion> reunionCombo = new ComboBox<>();
+	    reunionCombo.setPromptText("Choisir une réunion");
+	    reunionCombo.setStyle(Styles.CHAMP_TEXTE);
+	    reunionCombo.setPrefWidth(250);
+	    
+	    try {
+	        // Charger les réunions de l'AVEC
+	        List<Reunion> reunions = reunionService.getReunionsByAvecId(avec.getId());
+	        reunionCombo.setItems(FXCollections.observableArrayList(reunions));
+	    } catch (SQLException e) {
+	        showAlert("Erreur", "Impossible de charger les réunions: " + e.getMessage());
+	    }
+	    
+	    Button chargerBtn = new Button("🔍 Charger");
+	    chargerBtn.setStyle(Styles.BOUTON_SECONDAIRE);
+	    
+	    reunionBox.getChildren().addAll(reunionLabel, reunionCombo, chargerBtn);
+	    
+	    // Tableau des amendes
+	    TableView<Amende> amendesTable = new TableView<>();
+	    amendesTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+	    amendesTable.setPrefHeight(300);
+	    
+	    TableColumn<Amende, String> colMembre = new TableColumn<>("Membre");
+	    colMembre.setCellValueFactory(cellData -> {
+	        Amende a = cellData.getValue();
+	        if (a.getMembre() != null) {
+	            return new javafx.beans.property.SimpleStringProperty(a.getMembre().getNomComplet());
+	        }
+	        return new javafx.beans.property.SimpleStringProperty("");
+	    });
+	    colMembre.setPrefWidth(150);
+	    
+	    TableColumn<Amende, String> colType = new TableColumn<>("Type d'infraction");
+	    colType.setCellValueFactory(cellData -> {
+	        Amende a = cellData.getValue();
+	        if (a.getTypeInfraction() != null) {
+	            return new javafx.beans.property.SimpleStringProperty(a.getTypeInfraction().getLibelle());
+	        }
+	        return new javafx.beans.property.SimpleStringProperty("");
+	    });
+	    colType.setPrefWidth(200);
+	    
+	    TableColumn<Amende, String> colMontant = new TableColumn<>("Montant");
+	    colMontant.setCellValueFactory(cellData -> {
+	        Amende a = cellData.getValue();
+	        return new javafx.beans.property.SimpleStringProperty(a.getMontantFormatted());
+	    });
+	    colMontant.setPrefWidth(100);
+	    
+	    TableColumn<Amende, String> colStatut = new TableColumn<>("Statut");
+	    colStatut.setCellValueFactory(cellData -> {
+	        Amende a = cellData.getValue();
+	        String statut = a.getEstPaye() ? "✅ Payé" : "⏳ Non payé";
+	        return new javafx.beans.property.SimpleStringProperty(statut);
+	    });
+	    colStatut.setPrefWidth(100);
+	    
+	    TableColumn<Amende, String> colDate = new TableColumn<>("Date paiement");
+	    colDate.setCellValueFactory(cellData -> {
+	        Amende a = cellData.getValue();
+	        return new javafx.beans.property.SimpleStringProperty(a.getDatePaiementFormatted());
+	    });
+	    colDate.setPrefWidth(120);
+	    
+	    TableColumn<Amende, String> colAction = new TableColumn<>("Action");
+	    colAction.setCellFactory(col -> new TableCell<Amende, String>() {
+	        @Override
+	        protected void updateItem(String item, boolean empty) {
+	            super.updateItem(item, empty);
+	            if (empty) {
+	                setGraphic(null);
+	            } else {
+	                Amende amende = getTableView().getItems().get(getIndex());
+	                if (!amende.getEstPaye()) {
+	                    Button payerBtn = new Button("💰 Marquer payé");
+	                    payerBtn.setStyle(Styles.BOUTON_ACCENT);
+	                    payerBtn.setOnAction(e -> marquerAmendePayee(amende, amendesTable));
+	                    setGraphic(payerBtn);
+	                } else {
+	                    Label payeLabel = new Label("Payé");
+	                    payeLabel.setStyle("-fx-text-fill: " + Styles.VERT_PRINCIPAL + "; -fx-font-weight: bold;");
+	                    setGraphic(payeLabel);
+	                }
+	            }
+	        }
+	    });
+	    colAction.setPrefWidth(120);
+	    
+	    amendesTable.getColumns().addAll(colMembre, colType, colMontant, colStatut, colDate, colAction);
+	    
+	    // Formulaire pour ajouter une nouvelle amende
+	    TitledPane ajoutPane = new TitledPane();
+	    ajoutPane.setText("➕ Ajouter une nouvelle amende");
+	    ajoutPane.setExpanded(false);
+	    
+	    GridPane form = new GridPane();
+	    form.setHgap(15);
+	    form.setVgap(10);
+	    form.setPadding(new Insets(15));
+	    
+	    // Sélection du membre
+	    Label membreAmendeLabel = new Label("Membre:");
+	    membreAmendeLabel.setStyle("-fx-font-weight: bold;");
+	    ComboBox<Membre> membreAmendeCombo = new ComboBox<>();
+	    membreAmendeCombo.setPromptText("Sélectionner un membre");
+	    membreAmendeCombo.setStyle(Styles.CHAMP_TEXTE);
+	    membreAmendeCombo.setPrefWidth(200);
+	    
+	    try {
+	        List<Membre> membres = membreService.getMembresByAvecId(avec.getId());
+	        membreAmendeCombo.setItems(FXCollections.observableArrayList(membres));
+	    } catch (SQLException e) {
+	        showAlert("Erreur", "Impossible de charger les membres: " + e.getMessage());
+	    }
+	    
+	    // Type d'infraction
+	    Label typeAmendeLabel = new Label("Type d'infraction:");
+	    typeAmendeLabel.setStyle("-fx-font-weight: bold;");
+	    ComboBox<TypeInfraction> typeInfractionCombo = new ComboBox<>();
+	    typeInfractionCombo.setPromptText("Sélectionner le type");
+	    typeInfractionCombo.setStyle(Styles.CHAMP_TEXTE);
+	    typeInfractionCombo.setPrefWidth(200);
+	    
+	    // Charger les types d'infractions
+	    TypeInfractionService typeInfractionService = new TypeInfractionService();
+	    List<TypeInfraction> types = typeInfractionService.getAllTypes();
+	    typeInfractionCombo.setItems(FXCollections.observableArrayList(types));
+	    
+	    // Montant (modifiable)
+	    Label montantAmendeLabel = new Label("Montant (FCFA):");
+	    montantAmendeLabel.setStyle("-fx-font-weight: bold;");
+	    TextField montantAmendeField = new TextField();
+	    montantAmendeField.setPromptText("Montant");
+	    montantAmendeField.setStyle(Styles.CHAMP_TEXTE);
+	    montantAmendeField.setPrefWidth(150);
+	    
+	    // Remplir automatiquement le montant selon le type sélectionné
+	    typeInfractionCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+	        if (newVal != null && newVal.getMontantDefaut() != null) {
+	            montantAmendeField.setText(newVal.getMontantDefaut().toString());
+	        }
+	    });
+	    
+	    // Observations
+	    Label observationsLabel = new Label("Observations:");
+	    observationsLabel.setStyle("-fx-font-weight: bold;");
+	    TextArea observationsArea = new TextArea();
+	    observationsArea.setPromptText("Motif de l'amende...");
+	    observationsArea.setPrefRowCount(2);
+	    observationsArea.setStyle(Styles.CHAMP_TEXTE);
+	    
+	    // Réunion (optionnel)
+	    Label reunionAmendeLabel = new Label("Réunion:");
+	    reunionAmendeLabel.setStyle("-fx-font-weight: bold;");
+	    ComboBox<Reunion> reunionAmendeCombo = new ComboBox<>();
+	    reunionAmendeCombo.setPromptText("Réunion (optionnel)");
+	    reunionAmendeCombo.setStyle(Styles.CHAMP_TEXTE);
+	    reunionAmendeCombo.setPrefWidth(200);
+	    
+	    try {
+	        List<Reunion> reunions = reunionService.getReunionsByAvecId(avec.getId());
+	        reunionAmendeCombo.setItems(FXCollections.observableArrayList(reunions));
+	    } catch (SQLException e) {
+	        showAlert("Erreur", "Impossible de charger les réunions: " + e.getMessage());
+	    }
+	    
+	    form.add(membreAmendeLabel, 0, 0);
+	    form.add(membreAmendeCombo, 1, 0);
+	    form.add(typeAmendeLabel, 2, 0);
+	    form.add(typeInfractionCombo, 3, 0);
+	    form.add(montantAmendeLabel, 0, 1);
+	    form.add(montantAmendeField, 1, 1);
+	    form.add(reunionAmendeLabel, 2, 1);
+	    form.add(reunionAmendeCombo, 3, 1);
+	    form.add(observationsLabel, 0, 2);
+	    form.add(observationsArea, 1, 2, 3, 1);
+	    
+	    Button ajouterAmendeBtn = new Button("➕ Ajouter l'amende");
+	    ajouterAmendeBtn.setStyle(Styles.BOUTON_PRINCIPAL);
+	    ajouterAmendeBtn.setOnAction(e -> ajouterAmende(
+	        membreAmendeCombo, typeInfractionCombo, montantAmendeField, 
+	        observationsArea, reunionAmendeCombo, amendesTable
+	    ));
+	    
+	    form.add(ajouterAmendeBtn, 3, 3);
+	    
+	    ajoutPane.setContent(form);
+	    
+	    // Charger les amendes quand une réunion est sélectionnée
+	    chargerBtn.setOnAction(e -> {
+	        Reunion selectedReunion = reunionCombo.getValue();
+	        if (selectedReunion != null) {
+	            chargerAmendes(selectedReunion.getId(), amendesTable);
+	        } else {
+	            chargerToutesAmendes(amendesTable);
+	        }
+	    });
+	    
+	    view.getChildren().addAll(title, reunionBox, ajoutPane, amendesTable);
+	    VBox.setVgrow(amendesTable, Priority.ALWAYS);
+	    
+	    root.setCenter(view);
+	}
+
+	/**
+	 * Ajoute une nouvelle amende
+	 */
+	private void ajouterAmende(ComboBox<Membre> membreCombo, ComboBox<TypeInfraction> typeCombo,
+	                           TextField montantField, TextArea observationsArea,
+	                           ComboBox<Reunion> reunionCombo, TableView<Amende> table) {
+	    try {
+	        Membre membre = membreCombo.getValue();
+	        TypeInfraction type = typeCombo.getValue();
+	        
+	        if (membre == null || type == null) {
+	            showAlert("Erreur", "Veuillez sélectionner un membre et un type d'infraction");
+	            return;
+	        }
+	        
+	        String montantText = montantField.getText().trim();
+	        if (montantText.isEmpty()) {
+	            showAlert("Erreur", "Veuillez saisir un montant");
+	            return;
+	        }
+	        
+	        BigDecimal montant = new BigDecimal(montantText);
+	        Reunion reunion = reunionCombo.getValue();
+	        String observations = observationsArea.getText().trim();
+	        
+	        AmendeService amendeService = new AmendeService();
+	        Amende amende;
+	        
+	        if (reunion != null) {
+	            amende = amendeService.creerAmende(membre, reunion, type, montant, observations);
+	        } else {
+	            amende = amendeService.creerAmende(membre, null, type, montant, observations);
+	        }
+	        
+	        showInfo("Succès", "Amende ajoutée avec succès!\n" +
+	                "Membre: " + membre.getNomComplet() + "\n" +
+	                "Type: " + type.getLibelle() + "\n" +
+	                "Montant: " + String.format("%,.0f FCFA", montant));
+	        
+	        // Réinitialiser le formulaire
+	        membreCombo.setValue(null);
+	        typeCombo.setValue(null);
+	        montantField.clear();
+	        observationsArea.clear();
+	        reunionCombo.setValue(null);
+	        
+	        // Rafraîchir le tableau
+	        chargerToutesAmendes(table);
+	        
+	    } catch (NumberFormatException e) {
+	        showAlert("Erreur", "Montant invalide");
+	    } catch (SQLException e) {
+	        showAlert("Erreur", "Erreur lors de l'ajout: " + e.getMessage());
+	    }
+	}
+
+	/**
+	 * Marque une amende comme payée
+	 */
+	private void marquerAmendePayee(Amende amende, TableView<Amende> table) {
+	    Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+	    confirm.setTitle("Confirmation");
+	    confirm.setHeaderText("Marquer l'amende comme payée");
+	    confirm.setContentText("Confirmez-vous que cette amende a été payée ?");
+	    
+	    confirm.showAndWait().ifPresent(response -> {
+	        if (response == ButtonType.OK) {
+	            try {
+	                AmendeService amendeService = new AmendeService();
+	                if (amendeService.marquerPayee(amende.getId())) {
+	                    showInfo("Succès", "Amende marquée comme payée!");
+	                    chargerToutesAmendes(table);
+	                } else {
+	                    showAlert("Erreur", "Échec du paiement");
+	                }
+	            } catch (SQLException e) {
+	                showAlert("Erreur", "Erreur: " + e.getMessage());
+	            }
+	        }
+	    });
+	}
+
+	/**
+	 * Charge les amendes d'une réunion spécifique
+	 */
+	private void chargerAmendes(Long reunionId, TableView<Amende> table) {
+	    try {
+	        AmendeService amendeService = new AmendeService();
+	        List<Amende> amendes = amendeService.getAmendesByReunion(reunionId);
+	        table.setItems(FXCollections.observableArrayList(amendes));
+	        
+	        // Calculer le total
+	        BigDecimal total = BigDecimal.ZERO;
+	        for (Amende a : amendes) {
+	            if (!a.getEstPaye()) {
+	                total = total.add(a.getMontant());
+	            }
+	        }
+	        
+	        if (total.compareTo(BigDecimal.ZERO) > 0) {
+	            showInfo("Information", "Total des amendes non payées: " + 
+	                    String.format("%,.0f FCFA", total));
+	        }
+	        
+	    } catch (SQLException e) {
+	        showAlert("Erreur", "Impossible de charger les amendes: " + e.getMessage());
+	    }
+	}
+
+	/**
+	 * Charge toutes les amendes de l'AVEC
+	 */
+	private void chargerToutesAmendes(TableView<Amende> table) {
+	    try {
+	        AmendeService amendeService = new AmendeService();
+	        List<Amende> amendes = new ArrayList<>();
+	        
+	        // Récupérer tous les membres et leurs amendes
+	        List<Membre> membres = membreService.getMembresByAvecId(avec.getId());
+	        for (Membre membre : membres) {
+	            amendes.addAll(amendeService.getAmendesByMembre(membre.getId()));
+	        }
+	        
+	        table.setItems(FXCollections.observableArrayList(amendes));
+	        
+	    } catch (SQLException e) {
+	        showAlert("Erreur", "Impossible de charger les amendes: " + e.getMessage());
+	    }
 	}
 
 	/**
