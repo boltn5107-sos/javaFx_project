@@ -9,7 +9,6 @@ import java.util.List;
 
 import com.avec.MainApp;
 import com.avec.config.Styles;
-import com.avec.enums.JourReunion;
 import com.avec.model.AgentTerrain;
 import com.avec.model.AgentVillageois;
 import com.avec.model.Avec;
@@ -33,6 +32,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
+import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollPane;
@@ -117,20 +117,19 @@ public class AdminDashboardView {
 			tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
 			tabPane.setStyle("-fx-background-color: " + Styles.GRIS_CLAIR + ";");
 
-			
 			// POUR QUE LE TABPANE PRENNE TOUT L'ESPACE
-	        tabPane.setPrefHeight(Double.MAX_VALUE);
-	        tabPane.setPrefWidth(Double.MAX_VALUE);
-	        
-	        // ✅ FORCER LA VISIBILITÉ
-	        VBox.setVgrow(tabPane, Priority.ALWAYS);
-	        HBox.setHgrow(tabPane, Priority.ALWAYS);
-	        
+			tabPane.setPrefHeight(Double.MAX_VALUE);
+			tabPane.setPrefWidth(Double.MAX_VALUE);
+
+			// ✅ FORCER LA VISIBILITÉ
+			VBox.setVgrow(tabPane, Priority.ALWAYS);
+			HBox.setHgrow(tabPane, Priority.ALWAYS);
+
 			// Tableau de bord
 			dashboardTab = new Tab("Tableau de bord");
 			dashboardTab.setContent(createDashboardContent());
 			dashboardTab.setClosable(false);
-			
+
 			// Utilisateurs
 			utilisateursTab = new Tab("Utilisateurs");
 			utilisateursTab.setContent(createUtilisateursContent());
@@ -164,9 +163,9 @@ public class AdminDashboardView {
 			// Ajouter tous les onglets
 			tabPane.getTabs().addAll(dashboardTab, utilisateursTab, agentsTerrainTab, agentsVillageoisTab, avecTab,
 					membresTab, statsTab);
-			
+
 			// ✅ SÉLECTIONNER LE PREMIER ONGLET PAR DÉFAUT
-	        tabPane.getSelectionModel().select(0);
+			tabPane.getSelectionModel().select(0);
 
 			root.setCenter(tabPane);
 
@@ -300,8 +299,7 @@ public class AdminDashboardView {
 		btnChangerMdp.setStyle(Styles.BOUTON_ACCENT);
 		btnChangerMdp.setOnAction(e -> showChangerMotDePasse());
 
-
-		sidebar.getChildren().addAll(menuBox,btnChangerMdp);
+		sidebar.getChildren().addAll(menuBox, btnChangerMdp);
 
 		return sidebar;
 	}
@@ -334,7 +332,7 @@ public class AdminDashboardView {
 			nbAvec = stats.getTotalAvecs();
 			nbMembres = membreService.getNombreTotalMembres();
 			nbMembresActifs = membreService.getNombreMembresActifs();
-			
+
 		} catch (SQLException e) {
 			System.err.println("Erreur chargement stats: " + e.getMessage());
 		}
@@ -472,8 +470,8 @@ public class AdminDashboardView {
 	private VBox createAgentsVillageoisContent() {
 		VBox content = new VBox(15);
 		content.setPadding(new Insets(20));
-		content.setPrefHeight(Double.MAX_VALUE); 
-	    content.setPrefWidth(Double.MAX_VALUE);  
+		content.setPrefHeight(Double.MAX_VALUE);
+		content.setPrefWidth(Double.MAX_VALUE);
 
 		Label title = new Label("Liste des agents villageois");
 		title.setStyle(Styles.TITRE_SECONDAIRE);
@@ -496,9 +494,9 @@ public class AdminDashboardView {
 
 		agentVillageoisTable = new TableView<>();
 		agentVillageoisTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-		
+
 		// ✅ AJOUTER UNE HAUTEUR MINIMALE
-	    agentVillageoisTable.setPrefHeight(400);
+		agentVillageoisTable.setPrefHeight(400);
 
 		TableColumn<AgentVillageois, Long> colId = new TableColumn<>("ID");
 		colId.setCellValueFactory(new PropertyValueFactory<>("id"));
@@ -536,9 +534,9 @@ public class AdminDashboardView {
 		chargerAgentsVillageois();
 
 		content.getChildren().addAll(title, toolbar, agentVillageoisTable);
-		
+
 		// UN ESPACEUR POUR POUSSER LE CONTENU VERS LE HAUT
-	    VBox.setVgrow(agentVillageoisTable, Priority.ALWAYS);
+		VBox.setVgrow(agentVillageoisTable, Priority.ALWAYS);
 		return content;
 	}
 
@@ -684,7 +682,6 @@ public class AdminDashboardView {
 			int nbAvec = stats.getTotalAvecs();
 			int nbMembres = membreService.getNombreTotalMembres();
 			int nbMembresActifs = membreService.getNombreMembresActifs();
-			
 
 			statsGrid.add(createStatItem("👤", "Utilisateurs", String.valueOf(nbUtilisateurs)), 0, 0);
 			statsGrid.add(createStatItem("🏞️", "Agents Terrain", String.valueOf(nbAgentsTerrain)), 1, 0);
@@ -692,7 +689,6 @@ public class AdminDashboardView {
 			statsGrid.add(createStatItem("🤝", "AVEC", String.valueOf(nbAvec)), 3, 0);
 			statsGrid.add(createStatItem("👥", "Membres", String.valueOf(nbMembres)), 0, 1);
 			statsGrid.add(createStatItem("✅", "Membres actifs", String.valueOf(nbMembresActifs)), 1, 1);
-			
 
 		} catch (SQLException e) {
 			System.err.println("Erreur chargement stats: " + e.getMessage());
@@ -807,8 +803,6 @@ public class AdminDashboardView {
 		ComboBox<Avec> avecCombo = new ComboBox<>();
 		avecCombo.setPromptText("Sélectionner une AVEC");
 		avecCombo.setStyle(Styles.CHAMP_TEXTE);
-		
-		
 
 		try {
 			List<Avec> avecs = avecService.getAllAvecs();
@@ -821,19 +815,17 @@ public class AdminDashboardView {
 		numeroCarteField.setPromptText("Numéro de carte");
 		numeroCarteField.setStyle(Styles.CHAMP_TEXTE);
 
-
 		PasswordField passwordField = new PasswordField();
 		passwordField.setPromptText("Mot de passe");
 		passwordField.setStyle(Styles.CHAMP_TEXTE);
-		
+
 		TextField telephoneField = new TextField();
 		telephoneField.setPromptText("Téléphone");
 		telephoneField.setStyle(Styles.CHAMP_TEXTE);
-		
 
 		content.getChildren().addAll(new Label("Nom:"), nomField, new Label("Prénom:"), prenomField, new Label("AVEC:"),
-				avecCombo, new Label("Profession:"), numeroCarteField, telephoneField, new Label("Mot de passe:"), passwordField,
-				new Label("Téléphone:"));
+				avecCombo, new Label("Profession:"), numeroCarteField, telephoneField, new Label("Mot de passe:"),
+				passwordField, new Label("Téléphone:"));
 
 		dialog.getDialogPane().setContent(content);
 		dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
@@ -847,21 +839,18 @@ public class AdminDashboardView {
 						return null;
 					}
 					String nom = nomField.getText().trim();
-                    String prenom = prenomField.getText().trim();
-                    String password = passwordField.getText().trim();
-                    String telephone = telephoneField.getText().trim();
-                    
-                    if (nom.isEmpty() || prenom.isEmpty() || password.isEmpty() || telephone.isEmpty()) {
-                        showAlert("Erreur", "Tous les champs sont obligatoires");
-                        return null;
-                    }
-                    
-                    Membre membre = membreService.creerMembre(
-                        nom, prenom, selectedAvec.getId(),password, telephone
-                    );
+					String prenom = prenomField.getText().trim();
+					String password = passwordField.getText().trim();
+					String telephone = telephoneField.getText().trim();
+
+					if (nom.isEmpty() || prenom.isEmpty() || password.isEmpty() || telephone.isEmpty()) {
+						showAlert("Erreur", "Tous les champs sont obligatoires");
+						return null;
+					}
+
+					Membre membre = membreService.creerMembre(nom, prenom, selectedAvec.getId(), password, telephone);
 					showInfo("Succès", "Membre ajouté avec succès!\nNuméro de carte: " + membre.getNumeroCarte());
 					chargerMembres();
-					
 
 				} catch (SQLException | IllegalArgumentException e) {
 					showAlert("Erreur", "Erreur: " + e.getMessage());
@@ -1031,6 +1020,10 @@ public class AdminDashboardView {
 		Dialog<ButtonType> dialog = new Dialog<>();
 		dialog.setTitle("Créer une AVEC");
 		dialog.setHeaderText("Nouvelle Association Villageoise d'Épargne et de Crédit");
+		
+		  // ✅ Appliquer un style global au DialogPane
+	    DialogPane dialogPane = dialog.getDialogPane();
+	    dialogPane.setStyle("-fx-background-color: " + Styles.BLANC + ";");
 
 		VBox content = new VBox(10);
 		content.setPadding(new Insets(20));
@@ -1038,69 +1031,51 @@ public class AdminDashboardView {
 
 		// Nom de l'AVEC
 		Label nomLabel = new Label("Nom de l'AVEC *");
-		nomLabel.setStyle("-fx-font-weight: bold;");
+		nomLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: " + Styles.NOIR + ";" );
 		TextField nomField = new TextField();
-		nomField.setPromptText("Ex: AVEC Ndiarème, AVEC Bambey, ...");
+		nomField.setPromptText("Ex: AVEC Ndiarème");
 		nomField.setStyle(Styles.CHAMP_TEXTE);
+
+		// Agent Terrain (superviseur)
+		Label agentTerrainLabel = new Label("Agent Terrain (Superviseur) *");
+		agentTerrainLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: " + Styles.NOIR + ";" );
+		ComboBox<AgentTerrain> agentTerrainCombo = new ComboBox<>();
+		agentTerrainCombo.setPromptText("Sélectionner un agent terrain");
+		agentTerrainCombo.setStyle(Styles.CHAMP_TEXTE);
+
+		try {
+			List<AgentTerrain> agentsTerrain = agentTerrainService.listerAgentTerrain();
+			agentTerrainCombo.setItems(FXCollections.observableArrayList(agentsTerrain));
+		} catch (Exception e) {
+			showAlert("Erreur", "Impossible de charger les agents terrain: " + e.getMessage());
+		}
+
+		// Agent Villageois (formateur)
+		Label agentVillageoisLabel = new Label("Agent Villageois (Formateur) *");
+		agentVillageoisLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: " + Styles.NOIR + ";" );
+		ComboBox<AgentVillageois> agentVillageoisCombo = new ComboBox<>();
+		agentVillageoisCombo.setPromptText("Sélectionner un agent villageois");
+		agentVillageoisCombo.setStyle(Styles.CHAMP_TEXTE);
+		agentVillageoisCombo.setDisable(true); // Désactivé tant qu'aucun agent terrain n'est sélectionné
 
 		// Prix de la part
 		Label prixLabel = new Label("Prix de la part (FCFA) *");
-		prixLabel.setStyle("-fx-font-weight: bold;");
+		prixLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: " + Styles.NOIR + ";" );
 		TextField prixPartField = new TextField();
-		prixPartField.setPromptText("Ex: 500, 1000, 2000");
+		prixPartField.setPromptText("Ex: 500");
 		prixPartField.setStyle(Styles.CHAMP_TEXTE);
 
-		// Lieu de réunion
-		Label lieuLabel = new Label("Lieu de réunion *");
-		lieuLabel.setStyle("-fx-font-weight: bold;");
-		TextField lieuField = new TextField();
-		lieuField.setPromptText("Ex: Chez le président, École du village, ...");
-		lieuField.setStyle(Styles.CHAMP_TEXTE);
 
-		// Jour de réunion
-		Label jourLabel = new Label("Jour de réunion *");
-		jourLabel.setStyle("-fx-font-weight: bold;");
-		ComboBox<JourReunion> jourCombo = new ComboBox<>();
-		jourCombo.setItems(FXCollections.observableArrayList(JourReunion.values()));
-		jourCombo.setPromptText("Sélectionner le jour de réunion");
-		jourCombo.setStyle(Styles.CHAMP_TEXTE);
-
-		// Agent villageois
-		Label agentLabel = new Label("Agent Villageois *");
-		agentLabel.setStyle("-fx-font-weight: bold;");
-		ComboBox<AgentVillageois> agentCombo = new ComboBox<>();
-		agentCombo.setPromptText("Sélectionner un agent villageois");
-		agentCombo.setStyle(Styles.CHAMP_TEXTE);
-
-		// Charger les agents villageois
-		try {
-			List<AgentVillageois> agents = agentVillageoisService.listerAgentVillageois();
-			if (agents != null && !agents.isEmpty()) {
-				agentCombo.setItems(FXCollections.observableArrayList(agents));
-			} else {
-				agentCombo.setPromptText("Aucun agent villageois disponible");
-				agentCombo.setDisable(true);
-			}
-		} catch (Exception e) {
-			System.err.println("Erreur chargement agents: " + e.getMessage());
-			agentCombo.setPromptText("Erreur chargement");
-			agentCombo.setDisable(true);
-		}
-
-		// Informations supplémentaires
-		Label infoLabel = new Label("Informations complémentaires");
-		infoLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: " + Styles.BLEU_SECONDAIRE + ";");
-
-		// Nombre de membres max
+		// Nombre max de membres
 		Label nbMembresLabel = new Label("Nombre max de membres");
+		nbMembresLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: " + Styles.NOIR + ";" );
 		Spinner<Integer> nbMembresSpinner = new Spinner<>(10, 30, 15);
 		nbMembresSpinner.setStyle(Styles.CHAMP_TEXTE);
-		nbMembresSpinner.setEditable(true);
 
 		// Taux frais service
 		Label tauxLabel = new Label("Taux frais service mensuel (%)");
+		tauxLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: " + Styles.NOIR + ";" );
 		TextField tauxField = new TextField("5");
-		tauxField.setPromptText("Entre 5% et 10%");
 		tauxField.setStyle(Styles.CHAMP_TEXTE);
 
 		// Caisse solidarité
@@ -1120,25 +1095,33 @@ public class AdminDashboardView {
 		cotisationBox.setAlignment(Pos.CENTER_LEFT);
 		cotisationBox.getChildren().addAll(new Label("Cotisation:"), cotisationField, new Label("FCFA"));
 
-		// Durée max prêt
-		Label dureeLabel = new Label("Durée max prêt (semaines)");
-		Spinner<Integer> dureeSpinner = new Spinner<>(4, 24, 12);
-		dureeSpinner.setStyle(Styles.CHAMP_TEXTE);
+		// Remplir les agents villageois quand un agent terrain est sélectionné
+		agentTerrainCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+			if (newVal != null) {
+				try {
+					List<AgentVillageois> agents = agentVillageoisService.chercherAvParAt(newVal.getId());
+					agentVillageoisCombo.setItems(FXCollections.observableArrayList(agents));
+					agentVillageoisCombo.setDisable(false);
+					agentVillageoisCombo.setPromptText("Sélectionner un agent villageois");
+				} catch (Exception e) {
+					showAlert("Erreur", "Impossible de charger les agents villageois: " + e.getMessage());
+				}
+			} else {
+				agentVillageoisCombo.setDisable(true);
+				agentVillageoisCombo.setItems(FXCollections.observableArrayList());
+			}
+		});
 
-		// Organisation du contenu
-		VBox formFields = new VBox(8);
-		formFields.getChildren().addAll(nomLabel, nomField, prixLabel, prixPartField, lieuLabel, lieuField, jourLabel,
-				jourCombo, agentLabel, agentCombo, new Separator(), infoLabel, nbMembresLabel, nbMembresSpinner,
-				tauxLabel, tauxField, caisseSolidariteCheck, cotisationBox, dureeLabel, dureeSpinner);
+		content.getChildren().addAll(nomLabel, nomField, agentTerrainLabel, agentTerrainCombo, agentVillageoisLabel,
+				agentVillageoisCombo, prixLabel, prixPartField,
+				nbMembresLabel, nbMembresSpinner, tauxLabel, tauxField, caisseSolidariteCheck, cotisationBox);
 
-		ScrollPane scrollPane = new ScrollPane(formFields);
+		ScrollPane scrollPane = new ScrollPane(content);
 		scrollPane.setFitToWidth(true);
 		scrollPane.setPrefHeight(500);
 		scrollPane.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
 
-		content.getChildren().add(scrollPane);
-
-		dialog.getDialogPane().setContent(content);
+		dialog.getDialogPane().setContent(scrollPane);
 		dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
 
 		// Désactiver OK si les champs obligatoires sont vides
@@ -1147,67 +1130,60 @@ public class AdminDashboardView {
 
 		// Validation en temps réel
 		nomField.textProperty().addListener((obs, oldVal, newVal) -> {
-			okButton.setDisable(newVal == null || newVal.trim().isEmpty() || prixPartField.getText().trim().isEmpty()
-					|| lieuField.getText().trim().isEmpty() || jourCombo.getValue() == null
-					|| agentCombo.getValue() == null);
+			okButton.setDisable(newVal == null || newVal.trim().isEmpty() || agentTerrainCombo.getValue() == null
+					|| agentVillageoisCombo.getValue() == null || prixPartField.getText().trim().isEmpty());
+		});
+
+		agentTerrainCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+			okButton.setDisable(nomField.getText().trim().isEmpty() || newVal == null
+					|| agentVillageoisCombo.getValue() == null || prixPartField.getText().trim().isEmpty());
+		});
+
+		agentVillageoisCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+			okButton.setDisable(nomField.getText().trim().isEmpty() || agentTerrainCombo.getValue() == null
+					|| newVal == null || prixPartField.getText().trim().isEmpty());
 		});
 
 		prixPartField.textProperty().addListener((obs, oldVal, newVal) -> {
-			okButton.setDisable(nomField.getText().trim().isEmpty() || newVal == null || newVal.trim().isEmpty()
-					|| lieuField.getText().trim().isEmpty() || jourCombo.getValue() == null
-					|| agentCombo.getValue() == null);
-		});
-
-		lieuField.textProperty().addListener((obs, oldVal, newVal) -> {
-			okButton.setDisable(nomField.getText().trim().isEmpty() || prixPartField.getText().trim().isEmpty()
-					|| newVal == null || newVal.trim().isEmpty() || jourCombo.getValue() == null
-					|| agentCombo.getValue() == null);
-		});
-
-		jourCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
-			okButton.setDisable(nomField.getText().trim().isEmpty() || prixPartField.getText().trim().isEmpty()
-					|| lieuField.getText().trim().isEmpty() || newVal == null || agentCombo.getValue() == null);
-		});
-
-		agentCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
-			okButton.setDisable(nomField.getText().trim().isEmpty() || prixPartField.getText().trim().isEmpty()
-					|| lieuField.getText().trim().isEmpty() || jourCombo.getValue() == null || newVal == null);
+			okButton.setDisable(nomField.getText().trim().isEmpty() || agentTerrainCombo.getValue() == null
+					|| agentVillageoisCombo.getValue() == null || newVal == null || newVal.trim().isEmpty());
 		});
 
 		dialog.setResultConverter(button -> {
 			if (button == ButtonType.OK) {
 				try {
 					String nom = nomField.getText().trim();
+					AgentTerrain agentTerrain = agentTerrainCombo.getValue();
+					AgentVillageois agentVillageois = agentVillageoisCombo.getValue();
 					BigDecimal prixPart = new BigDecimal(prixPartField.getText().trim());
-					String lieuReunion = lieuField.getText().trim();
-					JourReunion jourReunion = jourCombo.getValue();
-					Long agentVillageoisId = agentCombo.getValue().getId();
+					
+					int nombreMembresMax = nbMembresSpinner.getValue();
+					BigDecimal tauxFrais = new BigDecimal(tauxField.getText().trim());
 
-					// Valider le prix
-					if (prixPart.compareTo(BigDecimal.ZERO) <= 0) {
-						showAlert("Erreur", "Le prix de la part doit être supérieur à 0");
+					if (nom.isEmpty() || agentTerrain == null || agentVillageois == null
+							|| prixPart.compareTo(BigDecimal.ZERO) <= 0) {
+						showAlert("Erreur", "Veuillez remplir tous les champs obligatoires");
 						return null;
 					}
 
-					// Créer l'AVEC avec la méthode creerAvec
-					Avec avec = avecService.creerAvec(nom, prixPart, agentVillageoisId);
+					// ✅ Créer l'AVEC avec l'agent villageois
+					Avec avec = avecService.creerAvec(nom, prixPart, agentVillageois.getId());
 
-					// Mettre à jour les paramètres supplémentaires
-					avec.setNombreMembresMax(nbMembresSpinner.getValue());
-					avec.setTauxFraisServiceMensuel(new BigDecimal(tauxField.getText().trim()));
+					// ✅ Lier l'agent terrain comme superviseur
+					avec.setAgentTerrainId(agentTerrain.getId());
+					avec.setNombreMembresMax(nombreMembresMax);
+					avec.setTauxFraisServiceMensuel(tauxFrais);
 					avec.setCaisseSolidariteActive(caisseSolidariteCheck.isSelected());
 					if (caisseSolidariteCheck.isSelected()) {
 						avec.setCotisationCaisseSolidarite(new BigDecimal(cotisationField.getText().trim()));
 					}
-					// avec.setDureeMaxPretSemaines(dureeSpinner.getValue());
 
-					// Sauvegarder les modifications supplémentaires
 					avecService.modifierAvec(avec);
 
 					showInfo("Succès",
 							"AVEC créée avec succès!\n" + "Nom: " + avec.getNom() + "\n" + "Code: "
-									+ avec.getCodeUnique() + "\n" + "Prix de la part: " + formatMontant(prixPart) + "\n"
-									+ "Agent: " + agentCombo.getValue().getNomComplet());
+									+ avec.getCodeUnique() + "\n" + "Agent Terrain: " + agentTerrain.getNomComplet()
+									+ "\n" + "Agent Villageois: " + agentVillageois.getNomComplet());
 
 					chargerAvec();
 
@@ -1334,93 +1310,88 @@ public class AdminDashboardView {
 			return "0 FCFA";
 		return String.format("%,.0f FCFA", montant).replace(',', ' ');
 	}
-	
+
 	private void showChangerMotDePasse() {
-        Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.setTitle("Changer mon mot de passe");
-        dialog.setHeaderText("Modification du mot de passe");
-        
-        VBox content = new VBox(10);
-        content.setPadding(new Insets(20));
-        content.setPrefWidth(400);
-        
-        Label infoLabel = new Label("Veuillez saisir vos informations :");
-        infoLabel.setStyle("-fx-font-weight: bold;");
-        
-        PasswordField ancienMdpField = new PasswordField();
-        ancienMdpField.setPromptText("Ancien mot de passe");
-        ancienMdpField.setStyle(Styles.CHAMP_TEXTE);
-        
-        PasswordField nouveauMdpField = new PasswordField();
-        nouveauMdpField.setPromptText("Nouveau mot de passe (min. 4 caractères)");
-        nouveauMdpField.setStyle(Styles.CHAMP_TEXTE);
-        
-        PasswordField confirmationMdpField = new PasswordField();
-        confirmationMdpField.setPromptText("Confirmer le nouveau mot de passe");
-        confirmationMdpField.setStyle(Styles.CHAMP_TEXTE);
-        
-        Label messageLabel = new Label();
-        messageLabel.setStyle("-fx-text-fill: red; -fx-font-size: 12px;");
-        messageLabel.setWrapText(true);
-        
-        content.getChildren().addAll(
-            infoLabel,
-            new Separator(),
-            new Label("Ancien mot de passe :"), ancienMdpField,
-            new Label("Nouveau mot de passe :"), nouveauMdpField,
-            new Label("Confirmation :"), confirmationMdpField,
-            messageLabel
-        );
-        
-        dialog.getDialogPane().setContent(content);
-        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-        
-        Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
-        okButton.setText("Modifier");
-        
-        dialog.setResultConverter(button -> {
-            if (button == ButtonType.OK) {
-                String ancienMdp = ancienMdpField.getText();
-                String nouveauMdp = nouveauMdpField.getText();
-                String confirmation = confirmationMdpField.getText();
-                
-                // Validation
-                if (ancienMdp == null || ancienMdp.isEmpty()) {
-                    messageLabel.setText("Veuillez saisir votre ancien mot de passe");
-                    return null;
-                }
-                
-                if (nouveauMdp == null || nouveauMdp.isEmpty()) {
-                    messageLabel.setText("Veuillez saisir un nouveau mot de passe");
-                    return null;
-                }
-                
-                if (nouveauMdp.length() < 4) {
-                    messageLabel.setText("Le nouveau mot de passe doit contenir au moins 4 caractères");
-                    return null;
-                }
-                
-                if (!nouveauMdp.equals(confirmation)) {
-                    messageLabel.setText("Les nouveaux mots de passe ne correspondent pas");
-                    return null;
-                }
-                
-                // Appeler le service
-                Long userId = session.getId();
-                UtilisateurService userService = new UtilisateurService();
-                if (userService.changerMotDePasse(userId, ancienMdp, nouveauMdp, confirmation)) {
-                    showInfo("Succès", "Votre mot de passe a été modifié avec succès !");
-                    return ButtonType.OK;
-                } else {
-                    messageLabel.setText("Ancien mot de passe incorrect");
-                    return null;
-                }
-            }
-            return null;
-        });
-        
-        dialog.showAndWait();
-    }
+		Dialog<ButtonType> dialog = new Dialog<>();
+		dialog.setTitle("Changer mon mot de passe");
+		dialog.setHeaderText("Modification du mot de passe");
+
+		VBox content = new VBox(10);
+		content.setPadding(new Insets(20));
+		content.setPrefWidth(400);
+
+		Label infoLabel = new Label("Veuillez saisir vos informations :");
+		infoLabel.setStyle("-fx-font-weight: bold;");
+
+		PasswordField ancienMdpField = new PasswordField();
+		ancienMdpField.setPromptText("Ancien mot de passe");
+		ancienMdpField.setStyle(Styles.CHAMP_TEXTE);
+
+		PasswordField nouveauMdpField = new PasswordField();
+		nouveauMdpField.setPromptText("Nouveau mot de passe (min. 4 caractères)");
+		nouveauMdpField.setStyle(Styles.CHAMP_TEXTE);
+
+		PasswordField confirmationMdpField = new PasswordField();
+		confirmationMdpField.setPromptText("Confirmer le nouveau mot de passe");
+		confirmationMdpField.setStyle(Styles.CHAMP_TEXTE);
+
+		Label messageLabel = new Label();
+		messageLabel.setStyle("-fx-text-fill: red; -fx-font-size: 12px;");
+		messageLabel.setWrapText(true);
+
+		content.getChildren().addAll(infoLabel, new Separator(), new Label("Ancien mot de passe :"), ancienMdpField,
+				new Label("Nouveau mot de passe :"), nouveauMdpField, new Label("Confirmation :"), confirmationMdpField,
+				messageLabel);
+
+		dialog.getDialogPane().setContent(content);
+		dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+		Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
+		okButton.setText("Modifier");
+
+		dialog.setResultConverter(button -> {
+			if (button == ButtonType.OK) {
+				String ancienMdp = ancienMdpField.getText();
+				String nouveauMdp = nouveauMdpField.getText();
+				String confirmation = confirmationMdpField.getText();
+
+				// Validation
+				if (ancienMdp == null || ancienMdp.isEmpty()) {
+					messageLabel.setText("Veuillez saisir votre ancien mot de passe");
+					return null;
+				}
+
+				if (nouveauMdp == null || nouveauMdp.isEmpty()) {
+					messageLabel.setText("Veuillez saisir un nouveau mot de passe");
+					return null;
+				}
+
+				if (nouveauMdp.length() < 4) {
+					messageLabel.setText("Le nouveau mot de passe doit contenir au moins 4 caractères");
+					return null;
+				}
+
+				if (!nouveauMdp.equals(confirmation)) {
+					messageLabel.setText("Les nouveaux mots de passe ne correspondent pas");
+					return null;
+				}
+
+				// Appeler le service
+				Long userId = session.getId();
+				UtilisateurService userService = new UtilisateurService();
+				if (userService.changerMotDePasse(userId, ancienMdp, nouveauMdp, confirmation)) {
+					showInfo("Succès", "Votre mot de passe a été modifié avec succès !");
+					return ButtonType.OK;
+				} else {
+					messageLabel.setText("Ancien mot de passe incorrect");
+					return null;
+				}
+			}
+			return null;
+		});
+
+		dialog.showAndWait();
+	}
 
 	private void showAlert(String title, String message) {
 		Platform.runLater(() -> {

@@ -671,7 +671,7 @@ public class AgentVillageoisDashboardView {
         root.setCenter(view);
     }
     
-    private VBox createValidationContent() {
+    private void createValidationContent() {
 		VBox content = new VBox(15);
 		content.setPadding(new Insets(20));
 
@@ -723,15 +723,16 @@ public class AgentVillageoisDashboardView {
 		validationTable.getColumns().addAll(colNom, colPhaseActuelle, colProchainePhase, colAction);
 
 		try {
-			List<Avec> avecs = avecService.getAvecsByAgentTerrainId(agentVillageois.getId());
+			List<Avec> avecs = avecService.getAvecsByAgentVillageois(agentVillageois.getId());
 			validationTable.setItems(FXCollections.observableArrayList(avecs));
 		} catch (SQLException e) {
 			showAlert("Erreur", "Impossible de charger les AVEC: " + e.getMessage());
 		}
 
 		content.getChildren().addAll(title, description, validationTable);
+		
+        root.setCenter(content);
 
-		return content;
 	}
     
     /**

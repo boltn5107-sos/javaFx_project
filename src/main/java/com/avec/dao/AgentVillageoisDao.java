@@ -76,32 +76,78 @@ public class AgentVillageoisDao {
     }
     
  // Dans AgentVillageoisDAO.java
+ // Dans AgentVillageoisDAO.java - Version simplifiée
     public boolean enregistrerAVParAt(AgentVillageois agent) {
         Connection conn = null;
         PreparedStatement pstmt = null;
         
         try {
-            // D'abord sauvegarder dans Utilisateur
-            if (!utilisateurDao.ajouter(agent)) {
-                return false;
-            }
-            
             conn = DBConnection.getConnection();
-            String sql = "INSERT INTO agentvillageois (id, agentTerrain_id) VALUES (?, ?)";
-            pstmt = conn.prepareStatement(sql);
-            pstmt.setLong(1, agent.getId());
-            pstmt.setLong(2, agent.getAgentTerrain().getId());
             
-            if (agent.getAvecOrigineId() != null) {
-                pstmt.setLong(3, agent.getAvecOrigineId());
+            // 1. Vérifier si l'utilisateur existe (par email)
+            String checkSql = "SELECT id FROM utilisateur WHERE email = ?";
+            pstmt = conn.prepareStatement(checkSql);
+            pstmt.setString(1, agent.getEmail());
+            ResultSet rs = pstmt.executeQuery();
+            
+            if (rs.next()) {
+                // Utilisateur existe, récupérer son ID
+                agent.setId(rs.getLong("id"));
+                rs.close();
+                pstmt.close();
             } else {
-                pstmt.setNull(3, Types.BIGINT);
+                // Utilisateur n'existe pas, le créer
+                rs.close();
+                pstmt.close();
+                
+                String sqlUser = "INSERT INTO utilisateur (nom, prenom, email, motDePasse, telephone) VALUES (?, ?, ?, ?, ?)";
+                pstmt = conn.prepareStatement(sqlUser, Statement.RETURN_GENERATED_KEYS);
+                pstmt.setString(1, agent.getNom());
+                pstmt.setString(2, agent.getPrenom());
+                pstmt.setString(3, agent.getEmail());
+                pstmt.setString(4, agent.getMotDePasse());
+                pstmt.setString(5, agent.getTelephone());
+                pstmt.executeUpdate();
+                
+                ResultSet generatedKeys = pstmt.getGeneratedKeys();
+                if (generatedKeys.next()) {
+                    agent.setId(generatedKeys.getLong(1));
+                }
+                generatedKeys.close();
+                pstmt.close();
             }
             
-            return pstmt.executeUpdate() > 0;
+            // 2. Vérifier si l'agent villageois existe déjà
+            String checkAgentSql = "SELECT id FROM agentvillageois WHERE id = ?";
+            pstmt = conn.prepareStatement(checkAgentSql);
+            pstmt.setLong(1, agent.getId());
+            ResultSet rsAgent = pstmt.executeQuery();
+            
+            if (rsAgent.next()) {
+                // Agent villageois existe, mettre à jour
+                rsAgent.close();
+                pstmt.close();
+                
+                String sqlUpdate = "UPDATE agentvillageois SET agentTerrain_id = ? WHERE id = ?";
+                pstmt = conn.prepareStatement(sqlUpdate);
+                pstmt.setLong(1, agent.getAgentTerrain().getId());
+                pstmt.setLong(2, agent.getId());
+                return pstmt.executeUpdate() > 0;
+            } else {
+                // Agent villageois n'existe pas, le créer
+                rsAgent.close();
+                pstmt.close();
+                
+                String sqlAgent = "INSERT INTO agentvillageois (id, agentTerrain_id) VALUES (?, ?)";
+                pstmt = conn.prepareStatement(sqlAgent);
+                pstmt.setLong(1, agent.getId());
+                pstmt.setLong(2, agent.getAgentTerrain().getId());
+                return pstmt.executeUpdate() > 0;
+            }
             
         } catch (SQLException e) {
             System.err.println("Erreur: " + e.getMessage());
+            e.printStackTrace();
             return false;
         } finally {
             try {

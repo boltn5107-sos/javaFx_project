@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import com.avec.dao.ReunionDAO;
 import com.avec.enums.StatutReunion;
@@ -31,6 +30,17 @@ public class ReunionService {
         if (reunion.getStatut() == null) {
             reunion.setStatut(StatutReunion.PLANIFIEE);
         }
+        
+        if (reunion.getSoldeFondCreditAvant() == null) {
+            reunion.setSoldeFondCreditAvant(BigDecimal.ZERO);
+        }
+        if (reunion.getSoldesFondsCreditApres() == null) {
+            reunion.setSoldesFondsCreditApres(BigDecimal.ZERO);
+        }
+        if (reunion.getSoldeCaisseSolidaritesApres() == null) {
+            reunion.setSoldeCaisseSolidaritesApres(BigDecimal.ZERO);
+        }
+        
         
         return reunionDAO.enregistrer(reunion);
     }
@@ -61,9 +71,7 @@ public class ReunionService {
      */
     public List<Reunion> listerReunions() {
         try {
-            List<Reunion> reunions = reunionDAO.lister();
-            System.out.println("ReunionService.listerReunions() - Trouvées: " + reunions.size());
-            return reunions;
+            return reunionDAO.lister();
         } catch (SQLException e) {
             System.err.println("Erreur lors du listage des réunions: " + e.getMessage());
             return List.of();
@@ -71,20 +79,15 @@ public class ReunionService {
     }
     
     /**
-     * Liste les réunions de type CREDIT (approuvées) par AVEC
+     * Récupère toutes les réunions d'une AVEC
+     * @param avecId L'ID de l'AVEC
+     * @return Liste des réunions de l'AVEC
      */
-    public List<Reunion> getReunionsApprouveesParAvecId(Long avecId) {
+    public List<Reunion> getReunionsByAvecId(Long avecId) throws SQLException {
         if (avecId == null) return List.of();
-        try {
-            List<Reunion> reunions = reunionDAO.findByAvecId(avecId);
-            return reunions.stream()
-                .filter(r -> r.getType() == TypeReunion.CREDIT)
-                .collect(Collectors.toList());
-        } catch (Exception e) {
-            System.err.println("Erreur lors du listage des réunions: " + e.getMessage());
-            return List.of();
-        }
+        return reunionDAO.findByAvecId(avecId);
     }
+
 
     /**
      * Liste les réunions par cycle
@@ -128,36 +131,15 @@ public class ReunionService {
     /**
      * Trouve la réunion en cours pour une AVEC (via le cycle)
      */
-    public Reunion getReunionParDefaut(Long avecId) {
-        ReunionDAO rDAO = new ReunionDAO();
-        try {
-            return rDAO.findLatestReunionByAvecId(avecId);
-        } catch (Exception e) {
-            System.err.println("Erreur: " + e.getMessage());
-            return null;
-        }
-    }
-    
     public Reunion getReunionEnCoursParAvec(Long avecId) {
         if (avecId == null) return null;
         
         ReunionDAO rDAO = new ReunionDAO();
         try {
-            Reunion reunion = null;
-            
-            try {
-                reunion = rDAO.findReunionEnCoursByAvecId(avecId);
-            } catch (Exception e) {}
-            
-            if (reunion == null) {
-                try {
-                    reunion = rDAO.findLatestReunionByAvecId(avecId);
-                } catch (Exception e) {}
-            }
-            
+            Reunion reunion = rDAO.findReunionEnCoursByAvecId(avecId);
             return reunion;
-        } catch (Exception e) {
-            System.err.println("Erreur getReunion: " + e.getMessage());
+        } catch (SQLException e) {
+            System.err.println("Erreur: " + e.getMessage());
             return null;
         }
     }

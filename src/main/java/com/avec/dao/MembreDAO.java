@@ -154,6 +154,29 @@ public class MembreDAO {
     }
     
     /**
+     * Trouve tous les membres d'une AVEC
+     */
+    public List<Membre> findsByAvecId(long avecId) throws SQLException {
+        List<Membre> membres = new ArrayList<>();
+        String sql = "SELECT *FROM membre m ";
+        
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setLong(1, avecId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                   Membre membre = mapResultSetToMembres(rs);
+                    membres.add(membre);
+                }
+            }
+        }
+        return membres;
+    }
+    
+    
+    /**
      * Cherche un membre par sa carte et son mot de passe (jointure avec utilisateur)
      */
     /**
@@ -446,7 +469,7 @@ public class MembreDAO {
     * Compte le nombre de membres actifs (toutes AVEC confondues)
     */
    public int countActifs() throws SQLException {
-       String sql = "SELECT COUNT(*) FROM membre WHERE estActif = 'true'";
+       String sql = "SELECT COUNT(*) FROM membre WHERE estActif = 1";
 
        try (Connection conn = DBConnection.getConnection();
     		   Statement stmt = conn.createStatement();

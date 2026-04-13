@@ -260,6 +260,12 @@ public class MembreService {
     }
     
     /**
+     * Récupère tous les membres d'une AVEC
+     */
+    public List<Membre> getMembreByAvecId(long avecId) throws SQLException {
+        return membreDAO.findsByAvecId(avecId);
+    }
+    /**
      * ✅ Désigne les gardiens de clés pour une AVEC
      * Les gardiens de clés sont 3 membres qui ne font pas partie du comité
      */
