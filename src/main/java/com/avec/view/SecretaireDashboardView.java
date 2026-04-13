@@ -941,10 +941,14 @@ private static final String ICONE_TABLEAU_BORD = "📊";
         reunionCombo.setPrefWidth(250);
         
         try {
+            System.out.println(">>> Chargement réunions pour avecId: " + secretaire.getAvecId());
             List<Reunion> reunions = reunionService.getReunionsApprouveesParAvecId(secretaire.getAvecId());
+            System.out.println(">>> Nombre de réunions trouvées: " + reunions.size());
             reunionCombo.setItems(FXCollections.observableArrayList(reunions));
         } catch (Exception e) {
-            showAlert("Erreur", "Impossible de charger les réunions");
+            System.err.println("Erreur chargement réunions: " + e.getMessage());
+            e.printStackTrace();
+            showAlert("Erreur", "Impossible de charger les réunions: " + e.getMessage());
         }
 
         grid.add(lblMembre, 0, 0);

@@ -160,6 +160,39 @@ public class ReunionDAO {
         return reunions;
     }
     
+
+    /**
+     * Récupère toutes les réunions d'une AVEC
+     * @param avecId L'ID de l'AVEC
+     * @return Liste des réunions de l'AVEC
+     */
+    public List<Reunion> findByAvecId(Long avecId) throws SQLException {
+        System.out.println(">>> [ReunionDAO] findByAvecId called with avecId: " + avecId);
+        List<Reunion> reunions = new ArrayList<>();
+        
+        String sql = "SELECT r.* FROM reunion r " +
+                     "INNER JOIN cycle c ON r.cycle_id = c.id " +
+                     "WHERE c.avec_id = ? " +
+                     "ORDER BY r.date DESC";
+        
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setLong(1, avecId);
+            System.out.println(">>> [ReunionDAO] Executing query...");
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Reunion r = mapResultSetToReunion(rs);
+                    System.out.println(">>> [ReunionDAO] Found reunion: id=" + r.getId() + ", type=" + r.getType());
+                    reunions.add(r);
+                }
+            }
+        }
+        System.out.println(">>> [ReunionDAO] Total found: " + reunions.size());
+        return reunions;
+    }
+
     
 
     /**
@@ -291,26 +324,26 @@ public class ReunionDAO {
     /**
      * Trouve toutes les réunions pour une AVEC
      */
-    public List<Reunion> findByAvecId(Long avecId) throws SQLException {
-        List<Reunion> reunions = new ArrayList<>();
-        String sql = "SELECT r.* FROM reunion r " +
-                     "LEFT JOIN cycle c ON r.cycle_id = c.id " +
-                     "WHERE c.avec_id = ? OR r.cycle_id IS NULL " +
-                     "ORDER BY r.date DESC";
-
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setLong(1, avecId);
-
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    reunions.add(mapResultSetToReunion(rs));
-                }
-            }
-        }
-        return reunions;
-    }
+//    public List<Reunion> findByAvecId(Long avecId) throws SQLException {
+//        List<Reunion> reunions = new ArrayList<>();
+//        String sql = "SELECT r.* FROM reunion r " +
+//                     "LEFT JOIN cycle c ON r.cycle_id = c.id " +
+//                     "WHERE c.avec_id = ? OR r.cycle_id IS NULL " +
+//                     "ORDER BY r.date DESC";
+//
+//        try (Connection conn = DBConnection.getConnection();
+//             PreparedStatement stmt = conn.prepareStatement(sql)) {
+//
+//            stmt.setLong(1, avecId);
+//
+//            try (ResultSet rs = stmt.executeQuery()) {
+//                while (rs.next()) {
+//                    reunions.add(mapResultSetToReunion(rs));
+//                }
+//            }
+//        }
+//        return reunions;
+//    }
 
     /**
      * Trouve la prochaine réunion planifiée pour un cycle
