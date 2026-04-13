@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.avec.dao.ReunionDAO;
 import com.avec.enums.StatutReunion;
@@ -86,6 +87,35 @@ public class ReunionService {
     public List<Reunion> getReunionsByAvecId(Long avecId) throws SQLException {
         if (avecId == null) return List.of();
         return reunionDAO.findByAvecId(avecId);
+    }
+    
+    /**
+     * Récupère les réunions de type CREDIT d'une AVEC
+     */
+    public List<Reunion> getReunionsApprouveesParAvecId(Long avecId) {
+        System.out.println(">>> [ReunionService] getReunionsApprouveesParAvecId called with avecId: " + avecId);
+        if (avecId == null) {
+            System.out.println(">>> [ReunionService] avecId is null, returning empty list");
+            return List.of();
+        }
+        try {
+            System.out.println(">>> [ReunionService] Calling reunionDAO.findByAvecId...");
+            List<Reunion> reunions = reunionDAO.findByAvecId(avecId);
+            System.out.println(">>> [ReunionService] Total réunions from DAO: " + (reunions != null ? reunions.size() : "null"));
+            if (reunions == null) {
+                System.out.println(">>> [ReunionService] reunions is null, returning empty list");
+                return List.of();
+            }
+            List<Reunion> filtered = reunions.stream()
+                .filter(r -> r.getType() == TypeReunion.CREDIT)
+                .collect(Collectors.toList());
+            System.out.println(">>> [ReunionService] Filtered réunions (CREDIT): " + filtered.size());
+            return filtered;
+        } catch (Exception e) {
+            System.err.println(">>> [ReunionService] ERROR: " + e.getMessage());
+            e.printStackTrace();
+            return List.of();
+        }
     }
 
 
