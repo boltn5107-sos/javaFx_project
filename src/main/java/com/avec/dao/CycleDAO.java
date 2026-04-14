@@ -16,9 +16,9 @@ public class CycleDAO {
      * Insère un nouveau cycle
      */
     public Cycle insert(Cycle cycle) throws SQLException {
-        String sql = "INSERT INTO cycle (date_debut, date_fin_prevue, date_fin_reelle, statut, " +
-                "fonds_credit_final, total_parts_achetees, valeur_part, numero_cycle, avec_id) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO cycle (dateDebut, dateFinPrevue, dateFinReelle, statut, " +
+                "fondsCreditFinal, totalpartsAchetes, avec_id) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -28,10 +28,8 @@ public class CycleDAO {
             stmt.setDate(3, cycle.getDateFinReelle() != null ? Date.valueOf(cycle.getDateFinReelle()) : null);
             stmt.setString(4, cycle.getStatut().name());
             stmt.setBigDecimal(5, cycle.getFondsDeCreditFinal());
-            stmt.setInt(6, cycle.getTotalPartsAchetees());
-            stmt.setBigDecimal(7, cycle.getValeurPart());
-            stmt.setInt(8, cycle.getNumeroCycle());
-            stmt.setLong(9, cycle.getAvecId());
+            stmt.setInt(6, cycle.getTotalPartsAchetees() != null ? cycle.getTotalPartsAchetees() : 0);
+            stmt.setLong(7, cycle.getAvecId());
 
             int affectedRows = stmt.executeUpdate();
             if (affectedRows == 0) {
@@ -53,9 +51,8 @@ public class CycleDAO {
      * Met à jour un cycle existant
      */
     public boolean update(Cycle cycle) throws SQLException {
-        String sql = "UPDATE cycle SET date_debut = ?, date_fin_prevue = ?, date_fin_reelle = ?, " +
-                "statut = ?, fonds_credit_final = ?, total_parts_achetees = ?, valeur_part = ?, " +
-                "numero_cycle = ? WHERE id = ?";
+        String sql = "UPDATE cycle SET dateDebut = ?, dateFinPrevue = ?, dateFinReelle = ?, " +
+                "statut = ?, fondsCreditFinal = ?, totalpartsAchetes = ? WHERE id = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -65,10 +62,8 @@ public class CycleDAO {
             stmt.setDate(3, cycle.getDateFinReelle() != null ? Date.valueOf(cycle.getDateFinReelle()) : null);
             stmt.setString(4, cycle.getStatut().name());
             stmt.setBigDecimal(5, cycle.getFondsDeCreditFinal());
-            stmt.setInt(6, cycle.getTotalPartsAchetees());
-            stmt.setBigDecimal(7, cycle.getValeurPart());
-            stmt.setInt(8, cycle.getNumeroCycle());
-            stmt.setLong(9, cycle.getId());
+            stmt.setInt(6, cycle.getTotalPartsAchetees() != null ? cycle.getTotalPartsAchetees() : 0);
+            stmt.setLong(7, cycle.getId());
 
             return stmt.executeUpdate() > 0;
         }
@@ -99,7 +94,7 @@ public class CycleDAO {
      */
     public List<Cycle> findByAvecId(long avecId) throws SQLException {
         List<Cycle> cycles = new ArrayList<>();
-        String sql = "SELECT * FROM cycle WHERE avec_id = ? ORDER BY numero_cycle DESC";
+        String sql = "SELECT * FROM cycle WHERE avec_id = ? ORDER BY id DESC";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -140,7 +135,7 @@ public class CycleDAO {
      */
     public List<Cycle> findAll() throws SQLException {
         List<Cycle> cycles = new ArrayList<>();
-        String sql = "SELECT * FROM cycle ORDER BY date_debut DESC";
+        String sql = "SELECT * FROM cycle ORDER BY id DESC";
 
         try (Connection conn = DBConnection.getConnection();
              Statement stmt = conn.createStatement();
@@ -174,23 +169,21 @@ public class CycleDAO {
         Cycle cycle = new Cycle();
 
         cycle.setId(rs.getLong("id"));
-        cycle.setDateDebut(rs.getDate("date_debut").toLocalDate());
+        cycle.setDateDebut(rs.getDate("dateDebut").toLocalDate());
 
-        Date dateFinPrevue = rs.getDate("date_fin_prevue");
+        Date dateFinPrevue = rs.getDate("dateFinPrevue");
         if (dateFinPrevue != null) {
             cycle.setDateFinPrevue(dateFinPrevue.toLocalDate());
         }
 
-        Date dateFinReelle = rs.getDate("date_fin_reelle");
+        Date dateFinReelle = rs.getDate("dateFinReelle");
         if (dateFinReelle != null) {
             cycle.setDateFinReelle(dateFinReelle.toLocalDate());
         }
 
         cycle.setStatut(StatutCycle.valueOf(rs.getString("statut")));
-        cycle.setFondsDeCreditFinal(rs.getBigDecimal("fonds_credit_final"));
-        cycle.setTotalPartsAchetees(rs.getInt("total_parts_achetees"));
-        cycle.setValeurPart(rs.getBigDecimal("valeur_part"));
-        cycle.setNumeroCycle(rs.getInt("numero_cycle"));
+        cycle.setFondsDeCreditFinal(rs.getBigDecimal("fondsCreditFinal"));
+        cycle.setTotalPartsAchetees(rs.getInt("totalpartsAchetes"));
         cycle.setAvecId(rs.getLong("avec_id"));
 
         return cycle;

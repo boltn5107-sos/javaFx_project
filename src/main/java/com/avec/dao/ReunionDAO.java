@@ -170,7 +170,7 @@ public class ReunionDAO {
         List<Reunion> reunions = new ArrayList<>();
         
         String sql = "SELECT r.* FROM reunion r " +
-                     "INNER JOIN cycle c ON r.cycle_id = c.id " +
+                     "LEFT JOIN cycle c ON r.cycle_id = c.id " +
                      "WHERE c.avec_id = ? " +
                      "ORDER BY r.date DESC";
         
@@ -178,7 +178,7 @@ public class ReunionDAO {
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setLong(1, avecId);
-            System.out.println(">>> [ReunionDAO] Executing query...");
+            System.out.println(">>> [ReunionDAO] Executing query with avecId=" + avecId);
             
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
@@ -281,8 +281,8 @@ public class ReunionDAO {
      */
     public Reunion findLatestReunionByAvecId(Long avecId) throws SQLException {
         String sql = "SELECT r.* FROM reunion r " +
-                     "LEFT JOIN cycle c ON r.cycle_id = c.id " +
-                     "WHERE c.avec_id = ? OR r.cycle_id IS NULL " +
+                     "INNER JOIN cycle c ON r.cycle_id = c.id " +
+                     "WHERE c.avec_id = ? " +
                      "ORDER BY r.id DESC LIMIT 1";
 
         try (Connection conn = DBConnection.getConnection();
@@ -301,8 +301,8 @@ public class ReunionDAO {
     
     public Reunion findReunionEnCoursByAvecId(Long avecId) throws SQLException {
         String sql = "SELECT DISTINCT r.* FROM reunion r " +
-                    "LEFT JOIN cycle c ON r.cycle_id = c.id " +
-                    "WHERE (c.avec_id = ? OR r.cycle_id IS NULL) AND r.statut = 'EN_COURS' " +
+                    "INNER JOIN cycle c ON r.cycle_id = c.id " +
+                    "WHERE c.avec_id = ? AND r.statut = 'EN_COURS' " +
                     "ORDER BY r.date DESC LIMIT 1";
         
         try (Connection conn = DBConnection.getConnection();
@@ -383,16 +383,16 @@ public class ReunionDAO {
     /**
      * Met à jour les soldes après une réunion
      */
-    public boolean updateSoldes(Long reunionId, BigDecimal soldeFondCreditApres, 
-                                 BigDecimal soldeCaisseSolidaritesApres) throws SQLException {
-        String sql = "UPDATE reunion SET soldes_fonds_credit_apres = ?, " +
-                     "solde_caisse_solidarites_apres = ? WHERE id = ?";
+    public boolean updateSoldes(Long reunionId, BigDecimal soldFondCreditApres, 
+                                 BigDecimal soldCaisseSolidarite) throws SQLException {
+        String sql = "UPDATE reunion SET soldesFondCreditApres = ?, " +
+                     "soldCaisseSolidarite = ? WHERE id = ?";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            stmt.setBigDecimal(1, soldeFondCreditApres);
-            stmt.setBigDecimal(2, soldeCaisseSolidaritesApres);
+            stmt.setBigDecimal(1, soldFondCreditApres);
+            stmt.setBigDecimal(2, soldCaisseSolidarite);
             stmt.setLong(3, reunionId);
 
             return stmt.executeUpdate() > 0;
