@@ -4,12 +4,12 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 import com.avec.MainApp;
 import com.avec.config.Styles;
 import com.avec.enums.PhaseCycle;
-import com.avec.enums.StatutAvec;
 import com.avec.model.AgentTerrain;
 import com.avec.model.AgentVillageois;
 import com.avec.model.Avec;
@@ -44,6 +44,8 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -69,7 +71,38 @@ public class AgentTerrainDashboardView {
 	private TableView<Visite> visiteTable;
 
 	// Onglets
+	 // ✅ Liste pour stocker les boutons du menu
+    private List<Button> menuButtons = new ArrayList<>();
+	private Button activeMenuButton;
+	private VBox menuBox;
 	private TabPane tabPane;
+	
+	// ✅ Styles identiques à AdminDashboardView
+    private static final String STYLE_BOUTON_NORMAL = 
+        "-fx-background-color: transparent; " +
+        "-fx-text-fill: " + Styles.BLANC + "; " +
+        "-fx-alignment: CENTER_LEFT; " +
+        "-fx-padding: 10 15; " +
+        "-fx-font-size: 14px; " +
+        "-fx-cursor: hand;";
+    
+    private static final String STYLE_BOUTON_ACTIF = 
+        "-fx-background-color: " + Styles.GRIS_CLAIR + "; " +
+        "-fx-text-fill: "+ Styles.VERT_PRINCIPAL + "; " +
+        "-fx-alignment: CENTER_LEFT; " +
+        "-fx-padding: 10 15; " +
+        "-fx-font-size: 14px; " +
+        "-fx-font-weight: bold; " +
+        "-fx-background-radius: 8; " +
+        "-fx-cursor: hand;";
+    
+    private static final String STYLE_BOUTON_SURVOL = 
+        "-fx-background-color: " + Styles.GRIS_CLAIR + "; " +
+        "-fx-text-fill: " + Styles.VERT_PRINCIPAL + "; " +
+        "-fx-alignment: CENTER_LEFT; " +
+        "-fx-padding: 10 15; " +
+        "-fx-font-size: 14px; " +
+        "-fx-cursor: hand;";
 
 	private static final String ICONE_TABLEAU_BORD = "📊";
 	private static final String ICONE_AVEC = "🤝";
@@ -137,6 +170,9 @@ public class AgentTerrainDashboardView {
 		tabPane.getTabs().addAll(dashboardTab, avecTab, agentsTab, visitesTab, rapportsTab);
 
 		root.setCenter(tabPane);
+		
+		
+	   
 	}
 
 	private HBox createHeader() {
@@ -188,71 +224,143 @@ public class AgentTerrainDashboardView {
 	}
 
 	private VBox createSidebar() {
-		VBox sidebar = new VBox(10);
-		sidebar.setPadding(new Insets(20));
-		sidebar.setPrefWidth(250);
-		sidebar.setStyle("-fx-background-color: " + Styles.BLANC + ";" + "-fx-border-color: " + Styles.GRIS_CLAIR + ";"
-				+ "-fx-border-width: 0 2 0 0;");
+        VBox sidebar = new VBox(10);
+        sidebar.setPadding(new Insets(20));
+        sidebar.setPrefWidth(250);
+        sidebar.setStyle("-fx-background-color: " + Styles.VERT_PRINCIPAL + ";" +
+                        "-fx-border-color: " + Styles.GRIS_CLAIR + ";" +
+                        "-fx-border-width: 0 2 0 0;");
+        
+        VBox profileBox = new VBox(10);
+        profileBox.setAlignment(Pos.CENTER);
+        profileBox.setPadding(new Insets(0, 0, 20, 0));
+        profileBox.setStyle("-fx-border-color: " + Styles.GRIS_CLAIR + ";" +
+                           "-fx-border-width: 0 0 2 0;");
+        
+        Label avatarLabel = new Label("🏞️");
+        avatarLabel.setStyle("-fx-font-size: 48px;");
+        
+        Label nameLabel = new Label(agentTerrain.getNomComplet());
+        nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        
+        String zone = agentTerrain.getZone() != null ? agentTerrain.getZone() : "Non définie";
+        Label zoneLabel = new Label("Zone: " + zone);
+        zoneLabel.setStyle("-fx-text-fill: " + Styles.GRIS_FONCE + "; -fx-font-size: 12px;");
+        
+        profileBox.getChildren().addAll(avatarLabel, nameLabel, zoneLabel);
+        
+        VBox menuBox = new VBox(5);
+        menuBox.setPadding(new Insets(20, 0, 0, 0));
+        
+        // ✅ Création des ToggleButton comme dans AdminDashboardView
+        ToggleButton btnDashboard = new ToggleButton(ICONE_TABLEAU_BORD + "  Tableau de bord");
+        btnDashboard.setMaxWidth(Double.MAX_VALUE);
+        btnDashboard.setStyle(STYLE_BOUTON_NORMAL);
+        
+        ToggleButton btnAvec = new ToggleButton(ICONE_AVEC + "  AVEC supervisées");
+        btnAvec.setMaxWidth(Double.MAX_VALUE);
+        btnAvec.setStyle(STYLE_BOUTON_NORMAL);
+        
+        ToggleButton btnAgents = new ToggleButton(ICONE_AGENTS + "  Agents Villageois");
+        btnAgents.setMaxWidth(Double.MAX_VALUE);
+        btnAgents.setStyle(STYLE_BOUTON_NORMAL);
+        
+        ToggleButton btnVisites = new ToggleButton(ICONE_VISITES + "  Visites de supervision");
+        btnVisites.setMaxWidth(Double.MAX_VALUE);
+        btnVisites.setStyle(STYLE_BOUTON_NORMAL);
+        
+        ToggleButton btnRapports = new ToggleButton(ICONE_RAPPORTS + "  Rapports");
+        btnRapports.setMaxWidth(Double.MAX_VALUE);
+        btnRapports.setStyle(STYLE_BOUTON_NORMAL);
+        
+        // ✅ Ajout des effets de survol
+        ToggleButton[] allButtons = {btnDashboard, btnAvec, btnAgents, btnVisites, btnRapports};
+        
+        for (ToggleButton btn : allButtons) {
+            btn.setOnMouseEntered(e -> {
+                if (!btn.isSelected()) {
+                    btn.setStyle(STYLE_BOUTON_SURVOL);
+                }
+            });
+            btn.setOnMouseExited(e -> {
+                if (!btn.isSelected()) {
+                    btn.setStyle(STYLE_BOUTON_NORMAL);
+                }
+            });
+        }
+        
+        // ✅ Actions des boutons
+        btnDashboard.setOnAction(e -> {
+            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+            btnDashboard.setStyle(STYLE_BOUTON_ACTIF);
+            tabPane.getSelectionModel().select(0);
+        });
+        
+        btnAvec.setOnAction(e -> {
+            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+            btnAvec.setStyle(STYLE_BOUTON_ACTIF);
+            tabPane.getSelectionModel().select(1);
+        });
+        
+        btnAgents.setOnAction(e -> {
+            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+            btnAgents.setStyle(STYLE_BOUTON_ACTIF);
+            tabPane.getSelectionModel().select(2);
+        });
+        
+        btnVisites.setOnAction(e -> {
+            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+            btnVisites.setStyle(STYLE_BOUTON_ACTIF);
+            tabPane.getSelectionModel().select(3);
+        });
+        
+        btnRapports.setOnAction(e -> {
+            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+            btnRapports.setStyle(STYLE_BOUTON_ACTIF);
+            tabPane.getSelectionModel().select(4);
+        });
+        
+        // ✅ Groupe de toggle (un seul sélectionné à la fois)
+        ToggleGroup group = new ToggleGroup();
+        for (ToggleButton btn : allButtons) {
+            btn.setToggleGroup(group);
+        }
+        
+        // ✅ Sélectionner le premier bouton par défaut
+        btnDashboard.setSelected(true);
+        btnDashboard.setStyle(STYLE_BOUTON_ACTIF);
+        
+        menuBox.getChildren().addAll(btnDashboard, btnAvec, btnAgents, btnVisites, btnRapports);
+        
+        // Bouton changer mot de passe
+        Button btnChangerMdp = new Button("🔒  Changer mot de passe");
+        btnChangerMdp.setStyle(Styles.BOUTON_ACCENT);
+        btnChangerMdp.setMaxWidth(Double.MAX_VALUE);
+        btnChangerMdp.setPadding(new Insets(10, 15, 10, 15));
+        btnChangerMdp.setOnAction(e -> showChangerMotDePasse());
+        
+        // Espaceur pour pousser le bouton en bas
+        Region spacer = new Region();
+        VBox.setVgrow(spacer, Priority.ALWAYS);
+        
+        sidebar.getChildren().addAll(profileBox, menuBox, spacer, btnChangerMdp);
+        
+        return sidebar;
+    }
+	
+	 /**
+     * Réinitialise le style de tous les boutons
+     */
+    private void resetAllButtonsStyle(ToggleButton[] buttons, String style) {
+        for (ToggleButton btn : buttons) {
+            if (!btn.isSelected()) {
+                btn.setStyle(style);
+            }
+        }
+    }
+	
 
-		VBox profileBox = new VBox(10);
-		profileBox.setAlignment(Pos.CENTER);
-		profileBox.setPadding(new Insets(0, 0, 20, 0));
-		profileBox.setStyle("-fx-border-color: " + Styles.GRIS_CLAIR + ";" + "-fx-border-width: 0 0 2 0;");
-
-		Label avatarLabel = new Label("🏞️");
-		avatarLabel.setStyle("-fx-font-size: 48px;");
-
-		Label nameLabel = new Label(agentTerrain.getNomComplet());
-		nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
-
-		Label zoneLabel = new Label(
-				"Zone: " + (agentTerrain.getZone() != null ? agentTerrain.getZone() : "Non définie"));
-		zoneLabel.setStyle("-fx-text-fill: " + Styles.GRIS_FONCE + "; -fx-font-size: 12px;");
-
-		profileBox.getChildren().addAll(avatarLabel, nameLabel, zoneLabel);
-
-		VBox menuBox = new VBox(5);
-		menuBox.setPadding(new Insets(20, 0, 0, 0));
-
-		menuBox.getChildren().addAll(
-				createMenuButton(ICONE_TABLEAU_BORD, "Tableau de bord", () -> tabPane.getSelectionModel().select(0)),
-				createMenuButton(ICONE_AVEC, "AVEC supervisées", () -> tabPane.getSelectionModel().select(1)),
-				createMenuButton(ICONE_AGENTS, "Agents Villageois", () -> tabPane.getSelectionModel().select(2)),
-				createMenuButton(ICONE_VISITES, "Visites de supervision", () -> tabPane.getSelectionModel().select(3)),
-				createMenuButton(ICONE_RAPPORTS, "Rapports", () -> tabPane.getSelectionModel().select(4)));
-		
-		// Dans le header de chaque dashboard
-		Button btnChangerMdp = new Button("🔒 Changer mot de passe");
-		btnChangerMdp.setStyle(Styles.BOUTON_ACCENT);
-		btnChangerMdp.setOnAction(e -> showChangerMotDePasse());
-
-		
-
-		sidebar.getChildren().addAll(profileBox, menuBox,btnChangerMdp);
-
-		return sidebar;
-	}
-
-	private Button createMenuButton(String icon, String text, Runnable action) {
-		Button button = new Button(icon + "  " + text);
-		button.setStyle(
-				"-fx-background-color: transparent; " + "-fx-text-fill: " + Styles.NOIR + "; " + "-fx-font-size: 14px; "
-						+ "-fx-padding: 10 15; " + "-fx-alignment: CENTER_LEFT; " + "-fx-cursor: hand;");
-		button.setMaxWidth(Double.MAX_VALUE);
-
-		button.setOnMouseEntered(e -> button.setStyle("-fx-background-color: " + Styles.GRIS_CLAIR + "; "
-				+ "-fx-text-fill: " + Styles.VERT_PRINCIPAL + "; " + "-fx-font-size: 14px; " + "-fx-padding: 10 15; "
-				+ "-fx-alignment: CENTER_LEFT; " + "-fx-cursor: hand;"));
-
-		button.setOnMouseExited(e -> button.setStyle(
-				"-fx-background-color: transparent; " + "-fx-text-fill: " + Styles.NOIR + "; " + "-fx-font-size: 14px; "
-						+ "-fx-padding: 10 15; " + "-fx-alignment: CENTER_LEFT; " + "-fx-cursor: hand;"));
-
-		button.setOnAction(e -> action.run());
-
-		return button;
-	}
-
+	
 	// ==================== TABLEAU DE BORD ====================
 
 	private VBox createDashboardContent() {

@@ -43,6 +43,8 @@ import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -115,15 +117,20 @@ public class AdminDashboardView {
 			// Créer le TabPane
 			tabPane = new TabPane();
 			tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
-			tabPane.setStyle("-fx-background-color: " + Styles.GRIS_CLAIR + ";");
-
-			// POUR QUE LE TABPANE PRENNE TOUT L'ESPACE
-			tabPane.setPrefHeight(Double.MAX_VALUE);
-			tabPane.setPrefWidth(Double.MAX_VALUE);
-
-			// ✅ FORCER LA VISIBILITÉ
-			VBox.setVgrow(tabPane, Priority.ALWAYS);
-			HBox.setHgrow(tabPane, Priority.ALWAYS);
+//			tabPane.setStyle("-fx-background-color: " + Styles.GRIS_CLAIR + ";");
+//
+//			// POUR QUE LE TABPANE PRENNE TOUT L'ESPACE
+//			tabPane.setPrefHeight(Double.MAX_VALUE);
+//			tabPane.setPrefWidth(Double.MAX_VALUE);
+//
+//			// ✅ FORCER LA VISIBILITÉ
+//			VBox.setVgrow(tabPane, Priority.ALWAYS);
+//			HBox.setHgrow(tabPane, Priority.ALWAYS);
+//			
+			// ✅ CACHER LES ONGLETS (les rendre invisibles)
+	        tabPane.setTabMinHeight(0);
+	        tabPane.setTabMaxHeight(0);
+	        tabPane.setStyle("-fx-tab-min-height: 0; -fx-tab-max-height: 0;");
 
 			// Tableau de bord
 			dashboardTab = new Tab("Tableau de bord");
@@ -238,72 +245,182 @@ public class AdminDashboardView {
 	}
 
 	private VBox createSidebar() {
-		VBox sidebar = new VBox(10);
-		sidebar.setPadding(new Insets(20));
-		sidebar.setPrefWidth(250);
-		sidebar.setStyle("-fx-background-color: " + Styles.BLANC + ";" + "-fx-border-color: " + Styles.GRIS_CLAIR + ";"
-				+ "-fx-border-width: 0 2 0 0;");
+	    VBox sidebar = new VBox(10);
+	    sidebar.setPadding(new Insets(20));
+	    sidebar.setPrefWidth(250);
+	    sidebar.setStyle("-fx-background-color: " + Styles.VERT_PRINCIPAL + ";" + 
+	                    "-fx-border-color: " + Styles.GRIS_CLAIR + ";" +
+	                    "-fx-border-width: 0 2 0 0;");
 
-		VBox menuBox = new VBox(5);
-		menuBox.setPadding(new Insets(20, 0, 0, 0));
+	    VBox menuBox = new VBox(5);
+	    menuBox.setPadding(new Insets(20, 0, 0, 0));
 
-		Button btnDashboard = new Button(ICONE_TABLEAU_BORD + "  Tableau de bord");
-		btnDashboard.setMaxWidth(Double.MAX_VALUE);
-		btnDashboard.setStyle("-fx-background-color: transparent; -fx-text-fill: " + Styles.NOIR
-				+ "; -fx-alignment: CENTER_LEFT; -fx-padding: 10 15;");
-		btnDashboard.setOnAction(e -> tabPane.getSelectionModel().select(0));
+	    // ✅ Styles pour les boutons
+	    String styleNormal = "-fx-background-color: transparent; " +
+	                         "-fx-text-fill: white; " +
+	                         "-fx-alignment: CENTER_LEFT; " +
+	                         "-fx-padding: 10 15; " +
+	                         "-fx-font-size: 14px; " +
+	                         "-fx-cursor: hand;";
+	    
+	    String styleActif = "-fx-background-color: " + Styles.BLANC + "; " +
+	                        "-fx-text-fill: " + Styles.VERT_PRINCIPAL + "; " +
+	                        "-fx-alignment: CENTER_LEFT; " +
+	                        "-fx-padding: 10 15; " +
+	                        "-fx-font-size: 14px; " +
+	                        "-fx-font-weight: bold; " +
+	                        "-fx-background-radius: 8; " +
+	                        "-fx-cursor: hand;";
+	    
+	    String styleSurvol = "-fx-background-color: rgba(255,255,255,0.2); " +
+	                         "-fx-text-fill: white; " +
+	                         "-fx-alignment: CENTER_LEFT; " +
+	                         "-fx-padding: 10 15; " +
+	                         "-fx-font-size: 14px; " +
+	                         "-fx-cursor: hand;";
 
-		Button btnUtilisateurs = new Button(ICONE_UTILISATEURS + "  Utilisateurs");
-		btnUtilisateurs.setMaxWidth(Double.MAX_VALUE);
-		btnUtilisateurs.setStyle("-fx-background-color: transparent; -fx-text-fill: " + Styles.NOIR
-				+ "; -fx-alignment: CENTER_LEFT; -fx-padding: 10 15;");
-		btnUtilisateurs.setOnAction(e -> tabPane.getSelectionModel().select(1));
+	    // ✅ Création des boutons
+	    ToggleButton btnDashboard = new ToggleButton(ICONE_TABLEAU_BORD + "  Tableau de bord");
+	    btnDashboard.setMaxWidth(Double.MAX_VALUE);
+	    btnDashboard.setStyle(styleNormal);
+	    
+	    ToggleButton btnUtilisateurs = new ToggleButton(ICONE_UTILISATEURS + "  Utilisateurs");
+	    btnUtilisateurs.setMaxWidth(Double.MAX_VALUE);
+	    btnUtilisateurs.setStyle(styleNormal);
+	    
+	    ToggleButton btnAgentsTerrain = new ToggleButton(ICONE_AGENTS_TERRAIN + "  Agents Terrain");
+	    btnAgentsTerrain.setMaxWidth(Double.MAX_VALUE);
+	    btnAgentsTerrain.setStyle(styleNormal);
+	    
+	    ToggleButton btnAgentsVillageois = new ToggleButton(ICONE_AGENTS_VILLAGEOIS + "  Agents Villageois");
+	    btnAgentsVillageois.setMaxWidth(Double.MAX_VALUE);
+	    btnAgentsVillageois.setStyle(styleNormal);
+	    
+	    ToggleButton btnAvec = new ToggleButton(ICONE_AVEC + "  AVEC");
+	    btnAvec.setMaxWidth(Double.MAX_VALUE);
+	    btnAvec.setStyle(styleNormal);
+	    
+	    ToggleButton btnMembres = new ToggleButton(ICONE_MEMBRES + "  Membres");
+	    btnMembres.setMaxWidth(Double.MAX_VALUE);
+	    btnMembres.setStyle(styleNormal);
+	    
+	    ToggleButton btnStats = new ToggleButton(ICONE_STATISTIQUES + "  Statistiques");
+	    btnStats.setMaxWidth(Double.MAX_VALUE);
+	    btnStats.setStyle(styleNormal);
+	    
+	    // ✅ Ajout des effets de survol pour tous les boutons
+	    ToggleButton[] allButtons = {btnDashboard, btnUtilisateurs, btnAgentsTerrain, 
+	                                  btnAgentsVillageois, btnAvec, btnMembres, btnStats};
+	    
+	    for (ToggleButton btn : allButtons) {
+	        btn.setOnMouseEntered(e -> {
+	            if (!btn.isSelected()) {
+	                btn.setStyle(styleSurvol);
+	            }
+	        });
+	        btn.setOnMouseExited(e -> {
+	            if (!btn.isSelected()) {
+	                btn.setStyle(styleNormal);
+	            }
+	        });
+	    }
+	    
+	    // ✅ Actions des boutons avec gestion du style
+	    btnDashboard.setOnAction(e -> {
+	        resetAllButtonsStyle(allButtons, styleNormal);
+	        btnDashboard.setStyle(styleActif);
+	        tabPane.getSelectionModel().select(0);
+	    });
+	    
+	    btnUtilisateurs.setOnAction(e -> {
+	        resetAllButtonsStyle(allButtons, styleNormal);
+	        btnUtilisateurs.setStyle(styleActif);
+	        tabPane.getSelectionModel().select(1);
+	    });
+	    
+	    btnAgentsTerrain.setOnAction(e -> {
+	        resetAllButtonsStyle(allButtons, styleNormal);
+	        btnAgentsTerrain.setStyle(styleActif);
+	        tabPane.getSelectionModel().select(2);
+	    });
+	    
+	    btnAgentsVillageois.setOnAction(e -> {
+	        resetAllButtonsStyle(allButtons, styleNormal);
+	        btnAgentsVillageois.setStyle(styleActif);
+	        tabPane.getSelectionModel().select(3);
+	    });
+	    
+	    btnAvec.setOnAction(e -> {
+	        resetAllButtonsStyle(allButtons, styleNormal);
+	        btnAvec.setStyle(styleActif);
+	        tabPane.getSelectionModel().select(4);
+	    });
+	    
+	    btnMembres.setOnAction(e -> {
+	        resetAllButtonsStyle(allButtons, styleNormal);
+	        btnMembres.setStyle(styleActif);
+	        tabPane.getSelectionModel().select(5);
+	    });
+	    
+	    btnStats.setOnAction(e -> {
+	        resetAllButtonsStyle(allButtons, styleNormal);
+	        btnStats.setStyle(styleActif);
+	        tabPane.getSelectionModel().select(6);
+	    });
+	    
+	    // ✅ Groupe de toggle (un seul sélectionné à la fois)
+	    ToggleGroup group = new ToggleGroup();
+	    for (ToggleButton btn : allButtons) {
+	        btn.setToggleGroup(group);
+	    }
+	    
+	    // ✅ Sélectionner le premier bouton par défaut
+	    btnDashboard.setSelected(true);
+	    btnDashboard.setStyle(styleActif);
+	    
+	    menuBox.getChildren().addAll(btnDashboard, btnUtilisateurs, btnAgentsTerrain, 
+	                                  btnAgentsVillageois, btnAvec, btnMembres, btnStats);
+	    
+	    // Bouton changer mot de passe
+	    Button btnChangerMdp = new Button("🔒 Changer mot de passe");
+	    btnChangerMdp.setStyle(Styles.BOUTON_ACCENT);
+	    btnChangerMdp.setMaxWidth(Double.MAX_VALUE);
+	    btnChangerMdp.setOnAction(e -> showChangerMotDePasse());
+	    
+	    // ✅ Ajout d'un espace avant le bouton changer mot de passe
+	    Region spacer = new Region();
+	    VBox.setVgrow(spacer, Priority.ALWAYS);
+	    
+	    sidebar.getChildren().addAll(menuBox, spacer, btnChangerMdp);
 
-		Button btnAgentsTerrain = new Button(ICONE_AGENTS_TERRAIN + "  Agents Terrain");
-		btnAgentsTerrain.setMaxWidth(Double.MAX_VALUE);
-		btnAgentsTerrain.setStyle("-fx-background-color: transparent; -fx-text-fill: " + Styles.NOIR
-				+ "; -fx-alignment: CENTER_LEFT; -fx-padding: 10 15;");
-		btnAgentsTerrain.setOnAction(e -> tabPane.getSelectionModel().select(2));
-
-		Button btnAgentsVillageois = new Button(ICONE_AGENTS_VILLAGEOIS + "  Agents Villageois");
-		btnAgentsVillageois.setMaxWidth(Double.MAX_VALUE);
-		btnAgentsVillageois.setStyle("-fx-background-color: transparent; -fx-text-fill: " + Styles.NOIR
-				+ "; -fx-alignment: CENTER_LEFT; -fx-padding: 10 15;");
-		btnAgentsVillageois.setOnAction(e -> {
-			System.out.println("Clic sur Agents Villageois - Onglet index 3");
-			tabPane.getSelectionModel().select(3);
-		});
-
-		Button btnAvec = new Button(ICONE_AVEC + "  AVEC");
-		btnAvec.setMaxWidth(Double.MAX_VALUE);
-		btnAvec.setStyle("-fx-background-color: transparent; -fx-text-fill: " + Styles.NOIR
-				+ "; -fx-alignment: CENTER_LEFT; -fx-padding: 10 15;");
-		btnAvec.setOnAction(e -> tabPane.getSelectionModel().select(4));
-
-		Button btnMembres = new Button(ICONE_MEMBRES + "  Membres");
-		btnMembres.setMaxWidth(Double.MAX_VALUE);
-		btnMembres.setStyle("-fx-background-color: transparent; -fx-text-fill: " + Styles.NOIR
-				+ "; -fx-alignment: CENTER_LEFT; -fx-padding: 10 15;");
-		btnMembres.setOnAction(e -> tabPane.getSelectionModel().select(5));
-
-		Button btnStats = new Button(ICONE_STATISTIQUES + "  Statistiques");
-		btnStats.setMaxWidth(Double.MAX_VALUE);
-		btnStats.setStyle("-fx-background-color: transparent; -fx-text-fill: " + Styles.NOIR
-				+ "; -fx-alignment: CENTER_LEFT; -fx-padding: 10 15;");
-		btnStats.setOnAction(e -> tabPane.getSelectionModel().select(6));
-
-		menuBox.getChildren().addAll(btnDashboard, btnUtilisateurs, btnAgentsTerrain, btnAgentsVillageois, btnAvec,
-				btnMembres, btnStats);
-		// Dans le header de chaque dashboard
-		Button btnChangerMdp = new Button("🔒 Changer mot de passe");
-		btnChangerMdp.setStyle(Styles.BOUTON_ACCENT);
-		btnChangerMdp.setOnAction(e -> showChangerMotDePasse());
-
-		sidebar.getChildren().addAll(menuBox, btnChangerMdp);
-
-		return sidebar;
+	    return sidebar;
 	}
 
+	/**
+	 * Réinitialise le style de tous les boutons
+	 */
+	private void resetAllButtonsStyle(ToggleButton[] buttons, String style) {
+	    for (ToggleButton btn : buttons) {
+	        btn.setStyle(style);
+	        // Réactiver l'effet de survol
+	        final ToggleButton currentBtn = btn;
+	        btn.setOnMouseEntered(e -> {
+	            if (!currentBtn.isSelected()) {
+	                currentBtn.setStyle("-fx-background-color: rgba(255,255,255,0.2); " +
+	                                   "-fx-text-fill: white; " +
+	                                   "-fx-alignment: CENTER_LEFT; " +
+	                                   "-fx-padding: 10 15; " +
+	                                   "-fx-font-size: 14px; " +
+	                                   "-fx-cursor: hand;");
+	            }
+	        });
+	        btn.setOnMouseExited(e -> {
+	            if (!currentBtn.isSelected()) {
+	                currentBtn.setStyle(style);
+	            }
+	        });
+	    }
+	}
 	// ==================== CONTENU DES ONGLETS ====================
 
 	private VBox createDashboardContent() {

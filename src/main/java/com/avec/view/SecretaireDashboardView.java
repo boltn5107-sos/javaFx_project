@@ -6,11 +6,16 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
-
 import com.avec.MainApp;
 import com.avec.config.Styles;
 import com.avec.enums.TypeReunion;
-import com.avec.model.*;
+import com.avec.model.AchatPart;
+import com.avec.model.Avec;
+import com.avec.model.Cycle;
+import com.avec.model.Membre;
+import com.avec.model.Pret;
+import com.avec.model.Reunion;
+import com.avec.model.SessionUtilisateur;
 import com.avec.service.AchatPartService;
 import com.avec.service.AvecService;
 import com.avec.service.CycleService;
@@ -19,11 +24,30 @@ import com.avec.service.PretService;
 import com.avec.service.ReunionService;
 import com.avec.service.UtilisateurService;
 import com.avec.utils.FormatUtils;
-import javafx.collections.FXCollections;
-import javafx.scene.control.*;
+
 import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.DatePicker;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.Separator;
+import javafx.scene.control.Spinner;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -50,6 +74,33 @@ public class SecretaireDashboardView {
     private TableView<Membre> presenceTable;
     private TableView<Membre> membresTable;
     private TableView<Membre> dashboardMembersTable;
+    
+    private static final String STYLE_BOUTON_NORMAL = 
+            "-fx-background-color: transparent; " +
+            "-fx-text-fill: " + Styles.GRIS_CLAIR + "; " +
+            "-fx-alignment: CENTER_LEFT; " +
+            "-fx-padding: 10 15; " +
+            "-fx-font-size: 14px; " +
+            "-fx-cursor: hand;";
+        
+        private static final String STYLE_BOUTON_ACTIF = 
+            "-fx-background-color: " + Styles.GRIS_CLAIR + "; " +
+            "-fx-text-fill: " + Styles.VERT_PRINCIPAL + "; " +
+            "-fx-alignment: CENTER_LEFT; " +
+            "-fx-padding: 10 15; " +
+            "-fx-font-size: 14px; " +
+            "-fx-font-weight: bold; " +
+            "-fx-background-radius: 8; " +
+            "-fx-cursor: hand;";
+        
+        private static final String STYLE_BOUTON_SURVOL = 
+            "-fx-background-color: " + Styles.GRIS_CLAIR + "; " +
+            "-fx-text-fill: " + Styles.VERT_PRINCIPAL + "; " +
+            "-fx-alignment: CENTER_LEFT; " +
+            "-fx-padding: 10 15; " +
+            "-fx-font-size: 14px; " +
+            "-fx-cursor: hand;";
+    
 
 private static final String ICONE_TABLEAU_BORD = "📊";
     private static final String ICONE_PRESENCE = "✅";
@@ -146,81 +197,167 @@ private static final String ICONE_TABLEAU_BORD = "📊";
         VBox sidebar = new VBox(10);
         sidebar.setPadding(new Insets(20));
         sidebar.setPrefWidth(280);
-        sidebar.setStyle("-fx-background-color: " + Styles.BLANC + ";" +
-                "-fx-border-color: " + Styles.GRIS_CLAIR + ";" +
-                "-fx-border-width: 0 2 0 0;");
-
+        sidebar.setStyle("-fx-background-color: " + Styles.VERT_PRINCIPAL + ";" +
+                        "-fx-border-color: " + Styles.GRIS_CLAIR + ";" +
+                        "-fx-border-width: 0 2 0 0;");
+        
         VBox profileBox = new VBox(10);
         profileBox.setAlignment(Pos.CENTER);
         profileBox.setPadding(new Insets(0, 0, 20, 0));
         profileBox.setStyle("-fx-border-color: " + Styles.GRIS_CLAIR + ";" +
-                "-fx-border-width: 0 0 2 0;");
-
+                           "-fx-border-width: 0 0 2 0;");
+        
         Label avatarLabel = new Label("📝");
         avatarLabel.setStyle("-fx-font-size: 48px;");
-
+        
         String nomAvec = avec != null ? avec.getNom() : "AVEC";
         Label avecLabel = new Label(nomAvec);
         avecLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
-
+        
         profileBox.getChildren().addAll(avatarLabel, avecLabel);
-
+        
         VBox menuBox = new VBox(5);
         menuBox.setPadding(new Insets(20, 0, 0, 0));
-
-        menuBox.getChildren().addAll(
-                createMenuButton(ICONE_TABLEAU_BORD, "Tableau de bord", this::showDashboard),
-                createMenuButton(ICONE_PARTS, "Historique Parts", this::showHistoriqueParts),
-                createMenuButton("💳", "Demandes de prêts", this::showHistoriquePrets),
-                createMenuButton(ICONE_PRESENCE, "Gestion des présences", this::showPresence),
-                createMenuButton(ICONE_PV, "Procès-verbaux", this::showPV),
-                createMenuButton(ICONE_AMENDES, "Liste des amendes", this::showAmendes),
-                createMenuButton(ICONE_MEMBRES, "Liste des membres", this::showMembres),
-                createMenuButton(ICONE_REUNIONS, "Calendrier", this::showCalendrier)
-        );
-
-        Button btnChangerMdp = new Button("🔒 Changer mot de passe");
+        
+        // ✅ Création des ToggleButton
+        ToggleButton btnDashboard = new ToggleButton(ICONE_TABLEAU_BORD + "  Tableau de bord");
+        btnDashboard.setMaxWidth(Double.MAX_VALUE);
+        btnDashboard.setStyle(STYLE_BOUTON_NORMAL);
+        
+        ToggleButton btnHistoriqueParts = new ToggleButton(ICONE_PARTS + "  Historique Parts");
+        btnHistoriqueParts.setMaxWidth(Double.MAX_VALUE);
+        btnHistoriqueParts.setStyle(STYLE_BOUTON_NORMAL);
+        
+        ToggleButton btnDemandesPrets = new ToggleButton("💳  Demandes de prêts");
+        btnDemandesPrets.setMaxWidth(Double.MAX_VALUE);
+        btnDemandesPrets.setStyle(STYLE_BOUTON_NORMAL);
+        
+        ToggleButton btnPresence = new ToggleButton(ICONE_PRESENCE + "  Gestion des présences");
+        btnPresence.setMaxWidth(Double.MAX_VALUE);
+        btnPresence.setStyle(STYLE_BOUTON_NORMAL);
+        
+        ToggleButton btnPV = new ToggleButton(ICONE_PV + "  Procès-verbaux");
+        btnPV.setMaxWidth(Double.MAX_VALUE);
+        btnPV.setStyle(STYLE_BOUTON_NORMAL);
+        
+        ToggleButton btnAmendes = new ToggleButton(ICONE_AMENDES + "  Liste des amendes");
+        btnAmendes.setMaxWidth(Double.MAX_VALUE);
+        btnAmendes.setStyle(STYLE_BOUTON_NORMAL);
+        
+        ToggleButton btnMembres = new ToggleButton(ICONE_MEMBRES + "  Liste des membres");
+        btnMembres.setMaxWidth(Double.MAX_VALUE);
+        btnMembres.setStyle(STYLE_BOUTON_NORMAL);
+        
+        ToggleButton btnCalendrier = new ToggleButton(ICONE_REUNIONS + "  Calendrier");
+        btnCalendrier.setMaxWidth(Double.MAX_VALUE);
+        btnCalendrier.setStyle(STYLE_BOUTON_NORMAL);
+        
+        // ✅ Ajout des effets de survol
+        ToggleButton[] allButtons = {btnDashboard, btnHistoriqueParts, btnDemandesPrets, btnPresence, btnPV, btnAmendes, btnMembres, btnCalendrier};
+        
+        for (ToggleButton btn : allButtons) {
+            btn.setOnMouseEntered(e -> {
+                if (!btn.isSelected()) {
+                    btn.setStyle(STYLE_BOUTON_SURVOL);
+                }
+            });
+            btn.setOnMouseExited(e -> {
+                if (!btn.isSelected()) {
+                    btn.setStyle(STYLE_BOUTON_NORMAL);
+                }
+            });
+        }
+        
+        // ✅ Actions des boutons
+        btnDashboard.setOnAction(e -> {
+            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+            btnDashboard.setStyle(STYLE_BOUTON_ACTIF);
+            showDashboard();
+        });
+        
+        btnHistoriqueParts.setOnAction(e -> {
+            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+            btnHistoriqueParts.setStyle(STYLE_BOUTON_ACTIF);
+            showHistoriqueParts();
+        });
+        
+        btnDemandesPrets.setOnAction(e -> {
+            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+            btnDemandesPrets.setStyle(STYLE_BOUTON_ACTIF);
+            showHistoriquePrets();
+        });
+        
+        btnPresence.setOnAction(e -> {
+            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+            btnPresence.setStyle(STYLE_BOUTON_ACTIF);
+            showPresence();
+        });
+        
+        btnPV.setOnAction(e -> {
+            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+            btnPV.setStyle(STYLE_BOUTON_ACTIF);
+            showPV();
+        });
+        
+        btnAmendes.setOnAction(e -> {
+            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+            btnAmendes.setStyle(STYLE_BOUTON_ACTIF);
+            showAmendes();
+        });
+        
+        btnMembres.setOnAction(e -> {
+            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+            btnMembres.setStyle(STYLE_BOUTON_ACTIF);
+            showMembres();
+        });
+        
+        btnCalendrier.setOnAction(e -> {
+            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+            btnCalendrier.setStyle(STYLE_BOUTON_ACTIF);
+            showCalendrier();
+        });
+        
+        // ✅ Groupe de toggle (un seul sélectionné à la fois)
+        ToggleGroup group = new ToggleGroup();
+        for (ToggleButton btn : allButtons) {
+            btn.setToggleGroup(group);
+        }
+        
+        // ✅ Sélectionner le premier bouton par défaut
+        btnDashboard.setSelected(true);
+        btnDashboard.setStyle(STYLE_BOUTON_ACTIF);
+        
+        menuBox.getChildren().addAll(btnDashboard, btnHistoriqueParts, btnDemandesPrets, 
+                                      btnPresence, btnPV, btnAmendes, btnMembres, btnCalendrier);
+        
+        // Bouton changer mot de passe
+        Button btnChangerMdp = new Button("🔒  Changer mot de passe");
         btnChangerMdp.setStyle(Styles.BOUTON_ACCENT);
+        btnChangerMdp.setMaxWidth(Double.MAX_VALUE);
+        btnChangerMdp.setPadding(new Insets(10, 15, 10, 15));
         btnChangerMdp.setOnAction(e -> showChangerMotDePasse());
-
-        sidebar.getChildren().addAll(profileBox, menuBox, btnChangerMdp);
-
+        
+        // Espaceur pour pousser le bouton en bas
+        Region spacer = new Region();
+        VBox.setVgrow(spacer, Priority.ALWAYS);
+        
+        sidebar.getChildren().addAll(profileBox, menuBox, spacer, btnChangerMdp);
+        
         return sidebar;
     }
-
-    private Button createMenuButton(String icon, String text, Runnable action) {
-        Button button = new Button(icon + "  " + text);
-        button.setStyle("-fx-background-color: transparent; " +
-                "-fx-text-fill: " + Styles.NOIR + "; " +
-                "-fx-font-size: 14px; " +
-                "-fx-padding: 10 15; " +
-                "-fx-alignment: CENTER_LEFT; " +
-                "-fx-cursor: hand;");
-        button.setMaxWidth(Double.MAX_VALUE);
-
-        button.setOnMouseEntered(e ->
-                button.setStyle("-fx-background-color: " + Styles.GRIS_CLAIR + "; " +
-                        "-fx-text-fill: " + Styles.VERT_PRINCIPAL + "; " +
-                        "-fx-font-size: 14px; " +
-                        "-fx-padding: 10 15; " +
-                        "-fx-alignment: CENTER_LEFT; " +
-                        "-fx-cursor: hand;")
-        );
-
-        button.setOnMouseExited(e ->
-                button.setStyle("-fx-background-color: transparent; " +
-                        "-fx-text-fill: " + Styles.NOIR + "; " +
-                        "-fx-font-size: 14px; " +
-                        "-fx-padding: 10 15; " +
-                        "-fx-alignment: CENTER_LEFT; " +
-                        "-fx-cursor: hand;")
-        );
-
-        button.setOnAction(e -> action.run());
-
-        return button;
+    
+    /**
+     * Réinitialise le style de tous les boutons
+     */
+    private void resetAllButtonsStyle(ToggleButton[] buttons, String style) {
+        for (ToggleButton btn : buttons) {
+            if (!btn.isSelected()) {
+                btn.setStyle(style);
+            }
+        }
     }
-
+    
+    
     private void showDashboard() {
         VBox dashboard = new VBox(20);
         dashboard.setPadding(new Insets(20));

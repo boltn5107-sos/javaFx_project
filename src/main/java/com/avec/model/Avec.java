@@ -196,7 +196,7 @@ public class Avec {
         if (taux.compareTo(BigDecimal.valueOf(5)) < 0 || taux.compareTo(BigDecimal.valueOf(10)) > 0) {
             throw new IllegalArgumentException("Le taux doit être entre 5% et 10%");
         }
-        this.tauxFraisServiceMensuel = taux;
+        this.tauxFraisServiceMensuel = taux;	
     }
 
     public PhaseCycle getPhaseCourante() {

@@ -8,8 +8,12 @@ import java.util.List;
 
 import com.avec.MainApp;
 import com.avec.config.Styles;
-import com.avec.model.*;
-import com.avec.view.ReunionView;
+import com.avec.model.Avec;
+import com.avec.model.Membre;
+import com.avec.model.Pret;
+import com.avec.model.Remboursement;
+import com.avec.model.Reunion;
+import com.avec.model.SessionUtilisateur;
 import com.avec.service.AvecService;
 import com.avec.service.MembreService;
 import com.avec.service.PretService;
@@ -34,6 +38,8 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -60,6 +66,32 @@ public class TresorierDashboardView {
     private TableView<Pret> pretsTable;
     private TableView<Remboursement> remboursementsTable;
     private TableView<Object> transactionsTable;
+    
+    private static final String STYLE_BOUTON_NORMAL = 
+            "-fx-background-color: transparent; " +
+            "-fx-text-fill: " + Styles.GRIS_CLAIR + "; " +
+            "-fx-alignment: CENTER_LEFT; " +
+            "-fx-padding: 10 15; " +
+            "-fx-font-size: 14px; " +
+            "-fx-cursor: hand;";
+        
+        private static final String STYLE_BOUTON_ACTIF = 
+            "-fx-background-color: " + Styles.GRIS_CLAIR + "; " +
+            "-fx-text-fill: " + Styles.VERT_PRINCIPAL + "; " +
+            "-fx-alignment: CENTER_LEFT; " +
+            "-fx-padding: 10 15; " +
+            "-fx-font-size: 14px; " +
+            "-fx-font-weight: bold; " +
+            "-fx-background-radius: 8; " +
+            "-fx-cursor: hand;";
+        
+        private static final String STYLE_BOUTON_SURVOL = 
+            "-fx-background-color: " + Styles.GRIS_CLAIR + "; " +
+            "-fx-text-fill: " + Styles.VERT_PRINCIPAL + "; " +
+            "-fx-alignment: CENTER_LEFT; " +
+            "-fx-padding: 10 15; " +
+            "-fx-font-size: 14px; " +
+            "-fx-cursor: hand;";
     
     private static final String ICONE_TABLEAU_BORD = "📊";
     private static final String ICONE_CAISSE = "💰";
@@ -154,8 +186,8 @@ public class TresorierDashboardView {
     private VBox createSidebar() {
         VBox sidebar = new VBox(10);
         sidebar.setPadding(new Insets(20));
-        sidebar.setPrefWidth(280);
-        sidebar.setStyle("-fx-background-color: " + Styles.BLANC + ";" +
+        sidebar.setPrefWidth(250);
+        sidebar.setStyle("-fx-background-color: " + Styles.VERT_PRINCIPAL + ";" +
                         "-fx-border-color: " + Styles.GRIS_CLAIR + ";" +
                         "-fx-border-width: 0 2 0 0;");
         
@@ -177,59 +209,122 @@ public class TresorierDashboardView {
         VBox menuBox = new VBox(5);
         menuBox.setPadding(new Insets(20, 0, 0, 0));
         
-        menuBox.getChildren().addAll(
-            createMenuButton(ICONE_TABLEAU_BORD, "Tableau de bord", this::showDashboard),
-            createMenuButton(ICONE_CAISSE, "Gestion de la caisse", this::showCaisse),
-            createMenuButton(ICONE_PRETS, "Décaissements", this::showDecaissements),
-            createMenuButton(ICONE_REMBOURSEMENTS, "Remboursements", this::showRemboursements),
-            createMenuButton(ICONE_HISTORIQUE, "Historique", this::showHistorique),
-            createMenuButton(ICONE_RAPPORTS, "Rapports financiers", this::showRapports)
-        );
+        // ✅ Création des ToggleButton
+        ToggleButton btnDashboard = new ToggleButton(ICONE_TABLEAU_BORD + "  Tableau de bord");
+        btnDashboard.setMaxWidth(Double.MAX_VALUE);
+        btnDashboard.setStyle(STYLE_BOUTON_NORMAL);
         
-     // Dans le header de chaque dashboard
-        Button btnChangerMdp = new Button("🔒 Changer mot de passe");
+        ToggleButton btnCaisse = new ToggleButton(ICONE_CAISSE + "  Gestion de la caisse");
+        btnCaisse.setMaxWidth(Double.MAX_VALUE);
+        btnCaisse.setStyle(STYLE_BOUTON_NORMAL);
+        
+        ToggleButton btnDecaissements = new ToggleButton(ICONE_PRETS + "  Décaissements");
+        btnDecaissements.setMaxWidth(Double.MAX_VALUE);
+        btnDecaissements.setStyle(STYLE_BOUTON_NORMAL);
+        
+        ToggleButton btnRemboursements = new ToggleButton(ICONE_REMBOURSEMENTS + "  Remboursements");
+        btnRemboursements.setMaxWidth(Double.MAX_VALUE);
+        btnRemboursements.setStyle(STYLE_BOUTON_NORMAL);
+        
+        ToggleButton btnHistorique = new ToggleButton(ICONE_HISTORIQUE + "  Historique");
+        btnHistorique.setMaxWidth(Double.MAX_VALUE);
+        btnHistorique.setStyle(STYLE_BOUTON_NORMAL);
+        
+        ToggleButton btnRapports = new ToggleButton(ICONE_RAPPORTS + "  Rapports financiers");
+        btnRapports.setMaxWidth(Double.MAX_VALUE);
+        btnRapports.setStyle(STYLE_BOUTON_NORMAL);
+        
+        // ✅ Ajout des effets de survol
+        ToggleButton[] allButtons = {btnDashboard, btnCaisse, btnDecaissements, btnRemboursements, btnHistorique, btnRapports};
+        
+        for (ToggleButton btn : allButtons) {
+            btn.setOnMouseEntered(e -> {
+                if (!btn.isSelected()) {
+                    btn.setStyle(STYLE_BOUTON_SURVOL);
+                }
+            });
+            btn.setOnMouseExited(e -> {
+                if (!btn.isSelected()) {
+                    btn.setStyle(STYLE_BOUTON_NORMAL);
+                }
+            });
+        }
+        
+        // ✅ Actions des boutons
+        btnDashboard.setOnAction(e -> {
+            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+            btnDashboard.setStyle(STYLE_BOUTON_ACTIF);
+            showDashboard();
+        });
+        
+        btnCaisse.setOnAction(e -> {
+            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+            btnCaisse.setStyle(STYLE_BOUTON_ACTIF);
+            showCaisse();
+        });
+        
+        btnDecaissements.setOnAction(e -> {
+            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+            btnDecaissements.setStyle(STYLE_BOUTON_ACTIF);
+            showDecaissements();
+        });
+        
+        btnRemboursements.setOnAction(e -> {
+            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+            btnRemboursements.setStyle(STYLE_BOUTON_ACTIF);
+            showRemboursements();
+        });
+        
+        btnHistorique.setOnAction(e -> {
+            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+            btnHistorique.setStyle(STYLE_BOUTON_ACTIF);
+            showHistorique();
+        });
+        
+        btnRapports.setOnAction(e -> {
+            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+            btnRapports.setStyle(STYLE_BOUTON_ACTIF);
+            showRapports();
+        });
+        
+        // ✅ Groupe de toggle (un seul sélectionné à la fois)
+        ToggleGroup group = new ToggleGroup();
+        for (ToggleButton btn : allButtons) {
+            btn.setToggleGroup(group);
+        }
+        
+        // ✅ Sélectionner le premier bouton par défaut
+        btnDashboard.setSelected(true);
+        btnDashboard.setStyle(STYLE_BOUTON_ACTIF);
+        
+        menuBox.getChildren().addAll(btnDashboard, btnCaisse, btnDecaissements, btnRemboursements, btnHistorique, btnRapports);
+        
+        // Bouton changer mot de passe
+        Button btnChangerMdp = new Button("🔒  Changer mot de passe");
         btnChangerMdp.setStyle(Styles.BOUTON_ACCENT);
+        btnChangerMdp.setMaxWidth(Double.MAX_VALUE);
+        btnChangerMdp.setPadding(new Insets(10, 15, 10, 15));
         btnChangerMdp.setOnAction(e -> showChangerMotDePasse());
-
         
-        sidebar.getChildren().addAll(profileBox, menuBox,btnChangerMdp);
+        // Espaceur pour pousser le bouton en bas
+        Region spacer = new Region();
+        VBox.setVgrow(spacer, Priority.ALWAYS);
+        
+        sidebar.getChildren().addAll(profileBox, menuBox, spacer, btnChangerMdp);
         
         return sidebar;
     }
     
-    private Button createMenuButton(String icon, String text, Runnable action) {
-        Button button = new Button(icon + "  " + text);
-        button.setStyle("-fx-background-color: transparent; " +
-                       "-fx-text-fill: " + Styles.NOIR + "; " +
-                       "-fx-font-size: 14px; " +
-                       "-fx-padding: 10 15; " +
-                       "-fx-alignment: CENTER_LEFT; " +
-                       "-fx-cursor: hand;");
-        button.setMaxWidth(Double.MAX_VALUE);
-        
-        button.setOnMouseEntered(e -> 
-            button.setStyle("-fx-background-color: " + Styles.GRIS_CLAIR + "; " +
-                           "-fx-text-fill: " + Styles.VERT_PRINCIPAL + "; " +
-                           "-fx-font-size: 14px; " +
-                           "-fx-padding: 10 15; " +
-                           "-fx-alignment: CENTER_LEFT; " +
-                           "-fx-cursor: hand;")
-        );
-        
-        button.setOnMouseExited(e -> 
-            button.setStyle("-fx-background-color: transparent; " +
-                           "-fx-text-fill: " + Styles.NOIR + "; " +
-                           "-fx-font-size: 14px; " +
-                           "-fx-padding: 10 15; " +
-                           "-fx-alignment: CENTER_LEFT; " +
-                           "-fx-cursor: hand;")
-        );
-        
-        button.setOnAction(e -> action.run());
-        
-        return button;
+    /**
+     * Réinitialise le style de tous les boutons
+     */
+    private void resetAllButtonsStyle(ToggleButton[] buttons, String style) {
+        for (ToggleButton btn : buttons) {
+            if (!btn.isSelected()) {
+                btn.setStyle(style);
+            }
+        }
     }
-    
     private void showGestionReunion() {
         if (tresorier != null && tresorier.getAvecId() != null) {
             ReunionView rv = new ReunionView(tresorier.getAvecId());

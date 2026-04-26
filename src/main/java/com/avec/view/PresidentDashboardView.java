@@ -45,6 +45,8 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -69,12 +71,39 @@ public class PresidentDashboardView {
 
 	private TableView<Membre> membresTable;
 	private TableView<Membre> amendeTable;
+	
+	 private static final String STYLE_BOUTON_NORMAL = 
+	            "-fx-background-color: transparent; " +
+	            "-fx-text-fill: " + Styles.GRIS_CLAIR + "; " +
+	            "-fx-alignment: CENTER_LEFT; " +
+	            "-fx-padding: 10 15; " +
+	            "-fx-font-size: 14px; " +
+	            "-fx-cursor: hand;";
+	        
+	        private static final String STYLE_BOUTON_ACTIF = 
+	            "-fx-background-color: " + Styles.GRIS_CLAIR + "; " +
+	            "-fx-text-fill: " + Styles.VERT_PRINCIPAL + "; " +
+	            "-fx-alignment: CENTER_LEFT; " +
+	            "-fx-padding: 10 15; " +
+	            "-fx-font-size: 14px; " +
+	            "-fx-font-weight: bold; " +
+	            "-fx-background-radius: 8; " +
+	            "-fx-cursor: hand;";
+	        
+	        private static final String STYLE_BOUTON_SURVOL = 
+	            "-fx-background-color: " + Styles.GRIS_CLAIR + "; " +
+	            "-fx-text-fill: " + Styles.VERT_PRINCIPAL + "; " +
+	            "-fx-alignment: CENTER_LEFT; " +
+	            "-fx-padding: 10 15; " +
+	            "-fx-font-size: 14px; " +
+	            "-fx-cursor: hand;";
 
 	private static final String ICONE_MEMBRES = "👥";
 	private static final String ICONE_COMITE = "👤";
 	private static final String ICONE_DECONNEXION = "🚪";
 	private static final String ICONE_AMENDES = "💰";
 	private static final String ICONE_REUNION = "📅";
+	 private static final String ICONE_LISTE = "📋";
 	private static final String ICONE_PRET = "💳";
 
 	public PresidentDashboardView(MainApp mainApp) {
@@ -152,90 +181,180 @@ public class PresidentDashboardView {
 		return header;
 	}
 
-	private VBox createSidebar() {
-		VBox sidebar = new VBox(10);
-		sidebar.setPadding(new Insets(20));
-		sidebar.setPrefWidth(250);
-		sidebar.setStyle("-fx-background-color: " + Styles.BLANC + ";" + "-fx-border-color: " + Styles.GRIS_CLAIR + ";"
-				+ "-fx-border-width: 0 2 0 0;");
-
-		VBox profileBox = new VBox(10);
-		profileBox.setAlignment(Pos.CENTER);
-		profileBox.setPadding(new Insets(0, 0, 20, 0));
-		profileBox.setStyle("-fx-border-color: " + Styles.GRIS_CLAIR + ";" + "-fx-border-width: 0 0 2 0;");
-
-		Label avatarLabel = new Label("👑");
-		avatarLabel.setStyle("-fx-font-size: 48px;");
-
-		Label nameLabel = new Label(president.getNomComplet());
-		nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
-
-		profileBox.getChildren().addAll(avatarLabel, nameLabel);
-
-		VBox menuBox = new VBox(5);
-		menuBox.setPadding(new Insets(20, 0, 0, 0));
-
-		menuBox.getChildren().addAll(createMenuButton(ICONE_MEMBRES, "Gestion des membres", this::showMembres),
-				createMenuButton(ICONE_REUNION, "Réunions", this::showGestionReunion),
-				createMenuButton(ICONE_PRET, "Demandes de prêts", this::showDemandesPrets),
-				createMenuButton(ICONE_COMITE, "Comité de gestion", this::showComite),
-				createMenuButton(ICONE_AMENDES, "Gestion des amendes", this::showAmendes),
-	            createMenuButton(ICONE_MEMBRES, "Liste des membres", this::showMembre));
-		
-		// Dans le header de chaque dashboard
-		Button btnChangerMdp = new Button("🔒 Changer mot de passe");
-		btnChangerMdp.setStyle(Styles.BOUTON_ACCENT);
-		btnChangerMdp.setOnAction(e -> showChangerMotDePasse());
-
-		
-
-		sidebar.getChildren().addAll(profileBox, menuBox, btnChangerMdp);
-
-		return sidebar;
-	}
-
-	private Button createMenuButton(String icon, String text, Runnable action) {
-		Button button = new Button(icon + "  " + text);
-		button.setStyle(
-				"-fx-background-color: transparent; " + "-fx-text-fill: " + Styles.NOIR + "; " + "-fx-font-size: 14px; "
-						+ "-fx-padding: 10 15; " + "-fx-alignment: CENTER_LEFT; " + "-fx-cursor: hand;");
-		button.setMaxWidth(Double.MAX_VALUE);
-		button.setOnAction(e -> action.run());
-		return button;
-	}
+	 private VBox createSidebar() {
+	        VBox sidebar = new VBox(10);
+	        sidebar.setPadding(new Insets(20));
+	        sidebar.setPrefWidth(250);
+	        sidebar.setStyle("-fx-background-color: " + Styles.VERT_PRINCIPAL + ";" +
+	                        "-fx-border-color: " + Styles.GRIS_CLAIR + ";" +
+	                        "-fx-border-width: 0 2 0 0;");
+	        
+	        VBox profileBox = new VBox(10);
+	        profileBox.setAlignment(Pos.CENTER);
+	        profileBox.setPadding(new Insets(0, 0, 20, 0));
+	        profileBox.setStyle("-fx-border-color: " + Styles.GRIS_CLAIR + ";" +
+	                           "-fx-border-width: 0 0 2 0;");
+	        
+	        Label avatarLabel = new Label("👑");
+	        avatarLabel.setStyle("-fx-font-size: 48px;");
+	        
+	        Label nameLabel = new Label(president.getNomComplet());
+	        nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+	        
+	        profileBox.getChildren().addAll(avatarLabel, nameLabel);
+	        
+	        VBox menuBox = new VBox(5);
+	        menuBox.setPadding(new Insets(20, 0, 0, 0));
+	        
+	        // ✅ Création des ToggleButton
+	        ToggleButton btnMembres = new ToggleButton(ICONE_MEMBRES + "  Gestion des membres");
+	        btnMembres.setMaxWidth(Double.MAX_VALUE);
+	        btnMembres.setStyle(STYLE_BOUTON_NORMAL);
+	        
+	        ToggleButton btnReunions = new ToggleButton(ICONE_REUNION + "  Réunions");
+	        btnReunions.setMaxWidth(Double.MAX_VALUE);
+	        btnReunions.setStyle(STYLE_BOUTON_NORMAL);
+	        
+	        ToggleButton btnDemandesPrets = new ToggleButton(ICONE_PRET + "  Demandes de prêts");
+	        btnDemandesPrets.setMaxWidth(Double.MAX_VALUE);
+	        btnDemandesPrets.setStyle(STYLE_BOUTON_NORMAL);
+	        
+	        ToggleButton btnComite = new ToggleButton(ICONE_COMITE + "  Comité de gestion");
+	        btnComite.setMaxWidth(Double.MAX_VALUE);
+	        btnComite.setStyle(STYLE_BOUTON_NORMAL);
+	        
+	        ToggleButton btnAmendes = new ToggleButton(ICONE_AMENDES + "  Gestion des amendes");
+	        btnAmendes.setMaxWidth(Double.MAX_VALUE);
+	        btnAmendes.setStyle(STYLE_BOUTON_NORMAL);
+	        
+	        ToggleButton btnListeMembres = new ToggleButton(ICONE_LISTE + "  Liste des membres");
+	        btnListeMembres.setMaxWidth(Double.MAX_VALUE);
+	        btnListeMembres.setStyle(STYLE_BOUTON_NORMAL);
+	        
+	        // ✅ Ajout des effets de survol
+	        ToggleButton[] allButtons = {btnMembres, btnReunions, btnDemandesPrets, btnComite, btnAmendes, btnListeMembres};
+	        
+	        for (ToggleButton btn : allButtons) {
+	            btn.setOnMouseEntered(e -> {
+	                if (!btn.isSelected()) {
+	                    btn.setStyle(STYLE_BOUTON_SURVOL);
+	                }
+	            });
+	            btn.setOnMouseExited(e -> {
+	                if (!btn.isSelected()) {
+	                    btn.setStyle(STYLE_BOUTON_NORMAL);
+	                }
+	            });
+	        }
+	        
+	        // ✅ Actions des boutons
+	        btnMembres.setOnAction(e -> {
+	            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+	            btnMembres.setStyle(STYLE_BOUTON_ACTIF);
+	            showMembres();
+	        });
+	        
+	        btnReunions.setOnAction(e -> {
+	            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+	            btnReunions.setStyle(STYLE_BOUTON_ACTIF);
+	            showGestionReunion();
+	        });
+	        
+	        btnDemandesPrets.setOnAction(e -> {
+	            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+	            btnDemandesPrets.setStyle(STYLE_BOUTON_ACTIF);
+	            showDemandesPrets();
+	        });
+	        
+	        btnComite.setOnAction(e -> {
+	            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+	            btnComite.setStyle(STYLE_BOUTON_ACTIF);
+	            showComite();
+	        });
+	        
+	        btnAmendes.setOnAction(e -> {
+	            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+	            btnAmendes.setStyle(STYLE_BOUTON_ACTIF);
+	            showAmendes();
+	        });
+	        
+	        btnListeMembres.setOnAction(e -> {
+	            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+	            btnListeMembres.setStyle(STYLE_BOUTON_ACTIF);
+	            showMembre();
+	        });
+	        
+	        // ✅ Groupe de toggle (un seul sélectionné à la fois)
+	        ToggleGroup group = new ToggleGroup();
+	        for (ToggleButton btn : allButtons) {
+	            btn.setToggleGroup(group);
+	        }
+	        
+	        // ✅ Sélectionner le premier bouton par défaut
+	        btnMembres.setSelected(true);
+	        btnMembres.setStyle(STYLE_BOUTON_ACTIF);
+	        
+	        menuBox.getChildren().addAll(btnMembres, btnReunions, btnDemandesPrets, btnComite, btnAmendes, btnListeMembres);
+	        
+	        // Bouton changer mot de passe
+	        Button btnChangerMdp = new Button("🔒  Changer mot de passe");
+	        btnChangerMdp.setStyle(Styles.BOUTON_ACCENT);
+	        btnChangerMdp.setMaxWidth(Double.MAX_VALUE);
+	        btnChangerMdp.setPadding(new Insets(10, 15, 10, 15));
+	        btnChangerMdp.setOnAction(e -> showChangerMotDePasse());
+	        
+	        // Espaceur pour pousser le bouton en bas
+	        Region spacer = new Region();
+	        VBox.setVgrow(spacer, Priority.ALWAYS);
+	        
+	        sidebar.getChildren().addAll(profileBox, menuBox, spacer, btnChangerMdp);
+	        
+	        return sidebar;
+	    }
+	    
+	    /**
+	     * Réinitialise le style de tous les boutons
+	     */
+	    private void resetAllButtonsStyle(ToggleButton[] buttons, String style) {
+	        for (ToggleButton btn : buttons) {
+	            if (!btn.isSelected()) {
+	                btn.setStyle(style);
+	            }
+	        }
+	    }
+	    
 	
-	
-	
-	private void showMembre() {
-        VBox view = new VBox(15);
-        view.setPadding(new Insets(20));
-        
-        Label title = new Label("Liste des membres");
-        title.setStyle(Styles.TITRE_PRINCIPAL);
-        
-        TableView<Membre> table = new TableView<>();
-        
-        TableColumn<Membre, String> colNom = new TableColumn<>("Nom");
-        colNom.setCellValueFactory(new PropertyValueFactory<>("nom"));
-        TableColumn<Membre, String> colPrenom = new TableColumn<>("Prénom");
-        colPrenom.setCellValueFactory(new PropertyValueFactory<>("prenom"));
-        TableColumn<Membre, String> colCarte = new TableColumn<>("N° Carte");
-        colCarte.setCellValueFactory(new PropertyValueFactory<>("numeroCarte"));
-        TableColumn<Membre, String> colTelephone = new TableColumn<>("Téléphone");
-        colTelephone.setCellValueFactory(new PropertyValueFactory<>("telephone"));
-        
-        table.getColumns().addAll(colNom, colPrenom, colCarte, colTelephone);
-        
-        try {
-            List<Membre> membres = membreService.getMembresByAvecId(president.getAvecId());
-            table.setItems(FXCollections.observableArrayList(membres));
-        } catch (SQLException e) {
-        	showAlert("Erreur", "Impossible de charger les membres: " + e.getMessage());
-        }
-        
-        view.getChildren().addAll(title, table);
-        root.setCenter(view);
-	}
+	    private void showMembre() {
+	        VBox view = new VBox(15);
+	        view.setPadding(new Insets(20));
+	        
+	        Label title = new Label("Liste des membres");
+	        title.setStyle(Styles.TITRE_PRINCIPAL);
+	        
+	        TableView<Membre> table = new TableView<>();
+	        
+	        TableColumn<Membre, String> colNom = new TableColumn<>("Nom");
+	        colNom.setCellValueFactory(new PropertyValueFactory<>("nom"));
+	        TableColumn<Membre, String> colPrenom = new TableColumn<>("Prénom");
+	        colPrenom.setCellValueFactory(new PropertyValueFactory<>("prenom"));
+	        TableColumn<Membre, String> colCarte = new TableColumn<>("N° Carte");
+	        colCarte.setCellValueFactory(new PropertyValueFactory<>("numeroCarte"));
+	        TableColumn<Membre, String> colTelephone = new TableColumn<>("Téléphone");
+	        colTelephone.setCellValueFactory(new PropertyValueFactory<>("telephone"));
+	        
+	        table.getColumns().addAll(colNom, colPrenom, colCarte, colTelephone);
+	        
+	        try {
+	            List<Membre> membres = membreService.getMembresByAvecId(president.getAvecId());
+	            table.setItems(FXCollections.observableArrayList(membres));
+	        } catch (SQLException e) {
+	        	showAlert("Erreur", "Impossible de charger les membres: " + e.getMessage());
+	        }
+	        
+	        view.getChildren().addAll(title, table);
+	        root.setCenter(view);
+		}
+
 
 private void showGestionReunion() {
 		if (president != null && president.getAvecId() != null) {
