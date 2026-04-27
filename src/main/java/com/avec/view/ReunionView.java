@@ -90,7 +90,7 @@ public class ReunionView {
                 reunion.setSoldeCaisseSolidaritesApres(java.math.BigDecimal.ZERO);
                 
                 // Si vous avez un cycle actif, vous pouvez le définir ici
-                // reunion.setCycleId(cycleId);
+                 //reunion.setCycleId(cycleId);
 
                 reunionService.enregistrerReunion(reunion);
 
