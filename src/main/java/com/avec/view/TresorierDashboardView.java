@@ -1008,22 +1008,74 @@ public class TresorierDashboardView {
         alert.setHeaderText("Rapport financier " + periode);
         
         StringBuilder content = new StringBuilder();
-        content.append("=== RAPPORT FINANCIER ===\n\n");
-        content.append("Période: ").append(periode).append("\n");
+        content.append("=== RAPPORT FINANCIER ").append(periode.toUpperCase()).append(" ===\n\n");
         content.append("AVEC: ").append(avec != null ? avec.getNom() : "N/A").append("\n");
         content.append("Date: ").append(LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))).append("\n\n");
         
-        content.append("Fonds de crédit: ").append(formatMontant(avec.getTotalCredit())).append("\n");
-        content.append("Caisse solidarité: ").append(formatMontant(avec.getCotisationCaisseSolidarite())).append("\n");
+        BigDecimal fondsCredit = BigDecimal.ZERO;
+        BigDecimal caisseSolidarite = BigDecimal.ZERO;
+        
+        if (avec != null) {
+            try {
+                AvecService avs = new AvecService();
+                var stats = avs.getStatistiquesCompletes();
+                fondsCredit = stats.getTotalCredit();
+                caisseSolidarite = avec.getCotisationCaisseSolidarite() != null ? 
+                    avec.getCotisationCaisseSolidarite() : BigDecimal.ZERO;
+            } catch (SQLException e) {
+                System.err.println("Erreur stats: " + e.getMessage());
+            }
+        }
+        
+        content.append("--- SITUATION DE LA CAISSE ---\n");
+        content.append("Fonds de crédit: ").append(formatMontant(fondsCredit)).append("\n");
+        content.append("Caisse solidarité: ").append(formatMontant(caisseSolidarite)).append("\n");
+        content.append("Total disponible: ").append(formatMontant(fondsCredit.add(caisseSolidarite))).append("\n\n");
         
         int totalPrets = pretService.compterPrets();
+        int pretsActifs = pretService.compterPretsActifsParAvecId(tresorier.getAvecId());
+        
+        content.append("--- STATISTIQUES DES PRÊTS ---\n");
         content.append("Total prêts décaissés: ").append(totalPrets).append("\n");
-        content.append("Prêts en cours: ").append(pretService.compterPretsActifs()).append("\n");
+        content.append("Prêts en cours: ").append(pretsActifs).append("\n");
+        
+        try {
+            MembreService ms = new MembreService();
+            List<Membre> membres = ms.getMembresByAvecId(tresorier.getAvecId());
+            BigDecimal totalEpargne = BigDecimal.ZERO;
+            
+            for (Membre m : membres) {
+                if (m.getNombreParts() > 0 && avec != null && avec.getPrixPart() != null) {
+                    totalEpargne = totalEpargne.add(
+                        BigDecimal.valueOf(m.getNombreParts()).multiply(avec.getPrixPart())
+                    );
+                }
+            }
+            
+            content.append("\n--- ÉPARGNE DES MEMBRES ---\n");
+            content.append("Total épargne: ").append(formatMontant(totalEpargne)).append("\n");
+            content.append("Nombre de membres: ").append(membres.size()).append("\n");
+            
+            if (membres.size() > 0 && totalEpargne.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal avgEpargne = totalEpargne.divide(BigDecimal.valueOf(membres.size()), 2, BigDecimal.ROUND_HALF_UP);
+                content.append("Épargne moyenne: ").append(formatMontant(avgEpargne)).append("\n");
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("Erreur: " + e.getMessage());
+        }
+        
+        content.append("\n--- INFORMATIONS GÉNÉRALES ---\n");
+        if (avec != null) {
+            content.append("Prix d'une part: ").append(formatMontant(avec.getPrixPart())).append("\n");
+            content.append("Taux frais service: ").append(avec.getTauxFraisServiceMensuel()).append("%\n");
+            content.append("Phase: ").append(avec.getPhaseCourante().getLibelle()).append("\n");
+        }
         
         TextArea textArea = new TextArea(content.toString());
         textArea.setEditable(false);
-        textArea.setPrefHeight(300);
-        textArea.setPrefWidth(400);
+        textArea.setPrefHeight(400);
+        textArea.setPrefWidth(450);
         
         alert.getDialogPane().setContent(textArea);
         alert.showAndWait();
@@ -1037,38 +1089,87 @@ public class TresorierDashboardView {
         alert.setHeaderText("Bilan des prêts - " + (avec != null ? avec.getNom() : "AVEC"));
         
         StringBuilder content = new StringBuilder();
-        content.append("=== BILAN DES PRÊTS ===\n\n");
-        content.append("Date: ").append(LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))).append("\n\n");
+        content.append("═══════════════════════════════════════════\n");
+        content.append("         BILAN DES PRÊTS\n");
+        content.append("═══════════════════════════════════════════\n\n");
+        content.append("Date: ").append(LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))).append("\n");
+        if (avec != null) {
+            content.append("AVEC: ").append(avec.getNom()).append("\n");
+            content.append("Prix part: ").append(formatMontant(avec.getPrixPart())).append("\n\n");
+        }
         
         BigDecimal totalDecaisse = BigDecimal.ZERO;
         BigDecimal totalRembourse = BigDecimal.ZERO;
+        int pretsActifs = 0;
+        int pretsTermines = 0;
+        int pretsEnRetard = 0;
         
-        for (Pret pret : prets) {
-            content.append("Prêt #").append(pret.getNumeroPret()).append("\n");
-            content.append("  Emprunteur: ").append(pret.getEmprunteur().getNomComplet()).append("\n");
-            content.append("  Montant: ").append(formatMontant(pret.getMontantInitial())).append("\n");
-            content.append("  Restant: ").append(formatMontant(pret.getMontantRestantDu())).append("\n");
-            content.append("  Statut: ").append(pret.getStatut().getLibelle()).append("\n\n");
+        if (prets == null || prets.isEmpty()) {
+            content.append("Aucun prêt enregistré.\n");
+        } else {
+            content.append("--- DÉTAIL DES PRÊTS ---\n\n");
             
-            totalDecaisse = totalDecaisse.add(pret.getMontantInitial());
-            BigDecimal rembourse = pret.getMontantInitial().subtract(pret.getMontantRestantDu());
-            totalRembourse = totalRembourse.add(rembourse);
+            for (Pret pret : prets) {
+                String nomEmprunteur = "Inconnu";
+                if (pret.getEmprunteur() != null) {
+                    nomEmprunteur = pret.getEmprunteur().getNomComplet();
+                } else if (pret.getEmprunteurId() != null) {
+                    try {
+                        Membre m = membreService.getMembreById(pret.getEmprunteurId());
+                        if (m != null) nomEmprunteur = m.getNomComplet();
+                    } catch (Exception e) {}
+                }
+                
+                content.append("► Prêt #").append(pret.getNumeroPret() != null ? pret.getNumeroPret() : pret.getId()).append("\n");
+                content.append("  Emprunteur: ").append(nomEmprunteur).append("\n");
+                content.append("  Montant initial: ").append(formatMontant(pret.getMontantInitial())).append("\n");
+                content.append("  Montant restant: ").append(formatMontant(pret.getMontantRestantDu())).append("\n");
+                content.append("  Durée: ").append(pret.getDureeEnSemaines()).append(" semaines\n");
+                content.append("  Échéance: ").append(pret.getDateEcheance() != null ? 
+                    pret.getDateEcheance().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "N/A").append("\n");
+                content.append("  Statut: ").append(pret.getStatut().getLibelle()).append("\n\n");
+                
+                if (pret.getMontantInitial() != null) {
+                    totalDecaisse = totalDecaisse.add(pret.getMontantInitial());
+                    
+                    BigDecimal rembourse = pret.getMontantInitial().subtract(pret.getMontantRestantDu());
+                    totalRembourse = totalRembourse.add(rembourse);
+                    
+                    if (pret.getStatut() == com.avec.enums.StatutPret.ACTIF) {
+                        pretsActifs++;
+                    } else if (pret.getStatut() == com.avec.enums.StatutPret.REMBOURSE) {
+                        pretsTermines++;
+                    } else if (pret.getStatut() == com.avec.enums.StatutPret.EN_RETARD || 
+                               pret.getStatut() == com.avec.enums.StatutPret.IMPAYE) {
+                        pretsEnRetard++;
+                    }
+                }
+            }
         }
         
-        content.append("=== RÉCAPITULATIF ===\n");
-        content.append("Total décaissé: ").append(formatMontant(totalDecaisse)).append("\n");
+        content.append("═══════════════════════════════════════════\n");
+        content.append("         RÉCAPITULATIF\n");
+        content.append("═══════════════════════════════════════════\n\n");
+        content.append("Total des prêts décaissés: ").append(formatMontant(totalDecaisse)).append("\n");
         content.append("Total remboursé: ").append(formatMontant(totalRembourse)).append("\n");
+        content.append("Total restant dû: ").append(formatMontant(totalDecaisse.subtract(totalRembourse))).append("\n\n");
+        
+        content.append("Répartition:\n");
+        content.append("  • Prêts en cours: ").append(pretsActifs).append("\n");
+        content.append("  • Prêts remboursés: ").append(pretsTermines).append("\n");
+        content.append("  • Prêts en retard: ").append(pretsEnRetard).append("\n\n");
         
         if (totalDecaisse.compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal taux = totalRembourse.multiply(new BigDecimal(100))
+            BigDecimal taux = totalRembourse.multiply(BigDecimal.valueOf(100))
                     .divide(totalDecaisse, 2, BigDecimal.ROUND_HALF_UP);
-            content.append("Taux de recouvrement: ").append(taux).append("%\n");
+            content.append("═══════════════════════════════════════════\n");
+            content.append("Taux de remboursement: ").append(taux).append("%\n");
         }
         
         TextArea textArea = new TextArea(content.toString());
         textArea.setEditable(false);
-        textArea.setPrefHeight(400);
-        textArea.setPrefWidth(500);
+        textArea.setPrefHeight(500);
+        textArea.setPrefWidth(550);
         
         alert.getDialogPane().setContent(textArea);
         alert.showAndWait();

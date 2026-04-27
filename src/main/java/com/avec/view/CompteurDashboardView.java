@@ -1,15 +1,18 @@
 package com.avec.view;
 
 import java.sql.SQLException;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
 import com.avec.MainApp;
 import com.avec.config.Styles;
 import com.avec.model.Avec;
+import com.avec.model.Comptage;
 import com.avec.model.Membre;
 import com.avec.model.SessionUtilisateur;
 import com.avec.service.AvecService;
+import com.avec.service.ComptageService;
 import com.avec.service.MembreService;
 import com.avec.service.UtilisateurService;
 
@@ -46,6 +49,7 @@ public class CompteurDashboardView {
     private SessionUtilisateur session;
     private MembreService membreService;
     private AvecService avecService;
+    private ComptageService comptageService;
     private UtilisateurService utilisateurService;
     private BorderPane root;
     
@@ -85,11 +89,12 @@ public class CompteurDashboardView {
     private static final String ICONE_CAISSE = "💰";
     private static final String ICONE_DECONNEXION = "🚪";
     
-    public CompteurDashboardView(MainApp mainApp) {
+    public CompteurDashboardView(MainApp mainApp) throws SQLException {
         this.mainApp = mainApp;
         this.session = SessionUtilisateur.getInstance();
         this.membreService = new MembreService();
         this.avecService = new AvecService();
+        this.comptageService = new ComptageService();
         this.compteur = session.getMembre();
         initData();
         createView();
@@ -97,15 +102,19 @@ public class CompteurDashboardView {
     
     private void initData() {
         try {
-            if (compteur != null && compteur.getAvecId() != null) {
-                this.avec = avecService.getAvecById(compteur.getAvecId());
-            }
+            refreshirData();
         } catch (SQLException e) {
             showAlert("Erreur", "Impossible de charger les données: " + e.getMessage());
         }
     }
     
-    private void createView() {
+    private void refreshirData() throws SQLException {
+        if (compteur != null && compteur.getAvecId() != null) {
+            this.avec = avecService.getAvecById(compteur.getAvecId());
+        }
+    }
+    
+    private void createView() throws SQLException {
         root = new BorderPane();
         root.setStyle("-fx-background-color: " + Styles.GRIS_CLAIR + ";");
         root.setTop(createHeader());
@@ -227,7 +236,11 @@ public class CompteurDashboardView {
         btnDashboard.setOnAction(e -> {
             resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
             btnDashboard.setStyle(STYLE_BOUTON_ACTIF);
-            showDashboard();
+            try {
+                showDashboard();
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
+            }
         });
         
         btnComptage.setOnAction(e -> {
@@ -294,13 +307,26 @@ public class CompteurDashboardView {
     }
     
     
-    private void showDashboard() {
+private void showDashboard() throws SQLException {
         VBox dashboard = new VBox(20);
         dashboard.setPadding(new Insets(20));
         dashboard.setAlignment(Pos.TOP_CENTER);
         
+        refreshirData();
+        
         try {
             int totalMembres = membreService.getMembresByAvecId(compteur.getAvecId()).size();
+            
+            Comptage dernierComptage = comptageService.getLastComptage(compteur.getAvecId());
+            BigDecimal fondsCredit = dernierComptage != null ? dernierComptage.getFondCredit() : BigDecimal.ZERO;
+            BigDecimal caisseSolidarite = avec != null ? avec.getCotisationCaisseSolidarite() : BigDecimal.ZERO;
+            int totalParts = 0;
+            for (Membre m : membreService.getMembresByAvecId(compteur.getAvecId())) {
+                totalParts += m.getNombreParts();
+            }
+            
+            String fondosFormat = String.format("%,.0f", fondsCredit).replace(',', ' ') + " FCA";
+            String solidariteFormat = String.format("%,.0f", caisseSolidarite.multiply(BigDecimal.valueOf(totalMembres))).replace(',', ' ') + " FCA";
             
             Label welcomeLabel = new Label("Tableau de bord du Compteur");
             welcomeLabel.setStyle(Styles.TITRE_PRINCIPAL);
@@ -310,9 +336,9 @@ public class CompteurDashboardView {
             statsBox.setPadding(new Insets(20, 0, 20, 0));
             
             VBox carte1 = createStatCard("👥", "Membres", String.valueOf(totalMembres), Styles.VERT_PRINCIPAL);
-            VBox carte2 = createStatCard("💰", "Fonds crédit", "0 FCFA", Styles.BLEU_SECONDAIRE);
-            VBox carte3 = createStatCard("🤝", "Caisse solidarité", "0 FCFA", Styles.ACCENT_DORE);
-            VBox carte4 = createStatCard("📊", "Parts totales", "0", Styles.VERT_PRINCIPAL);
+            VBox carte2 = createStatCard("💰", "Fonds crédit", fondosFormat, Styles.BLEU_SECONDAIRE);
+            VBox carte3 = createStatCard("🤝", "Caisse solidarité", solidariteFormat, Styles.ACCENT_DORE);
+            VBox carte4 = createStatCard("📊", "Parts totales", String.valueOf(totalParts), Styles.VERT_PRINCIPAL);
             
             statsBox.getChildren().addAll(carte1, carte2, carte3, carte4);
             
@@ -339,7 +365,7 @@ public class CompteurDashboardView {
             showAlert("Erreur", "Erreur chargement données: " + e.getMessage());
         }
         
-        root.setCenter(dashboard);
+       root.setCenter(dashboard);
     }
     
     private void showComptage() {
@@ -398,9 +424,40 @@ public class CompteurDashboardView {
         
         Button validerButton = new Button("✅ Valider le comptage");
         validerButton.setStyle(Styles.BOUTON_PRINCIPAL);
+        validerButton.setOnAction(e -> {
+            try {
+                LocalDate dateComptage = datePicker.getValue() != null ? datePicker.getValue() : LocalDate.now();
+                BigDecimal fondCredit = fondCreditField.getText().isEmpty() ? BigDecimal.ZERO : new BigDecimal(fondCreditField.getText().replace(" ", "").replace(",", "."));
+                BigDecimal amendes = amendesField.getText().isEmpty() ? BigDecimal.ZERO : new BigDecimal(amendesField.getText().replace(" ", "").replace(",", "."));
+                
+                Comptage comptage = new Comptage();
+                comptage.setAvecId(compteur.getAvecId());
+                comptage.setDateComptage(dateComptage);
+                comptage.setFondCredit(fondCredit);
+                comptage.setAmendes(amendes);
+                comptage.setCompteurId(compteur.getId());
+                comptage.setEstConfirme(false);
+                
+                comptageService.save(comptage);
+                
+                showInfo("Succès", "Comptage enregistré avec succès!");
+                fondCreditField.clear();
+                amendesField.clear();
+                totalValueLabel.setText("0 FCFA");
+                
+            } catch (Exception ex) {
+                showAlert("Erreur", "Erreur lors de l'enregistrement: " + ex.getMessage());
+            }
+        });
         
         Button annulerButton = new Button("❌ Annuler");
         annulerButton.setStyle(Styles.BOUTON_SECONDAIRE);
+        annulerButton.setOnAction(e -> {
+            fondCreditField.clear();
+            amendesField.clear();
+            datePicker.setValue(LocalDate.now());
+            totalValueLabel.setText("0");
+        });
         
         buttonBox.getChildren().addAll(validerButton, annulerButton);
         
@@ -486,7 +543,7 @@ public class CompteurDashboardView {
         root.setCenter(view);
     }
     
-    private void showEtatCaisse() {
+private void showEtatCaisse() {
         VBox view = new VBox(15);
         view.setPadding(new Insets(20));
         
@@ -500,22 +557,19 @@ public class CompteurDashboardView {
         grid.setStyle("-fx-background-color: " + Styles.BLANC + ";" +
                      "-fx-background-radius: 10;");
         
-        // Fonds de crédit
         Label creditLabel = new Label("Fonds de crédit:");
         creditLabel.setStyle("-fx-font-weight: bold;");
-        Label creditValue = new Label("0 FCFA");
+        Label creditValue = new Label("0 FCA");
         creditValue.setStyle("-fx-text-fill: " + Styles.VERT_PRINCIPAL + "; -fx-font-size: 16px;");
         
-        // Caisse solidarité
         Label solidariteLabel = new Label("Caisse solidarité:");
         solidariteLabel.setStyle("-fx-font-weight: bold;");
-        Label solidariteValue = new Label("0 FCFA");
+        Label solidariteValue = new Label("0 FCA");
         solidariteValue.setStyle("-fx-text-fill: " + Styles.BLEU_SECONDAIRE + "; -fx-font-size: 16px;");
         
-        // Total
         Label totalLabel = new Label("Total général:");
         totalLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
-        Label totalValue = new Label("0 FCFA");
+        Label totalValue = new Label("0 FCA");
         totalValue.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: " + Styles.ACCENT_DORE + ";");
         
         grid.add(creditLabel, 0, 0);
@@ -527,38 +581,90 @@ public class CompteurDashboardView {
         
         Button actualiserButton = new Button("🔄 Actualiser");
         actualiserButton.setStyle(Styles.BOUTON_PRINCIPAL);
+        actualiserButton.setOnAction(e -> {
+            try {
+                Comptage dernierComptage = comptageService.getLastComptage(compteur.getAvecId());
+                BigDecimal fondsCredit = dernierComptage != null ? dernierComptage.getTotal() : BigDecimal.ZERO;
+                
+                int totalMembres = membreService.getMembresByAvecId(compteur.getAvecId()).size();
+                BigDecimal solidarite = avec != null && avec.getCotisationCaisseSolidarite() != null 
+                    ? avec.getCotisationCaisseSolidarite().multiply(BigDecimal.valueOf(totalMembres)) 
+                    : BigDecimal.ZERO;
+                BigDecimal total = fondsCredit.add(solidarite);
+                
+                creditValue.setText(String.format("%,.0f", fondsCredit).replace(',', ' ') + " FCA");
+                solidariteValue.setText(String.format("%,.0f", solidarite).replace(',', ' ') + " FCA");
+                totalValue.setText(String.format("%,.0f", total).replace(',', ' ') + " FCA");
+                
+            } catch (Exception ex) {
+                showAlert("Erreur", "Erreur lors de l'actualisation: " + ex.getMessage());
+            }
+        });
         
         view.getChildren().addAll(title, grid, actualiserButton);
         root.setCenter(view);
     }
     
-    private void showRapports() {
+private void showRapports() {
         VBox view = new VBox(15);
         view.setPadding(new Insets(20));
         
         Label title = new Label("Rapports de comptage");
         title.setStyle(Styles.TITRE_PRINCIPAL);
         
-        // Liste des rapports
-        ListView<String> rapportsList = new ListView<>();
-        rapportsList.setPrefHeight(300);
-        rapportsList.getItems().addAll(
-            "Comptage du 15/03/2024 - Total: 125 000 FCFA",
-            "Comptage du 08/03/2024 - Total: 98 500 FCFA",
-            "Comptage du 01/03/2024 - Total: 75 200 FCFA"
-        );
+        TableView<Comptage> rapportsTable = new TableView<>();
+        rapportsTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         
-        HBox buttonBox = new HBox(10);
+        TableColumn<Comptage, String> colDate = new TableColumn<>("Date");
+        colDate.setCellValueFactory(cellData -> 
+            new javafx.beans.property.SimpleStringProperty(cellData.getValue().getDateComptageFormatted()));
+        colDate.setPrefWidth(120);
         
-        Button voirRapport = new Button("📄 Voir le rapport");
-        voirRapport.setStyle(Styles.BOUTON_PRINCIPAL);
+        TableColumn<Comptage, String> colFondCredit = new TableColumn<>("Fonds crédit");
+        colFondCredit.setCellValueFactory(cellData -> 
+            new javafx.beans.property.SimpleStringProperty(cellData.getValue().getFondCredit() != null 
+                ? String.format("%,.0f", cellData.getValue().getFondCredit()).replace(',', ' ') + " FCA" 
+                : "0 FCA"));
+        colFondCredit.setPrefWidth(120);
+        
+        TableColumn<Comptage, String> colAmendes = new TableColumn<>("Amendes");
+        colAmendes.setCellValueFactory(cellData -> 
+            new javafx.beans.property.SimpleStringProperty(cellData.getValue().getAmendes() != null 
+                ? String.format("%,.0f", cellData.getValue().getAmendes()).replace(',', ' ') + " FCA" 
+                : "0 FCA"));
+        colAmendes.setPrefWidth(100);
+        
+        TableColumn<Comptage, String> colTotal = new TableColumn<>("Total");
+        colTotal.setCellValueFactory(cellData -> 
+            new javafx.beans.property.SimpleStringProperty(cellData.getValue().getTotalFormatted()));
+        colTotal.setPrefWidth(120);
+        
+        TableColumn<Comptage, String> colConfirme = new TableColumn<>("Statut");
+        colConfirme.setCellValueFactory(cellData -> 
+            new javafx.beans.property.SimpleStringProperty(cellData.getValue().isEstConfirme() ? "Confirmé" : "En attente"));
+        colConfirme.setPrefWidth(80);
+        
+        TableColumn<Comptage, String> colCompteur = new TableColumn<>("Compteur");
+        colCompteur.setCellValueFactory(cellData -> 
+            new javafx.beans.property.SimpleStringProperty(cellData.getValue().getCompteur() != null 
+                ? cellData.getValue().getCompteur().getPrenom() + " " + cellData.getValue().getCompteur().getNom()
+                : ""));
+        colCompteur.setPrefWidth(120);
+        
+        rapportsTable.getColumns().addAll(colDate, colFondCredit, colAmendes, colTotal, colConfirme, colCompteur);
+        
+        try {
+            List<Comptage> comptages = comptageService.getByAvecId(compteur.getAvecId());
+            rapportsTable.setItems(FXCollections.observableArrayList(comptages));
+        } catch (SQLException e) {
+            showAlert("Erreur", "Impossible de charger les rapports: " + e.getMessage());
+        }
         
         Button exporterPDF = new Button("📎 Exporter en PDF");
         exporterPDF.setStyle(Styles.BOUTON_SECONDAIRE);
+        exporterPDF.setOnAction(e -> showInfo("Info", "Fonctionnalité en cours de développement"));
         
-        buttonBox.getChildren().addAll(voirRapport, exporterPDF);
-        
-        view.getChildren().addAll(title, rapportsList, buttonBox);
+        view.getChildren().addAll(title, rapportsTable, exporterPDF);
         root.setCenter(view);
     }
     

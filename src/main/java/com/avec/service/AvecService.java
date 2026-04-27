@@ -11,6 +11,8 @@ import com.avec.dao.AgentTerrainDao;
 import com.avec.dao.AgentVillageoisDao;
 import com.avec.dao.AvecDAO;
 import com.avec.dao.MembreDAO;
+import com.avec.dao.PretDAO;
+import com.avec.dao.AchatPartDAO;
 import com.avec.enums.PhaseCycle;
 import com.avec.enums.StatutAvec;
 import com.avec.enums.StatutMembre;
@@ -29,12 +31,16 @@ public class AvecService {
     private final AgentVillageoisDao agentVillageoisDao;
     private final AgentTerrainDao agentTerrainDAO;
     private final MembreDAO membreDAO;
+    private final PretDAO pretDAO;
+    private final AchatPartDAO achatPartDAO;
 
     public AvecService() {
         this.avecDAO = new AvecDAO();
         this.agentVillageoisDao = new AgentVillageoisDao();
         this.agentTerrainDAO = new AgentTerrainDao();
         this.membreDAO = new MembreDAO();
+        this.pretDAO = new PretDAO();
+        this.achatPartDAO = new AchatPartDAO();
     }
 
     /**
@@ -332,7 +338,14 @@ public class AvecService {
         private int intensive;
         private int developpement;
         private int maturite;
-
+        
+        // Nouvelles statistiques financières
+        private BigDecimal totalEpargne = BigDecimal.ZERO;
+        private BigDecimal totalCredit = BigDecimal.ZERO;
+        private BigDecimal totalRembourse = BigDecimal.ZERO;
+        private int totalMembres;
+        private int totalMembresActifs;
+        
         public void incrementerEnFormation() { enFormation++; }
         public void incrementerActives() { actives++; }
         public void incrementerEnPause() { enPause++; }
@@ -355,5 +368,79 @@ public class AvecService {
         public int getIntensive() { return intensive; }
         public int getDeveloppement() { return developpement; }
         public int getMaturite() { return maturite; }
+        
+        // Getters et setters pour les nouvelles statistiques
+        public BigDecimal getTotalEpargne() { return totalEpargne; }
+        public void setTotalEpargne(BigDecimal totalEpargne) { this.totalEpargne = totalEpargne; }
+        
+        public BigDecimal getTotalCredit() { return totalCredit; }
+        public void setTotalCredit(BigDecimal totalCredit) { this.totalCredit = totalCredit; }
+        
+        public BigDecimal getTotalRembourse() { return totalRembourse; }
+        public void setTotalRembourse(BigDecimal totalRembourse) { this.totalRembourse = totalRembourse; }
+        
+        public int getTotalMembres() { return totalMembres; }
+        public void setTotalMembres(int totalMembres) { this.totalMembres = totalMembres; }
+        
+        public int getTotalMembresActifs() { return totalMembresActifs; }
+        public void setTotalMembresActifs(int totalMembresActifs) { this.totalMembresActifs = totalMembresActifs; }
+    }
+    
+    /**
+     * Calcule les statistiques globales complètes avec données réelles
+     */
+    public StatistiquesAvec getStatistiquesCompletes() throws SQLException {
+        StatistiquesAvec stats = getStatistiques();
+        
+        BigDecimal totalEpargne = BigDecimal.ZERO;
+        BigDecimal totalCredit = BigDecimal.ZERO;
+        BigDecimal totalRembourse = BigDecimal.ZERO;
+        int totalMembres = 0;
+        int totalMembresActifs = 0;
+        
+        List<Avec> toutesAvecs = getAllAvecs();
+        
+        for (Avec avec : toutesAvecs) {
+            // Charger les membres pour cette AVEC
+            List<Membre> membres = membreDAO.findByAvecId(avec.getId());
+            
+            for (Membre membre : membres) {
+                totalMembres++;
+                
+                if (membre.getEstActif() == StatutMembre.ACTIF) {
+                    totalMembresActifs++;
+                }
+                
+                // Calculer l'épargne basée sur les parts
+                BigDecimal epargne = BigDecimal.ZERO;
+                if (membre.getNombreParts() > 0 && avec.getPrixPart() != null) {
+                    epargne = BigDecimal.valueOf(membre.getNombreParts()).multiply(avec.getPrixPart());
+                }
+                totalEpargne = totalEpargne.add(epargne);
+                
+                // Charger les prêts du membre
+                if (membre.getId() != null) {
+                    List<com.avec.model.Pret> prets = pretDAO.findByEmprunteurId(membre.getId());
+                    for (com.avec.model.Pret pret : prets) {
+                        if (pret.getMontantInitial() != null) {
+                            totalCredit = totalCredit.add(pret.getMontantInitial());
+                            
+                            BigDecimal rembourse = pret.getMontantInitial().subtract(pret.getMontantRestantDu());
+                            if (rembourse.compareTo(BigDecimal.ZERO) > 0) {
+                                totalRembourse = totalRembourse.add(rembourse);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        stats.setTotalEpargne(totalEpargne);
+        stats.setTotalCredit(totalCredit);
+        stats.setTotalRembourse(totalRembourse);
+        stats.setTotalMembres(totalMembres);
+        stats.setTotalMembresActifs(totalMembresActifs);
+        
+        return stats;
     }
 }

@@ -445,10 +445,12 @@ public class AdminDashboardView {
 		BigDecimal totalPrets = BigDecimal.ZERO;
 
 		try {
-			StatistiquesAvec stats = avecService.getStatistiques();
+			StatistiquesAvec stats = avecService.getStatistiquesCompletes();
 			nbAvec = stats.getTotalAvecs();
-			nbMembres = membreService.getNombreTotalMembres();
-			nbMembresActifs = membreService.getNombreMembresActifs();
+			nbMembres = stats.getTotalMembres();
+			nbMembresActifs = stats.getTotalMembresActifs();
+			totalEpargne = stats.getTotalEpargne();
+			totalPrets = stats.getTotalCredit();
 
 		} catch (SQLException e) {
 			System.err.println("Erreur chargement stats: " + e.getMessage());
@@ -795,10 +797,12 @@ public class AdminDashboardView {
 			int nbUtilisateurs = utilisateurService.getNombreUtilisateurs();
 			int nbAgentsTerrain = agentTerrainService.getNombreAgentTerrain();
 			int nbAgentsVillageois = agentVillageoisService.getNombreAgentVillageois();
-			StatistiquesAvec stats = avecService.getStatistiques();
+			StatistiquesAvec stats = avecService.getStatistiquesCompletes();
 			int nbAvec = stats.getTotalAvecs();
-			int nbMembres = membreService.getNombreTotalMembres();
-			int nbMembresActifs = membreService.getNombreMembresActifs();
+			int nbMembres = stats.getTotalMembres();
+			int nbMembresActifs = stats.getTotalMembresActifs();
+			BigDecimal totalEpargne = stats.getTotalEpargne();
+			BigDecimal totalCredit = stats.getTotalCredit();
 
 			statsGrid.add(createStatItem("👤", "Utilisateurs", String.valueOf(nbUtilisateurs)), 0, 0);
 			statsGrid.add(createStatItem("🏞️", "Agents Terrain", String.valueOf(nbAgentsTerrain)), 1, 0);
@@ -806,6 +810,8 @@ public class AdminDashboardView {
 			statsGrid.add(createStatItem("🤝", "AVEC", String.valueOf(nbAvec)), 3, 0);
 			statsGrid.add(createStatItem("👥", "Membres", String.valueOf(nbMembres)), 0, 1);
 			statsGrid.add(createStatItem("✅", "Membres actifs", String.valueOf(nbMembresActifs)), 1, 1);
+			statsGrid.add(createStatItem("💰", "Épargne totale", formatMontant(totalEpargne)), 2, 1);
+			statsGrid.add(createStatItem("💳", "Crédits accordés", formatMontant(totalCredit)), 3, 1);
 
 		} catch (SQLException e) {
 			System.err.println("Erreur chargement stats: " + e.getMessage());

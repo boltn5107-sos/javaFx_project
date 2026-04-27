@@ -19,6 +19,7 @@ public class Pret {
     private StatutPret statut;
 
     private LocalDate dateEcheance;
+    private LocalDate dateDemande;
     private String objetPret;
     private LocalDate dateRemboursementTotal;
 
@@ -158,7 +159,14 @@ public class Pret {
     public void setDateRemboursementTotal(LocalDate dateRemboursementTotal) {
         this.dateRemboursementTotal = dateRemboursementTotal;
     }
-
+    
+    public LocalDate getDateDemande() {
+        return dateDemande;
+    }
+    
+    public void setDateDemande(LocalDate dateDemande) {
+        this.dateDemande = dateDemande;
+    }
 
     public Long getEmprunteurId() {
         return emprunteurId;

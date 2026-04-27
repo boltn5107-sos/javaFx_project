@@ -458,12 +458,10 @@ public class LoginView {
 	// Méthode temporaire pour vérifier le mot de passe
 	// À remplacer par votre vraie logique d'authentification
 	private boolean verifierMotDePasseMembre(Membre membre, String password) {
-		// TODO: Implémentez votre vérification
-		// Par exemple, si vous avez un champ motDePasse dans la table Membre:
-		// return password.equals(membre.getMotDePasse());
-
-		// Pour le test, on accepte un mot de passe par défaut
-		return "password".equals(password);
+		if (membre.getMotDePasse() == null || membre.getMotDePasse().isEmpty()) {
+			return "password".equals(password);
+		}
+		return password.equals(membre.getMotDePasse());
 	}
 
 	public VBox getRoot() {

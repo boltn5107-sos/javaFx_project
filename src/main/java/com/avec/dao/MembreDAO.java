@@ -615,11 +615,16 @@ membre.setDateAdhesion(dateAdhesion.toLocalDate());
             membre.setRoleComite(RoleComite.valueOf(roleComiteStr));
         }
         
-        String roleCleStr = rs.getString("roleCle");
+String roleCleStr = rs.getString("roleCle");
         if (roleCleStr != null) {
             membre.setRoleCle(RoleDetenteurCle.valueOf(roleCleStr));
         }
         
+//        String motDePasse = rs.getString("motDePasse");
+//        if (motDePasse != null) {
+//            membre.setMotDePasse(motDePasse);
+//        }
+
         return membre;
     }
 }

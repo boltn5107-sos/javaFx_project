@@ -22,22 +22,20 @@ public class RemboursementService {
 			return false;
 		}
 
-		if (remboursement.getPretId() == null || remboursement.getPret() == null) {
+		if (remboursement.getPretId() == null && remboursement.getPret() == null) {
 			return false;
 		}
-		if (remboursement.getReunionId() == null || remboursement.getReunion() == null) {
+		if (remboursement.getReunionId() == null && remboursement.getReunion() == null) {
 			return false;
 		}
 
 		// S'assurer que les IDs sont définis
 		if (remboursement.getPret() != null && remboursement.getPretId() == null) {
-
 			remboursement.setPretId(remboursement.getPret().getId());
 		}
 
 		if (remboursement.getReunion() != null && remboursement.getReunionId() == null) {
-
-			remboursement.setPretId(remboursement.getReunion().getId());
+			remboursement.setReunionId(remboursement.getReunion().getId());
 		}
 
 		return remboursementDao.enregistrer(remboursement);

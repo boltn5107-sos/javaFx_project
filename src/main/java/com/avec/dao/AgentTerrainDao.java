@@ -302,7 +302,7 @@ public class AgentTerrainDao {
 					agent.setId(rs.getLong("id"));
 					agent.setNom(rs.getString("nom"));
 					agent.setEmail(rs.getString("email"));
-					agent.setMotDePasse(rs.getString("mot_de_passe"));
+					agent.setMotDePasse(rs.getString("motDePasse"));
 					agent.setTelephone(rs.getString("telephone"));
 					// agent.setActif(rs.getBoolean("actif"));
 

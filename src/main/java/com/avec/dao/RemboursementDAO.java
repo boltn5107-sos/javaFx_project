@@ -33,6 +33,7 @@ public class RemboursementDAO {
 
 		try {
 			conn = DBConnection.getConnection();
+			conn.setAutoCommit(false);
 
 			String sql = "INSERT INTO remboursements (montant, pret_id, reunion_id) VALUES(?,?,?)";
 
@@ -43,8 +44,10 @@ public class RemboursementDAO {
 
 			int rows = pstmt.executeUpdate();
 
-			if (rows == 0)
+			if (rows == 0) {
+				conn.rollback();
 				return false;
+			}
 
 			rs = pstmt.getGeneratedKeys();
 
@@ -52,23 +55,28 @@ public class RemboursementDAO {
 				remboursement.setId(rs.getLong(1));
 			}
 
-			// Mettre à jour le montant restant du prêt
+			pstmt.close();
 
 			mettreAJourMontantPret(conn, remboursement);
 
+			conn.commit();
 			return true;
 
 		} catch (SQLException e) {
 			System.err.println("Erreur dans enregistrer(): " + e.getMessage());
 			e.printStackTrace();
-
+			try {
+				if (conn != null) conn.rollback();
+			} catch (SQLException ex) {}
 			return false;
 		} finally {
 			try {
-				if (rs != null)
-					rs.close();
-				if (pstmt != null)
-					pstmt.close();
+				if (rs != null) rs.close();
+				if (pstmt != null) pstmt.close();
+				if (conn != null) {
+					conn.setAutoCommit(true);
+					conn.close();
+				}
 			} catch (SQLException e) {
 				e.printStackTrace();
 			}
@@ -81,19 +89,19 @@ public class RemboursementDAO {
 		ResultSet rs = null;
 
 		try {
+			String sqlPret = "SELECT * FROM pret WHERE id = ?";
+			pstmt = conn.prepareStatement(sqlPret);
+			pstmt.setLong(1, remboursement.getPretId());
+			rs = pstmt.executeQuery();
+			
+			if (!rs.next()) return;
+			
+			BigDecimal montantRestantActuel = rs.getBigDecimal("montantRestantDu");
+			BigDecimal nouveauMontantRestant = montantRestantActuel.subtract(remboursement.getMontant());
+			
+			pstmt.close();
+			rs.close();
 
-			// Récupérerle prêt
-
-			Pret pret = pretDao.chercherId(remboursement.getPretId());
-			if (pret == null)
-				return;
-
-			// Calculer le nouveau montant restant dû
-			BigDecimal montantRembourse = remboursement.getMontant();
-			BigDecimal montantRestantActuel = pret.getMontantRestantDu();
-			BigDecimal nouveauMontantRestant = montantRestantActuel.subtract(montantRembourse);
-
-			// Mettre à jour le montant restant
 			String sqlUpdate = "UPDATE pret SET montantRestantDu = ? WHERE id = ?";
 			pstmt = conn.prepareStatement(sqlUpdate);
 			pstmt.setBigDecimal(1, nouveauMontantRestant);
@@ -101,20 +109,18 @@ public class RemboursementDAO {
 			pstmt.executeUpdate();
 			pstmt.close();
 
-			// Vérifier si le prêt est entièrement remboursé
 			if (nouveauMontantRestant.compareTo(BigDecimal.ZERO) <= 0) {
-				String sqlStatus = "UPDATE pret SET statut = 'REMBOURSE', dateRemboursement = CURRENT_DATE WHERE id =?";
+				String sqlStatus = "UPDATE pret SET statut = 'REMBOURSE', dateEcheance = CURRENT_DATE WHERE id = ?";
 				pstmt = conn.prepareStatement(sqlStatus);
 				pstmt.setLong(1, remboursement.getPretId());
 				pstmt.executeUpdate();
 			}
 
+		} catch (SQLException e) {
+			throw e;
 		} finally {
-			if (rs != null)
-				rs.close();
-			if (pstmt != null)
-				pstmt.close();
-
+			if (rs != null) rs.close();
+			if (pstmt != null) pstmt.close();
 		}
 	}
 

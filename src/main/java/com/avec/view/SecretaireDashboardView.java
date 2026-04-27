@@ -1,4 +1,7 @@
 package com.avec.view;
+import java.awt.Desktop;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -9,45 +12,28 @@ import java.util.Optional;
 import com.avec.MainApp;
 import com.avec.config.Styles;
 import com.avec.enums.TypeReunion;
-import com.avec.model.AchatPart;
-import com.avec.model.Avec;
-import com.avec.model.Cycle;
-import com.avec.model.Membre;
-import com.avec.model.Pret;
-import com.avec.model.Reunion;
-import com.avec.model.SessionUtilisateur;
+import com.avec.model.*;
 import com.avec.service.AchatPartService;
 import com.avec.service.AvecService;
 import com.avec.service.CycleService;
 import com.avec.service.MembreService;
 import com.avec.service.PretService;
 import com.avec.service.ReunionService;
+import com.avec.service.RemboursementService;
 import com.avec.service.UtilisateurService;
+import com.avec.service.PresenceService;
+import com.avec.service.ProcesVerbalService;
 import com.avec.utils.FormatUtils;
+
+import com.lowagie.text.Document;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.pdf.PdfWriter;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonBar;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.DatePicker;
-import javafx.scene.control.Dialog;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.Separator;
-import javafx.scene.control.Spinner;
-import javafx.scene.control.TableCell;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
-import javafx.scene.control.TextField;
-import javafx.scene.control.ToggleButton;
-import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -66,6 +52,7 @@ public class SecretaireDashboardView {
     private PretService pretService;
     private CycleService cycleService;
     private ReunionService reunionService;
+    private PresenceService presenceService;
     private BorderPane root;
 
     private Membre secretaire;
@@ -102,7 +89,7 @@ public class SecretaireDashboardView {
             "-fx-cursor: hand;";
     
 
-private static final String ICONE_TABLEAU_BORD = "📊";
+    private static final String ICONE_TABLEAU_BORD = "📊";
     private static final String ICONE_PRESENCE = "✅";
     private static final String ICONE_PV = "📝";
     private static final String ICONE_AMENDES = "💰";
@@ -120,6 +107,7 @@ private static final String ICONE_TABLEAU_BORD = "📊";
         this.pretService = new PretService();
         this.cycleService = new CycleService();
         this.reunionService = new ReunionService();
+        this.presenceService = new PresenceService();
         this.secretaire = session.getMembre();
         initData();
         createView();
@@ -400,7 +388,7 @@ private static final String ICONE_TABLEAU_BORD = "📊";
             infoGrid.add(new Label("Présents:"), 0, 2);
             infoGrid.add(new Label("0/" + totalMembres), 1, 2);
 
-           // lastMeetingBox.getChildren().addAll(lastMeetingTitle, infoGrid);
+           //	lastMeetingBox.getChildren().addAll(lastMeetingTitle, infoGrid);
 
             VBox membresBox = new VBox(10);
             membresBox.setStyle("-fx-background-color: " + Styles.BLANC + ";" +
@@ -544,13 +532,27 @@ private static final String ICONE_TABLEAU_BORD = "📊";
         title.setStyle(Styles.TITRE_PRINCIPAL);
 
         HBox dateBox = new HBox(10);
+        dateBox.setAlignment(Pos.CENTER_LEFT);
+        
         DatePicker datePicker = new DatePicker(LocalDate.now());
         datePicker.setStyle(Styles.CHAMP_TEXTE);
+
+        ComboBox<Reunion> reunionCombo = new ComboBox<>();
+        reunionCombo.setPromptText("Sélectionner une réunion...");
+        reunionCombo.setStyle(Styles.CHAMP_TEXTE);
+        reunionCombo.setPrefWidth(300);
+        
+        try {
+            List<Reunion> reunions = reunionService.getReunionsByAvecId(secretaire.getAvecId());
+            reunionCombo.setItems(FXCollections.observableArrayList(reunions));
+        } catch (SQLException e) {
+            showAlert("Erreur", "Impossible de charger les réunions: " + e.getMessage());
+        }
 
         Button chargerButton = new Button("Charger");
         chargerButton.setStyle(Styles.BOUTON_PRINCIPAL);
 
-        dateBox.getChildren().addAll(new Label("Date de la réunion:"), datePicker, chargerButton);
+        dateBox.getChildren().addAll(new Label("Réunion:"), reunionCombo, chargerButton);
 
         presenceTable = new TableView<>();
         presenceTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
@@ -565,13 +567,16 @@ private static final String ICONE_TABLEAU_BORD = "📊";
 
         TableColumn<Membre, Boolean> colPresent = new TableColumn<>("Présent");
         colPresent.setCellFactory(col -> new TableCell<Membre, Boolean>() {
+            private CheckBox checkBox;
             @Override
             protected void updateItem(Boolean item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty) {
                     setGraphic(null);
                 } else {
-                    CheckBox checkBox = new CheckBox();
+                    if (checkBox == null) {
+                        checkBox = new CheckBox();
+                    }
                     checkBox.setSelected(item != null && item);
                     setGraphic(checkBox);
                 }
@@ -579,22 +584,105 @@ private static final String ICONE_TABLEAU_BORD = "📊";
         });
         colPresent.setPrefWidth(80);
 
+        TableColumn<Membre, Boolean> colRetard = new TableColumn<>("Retard");
+        colRetard.setCellFactory(col -> new TableCell<Membre, Boolean>() {
+            private CheckBox checkBox;
+            @Override
+            protected void updateItem(Boolean item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    if (checkBox == null) {
+                        checkBox = new CheckBox();
+                    }
+                    checkBox.setSelected(item != null && item);
+                    setGraphic(checkBox);
+                }
+            }
+        });
+        colRetard.setPrefWidth(80);
 
-        presenceTable.getColumns().addAll(colNom, colPrenom, colPresent);
+        TableColumn<Membre, String> colMotif = new TableColumn<>("Motif absence");
+        colMotif.setCellFactory(col -> new TableCell<Membre, String>() {
+            private TextField textField;
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    if (textField == null) {
+                        textField = new TextField();
+                        textField.setPromptText("Motif...");
+                    }
+                    textField.setText(item);
+                    setGraphic(textField);
+                }
+            }
+        });
+        colMotif.setPrefWidth(200);
 
+        presenceTable.getColumns().addAll(colNom, colPrenom, colPresent, colRetard, colMotif);
+
+        final List<Membre>[] membres = new List[1];
         try {
-            List<Membre> membres = membreService.getMembresByAvecId(secretaire.getAvecId());
-            presenceTable.setItems(FXCollections.observableArrayList(membres));
+            membres[0] = membreService.getMembresByAvecId(secretaire.getAvecId());
+            presenceTable.setItems(FXCollections.observableArrayList(membres[0]));
         } catch (SQLException e) {
             showAlert("Erreur", "Impossible de charger les membres: " + e.getMessage());
         }
+
+        chargerButton.setOnAction(e -> {
+            Reunion selectedReunion = reunionCombo.getValue();
+            if (selectedReunion == null) {
+                showAlert("Erreur", "Veuillez sélectionner une réunion");
+                return;
+            }
+            try {
+                List<Presence> presences = presenceService.getPresencesByReunion(selectedReunion.getId());
+                for (Membre membre : membres[0]) {
+                    boolean trouve = false;
+                    for (Presence p : presences) {
+                        if (p.getMembreId().equals(membre.getId())) {
+                            trouve = true;
+                            break;
+                        }
+                    }
+                    if (!trouve) {
+                        presenceTable.getItems().add(membre);
+                    }
+                }
+            } catch (SQLException ex) {
+                showAlert("Erreur", "Impossible de charger les présences: " + ex.getMessage());
+            }
+        });
 
         Button saveButton = new Button("💾 Enregistrer les présences");
         saveButton.setStyle(Styles.BOUTON_PRINCIPAL);
         saveButton.setPrefWidth(300);
 
         saveButton.setOnAction(e -> {
-            showInfo("Succès", "Présences enregistrées avec succès!");
+            Reunion selectedReunion = reunionCombo.getValue();
+            if (selectedReunion == null) {
+                showAlert("Erreur", "Veuillez sélectionner une réunion");
+                return;
+            }
+            
+            try {
+                for (Membre membre : membres[0]) {
+                    Presence presence = new Presence();
+                    presence.setMembreId(membre.getId());
+                    presence.setReunionId(selectedReunion.getId());
+                    presence.setEstPresent(true);
+                    presence.setEstRetard(false);
+                    
+                    presenceService.savePresence(presence);
+                }
+                showInfo("Succès", "Présences enregistrées avec succès!");
+            } catch (SQLException ex) {
+                showAlert("Erreur", "Erreur lors de l'enregistrement: " + ex.getMessage());
+            }
         });
 
         view.getChildren().addAll(title, dateBox, presenceTable, saveButton);
@@ -608,31 +696,402 @@ private static final String ICONE_TABLEAU_BORD = "📊";
         Label title = new Label("Procès-verbaux des réunions");
         title.setStyle(Styles.TITRE_PRINCIPAL);
 
-        ListView<String> pvList = new ListView<>();
-        pvList.setPrefHeight(300);
-        pvList.getItems().addAll(
-                "PV Réunion du 15/03/2024 - Réunion d'épargne",
-                "PV Réunion du 08/03/2024 - Réunion de crédit",
-                "PV Réunion du 01/03/2024 - Réunion d'épargne"
-        );
+        HBox filterBox = new HBox(10);
+        filterBox.setAlignment(Pos.CENTER_LEFT);
+        
+        ComboBox<Reunion> reunionFilterCombo = new ComboBox<>();
+        reunionFilterCombo.setPromptText("Filtrer par réunion...");
+        reunionFilterCombo.setStyle(Styles.CHAMP_TEXTE);
+        reunionFilterCombo.setPrefWidth(300);
+        
+        try {
+            List<Reunion> reunions = reunionService.getReunionsByAvecId(secretaire.getAvecId());
+            reunionFilterCombo.setItems(FXCollections.observableArrayList(reunions));
+        } catch (SQLException e) {
+            showAlert("Erreur", "Impossible de charger les réunions: " + e.getMessage());
+        }
+
+        TableView<ProcesVerbal> pvTable = new TableView<>();
+        pvTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        pvTable.setPrefHeight(350);
+
+        TableColumn<ProcesVerbal, String> colDate = new TableColumn<>("Date création");
+        colDate.setCellValueFactory(cellData -> 
+            new SimpleStringProperty(cellData.getValue().getDateCreationFormatted()));
+        colDate.setPrefWidth(150);
+
+        TableColumn<ProcesVerbal, String> colReunion = new TableColumn<>("Réunion");
+        colReunion.setCellValueFactory(cellData -> {
+            Reunion r = cellData.getValue().getReunion();
+            if (r != null && r.getDate() != null) {
+                return new SimpleStringProperty(r.getDateFormatted() + " - " + r.getType());
+            }
+            return new SimpleStringProperty("-");
+        });
+        colReunion.setPrefWidth(200);
+
+        TableColumn<ProcesVerbal, String> colContenu = new TableColumn<>("Contenu");
+        colContenu.setCellValueFactory(cellData -> {
+            String contenu = cellData.getValue().getContenu();
+            if (contenu != null && contenu.length() > 50) {
+                return new SimpleStringProperty(contenu.substring(0, 50) + "...");
+            }
+            return new SimpleStringProperty(contenu != null ? contenu : "");
+        });
+        colContenu.setPrefWidth(250);
+
+        TableColumn<ProcesVerbal, Void> colActions = new TableColumn<>("Actions");
+        colActions.setPrefWidth(150);
+        colActions.setCellFactory(col -> new TableCell<ProcesVerbal, Void>() {
+            private final HBox buttons = new HBox(5);
+            private final Button btnVoir = new Button("👁️");
+            private final Button btnModifier = new Button("✏️");
+            private final Button btnSupprimer = new Button("🗑️");
+
+            {
+                btnVoir.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-padding: 3 8;");
+                btnModifier.setStyle("-fx-background-color: #f39c12; -fx-text-fill: white; -fx-padding: 3 8;");
+                btnSupprimer.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-padding: 3 8;");
+                
+                btnVoir.setOnAction(e -> {
+                    ProcesVerbal pv = getTableView().getItems().get(getIndex());
+                    afficherDetailPV(pv);
+                });
+                
+                btnModifier.setOnAction(e -> {
+                    ProcesVerbal pv = getTableView().getItems().get(getIndex());
+                    modifierPV(pv, pvTable);
+                });
+                
+                btnSupprimer.setOnAction(e -> {
+                    ProcesVerbal pv = getTableView().getItems().get(getIndex());
+                    supprimerPV(pv, pvTable);
+                });
+                
+                buttons.getChildren().addAll(btnVoir, btnModifier, btnSupprimer);
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                setGraphic(empty ? null : buttons);
+            }
+        });
+
+        pvTable.getColumns().addAll(colDate, colReunion, colContenu, colActions);
+
+        ProcesVerbalService pvService = new ProcesVerbalService();
+        
+        try {
+            List<ProcesVerbal> pvs = pvService.getAll();
+            pvTable.setItems(FXCollections.observableArrayList(pvs));
+        } catch (SQLException e) {
+            showAlert("Erreur", "Impossible de charger les PV: " + e.getMessage());
+        }
+
+        filterBox.getChildren().add(new Label("Filtrer:"));
+        
+        reunionFilterCombo.setOnAction(e -> {
+            Reunion selectedReunion = reunionFilterCombo.getValue();
+            try {
+                if (selectedReunion != null) {
+                    List<ProcesVerbal> pvs = pvService.getByReunionId(selectedReunion.getId());
+                    pvTable.setItems(FXCollections.observableArrayList(pvs));
+                } else {
+                    List<ProcesVerbal> pvs = pvService.getAll();
+                    pvTable.setItems(FXCollections.observableArrayList(pvs));
+                }
+            } catch (SQLException ex) {
+                showAlert("Erreur", "Erreur de filtrage: " + ex.getMessage());
+            }
+        });
 
         HBox buttonBox = new HBox(10);
 
         Button nouveauPV = new Button("📝 Nouveau PV");
         nouveauPV.setStyle(Styles.BOUTON_PRINCIPAL);
+        nouveauPV.setOnAction(e -> creerNouveauPV(pvTable));
 
-        Button modifierPV = new Button("✏️ Modifier");
-        modifierPV.setStyle(Styles.BOUTON_SECONDAIRE);
-
-        Button imprimeButton = new Button("🖨️ Imprimer");
+        Button imprimeButton = new Button("🖨️ Exporter");
         imprimeButton.setStyle(Styles.BOUTON_ACCENT);
+        imprimeButton.setOnAction(e -> {
+            ProcesVerbal selected = pvTable.getSelectionModel().getSelectedItem();
+            if (selected != null) {
+                exporterPVEnTexte(selected);
+            } else {
+                showAlert("Erreur", "Veuillez sélectionner un PV à exporter");
+            }
+        });
 
-        buttonBox.getChildren().addAll(nouveauPV, modifierPV, imprimeButton);
+        buttonBox.getChildren().addAll(nouveauPV, imprimeButton);
 
-        view.getChildren().addAll(title, pvList, buttonBox);
+        view.getChildren().addAll(title, filterBox, pvTable, buttonBox);
         root.setCenter(view);
     }
+    
+    private void creerNouveauPV(TableView<ProcesVerbal> pvTable) {
+        Dialog<ProcesVerbal> dialog = new Dialog<>();
+        dialog.setTitle("Nouveau Procès-Verbal");
+        dialog.setHeaderText("Créer un nouveau PV de réunion");
 
+        ButtonType saveButtonType = new ButtonType("Enregistrer", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(15);
+        grid.setPadding(new Insets(20));
+
+        Label lblReunion = new Label("Réunion:");
+        ComboBox<Reunion> reunionCombo = new ComboBox<>();
+        reunionCombo.setPromptText("Sélectionner une réunion...");
+        reunionCombo.setPrefWidth(300);
+        
+        try {
+            List<Reunion> reunions = reunionService.getReunionsByAvecId(secretaire.getAvecId());
+            reunionCombo.setItems(FXCollections.observableArrayList(reunions));
+        } catch (SQLException e) {
+            showAlert("Erreur", "Impossible de charger les réunions");
+        }
+
+        Label lblContenu = new Label("Contenu:");
+        TextArea contenuArea = new TextArea();
+        contenuArea.setPromptText("Rédigez le contenu du PV...");
+        contenuArea.setPrefRowCount(8);
+        contenuArea.setPrefWidth(400);
+        contenuArea.setStyle(Styles.CHAMP_TEXTE);
+
+        Label lblDecisions = new Label("Décisions:");
+        TextArea decisionsArea = new TextArea();
+        decisionsArea.setPromptText("Listez les décisions prises...");
+        decisionsArea.setPrefRowCount(4);
+        decisionsArea.setPrefWidth(400);
+        decisionsArea.setStyle(Styles.CHAMP_TEXTE);
+
+        Label lblObservations = new Label("Observations:");
+        TextArea observationsArea = new TextArea();
+        observationsArea.setPromptText("Observations diverses...");
+        observationsArea.setPrefRowCount(3);
+        observationsArea.setPrefWidth(400);
+        observationsArea.setStyle(Styles.CHAMP_TEXTE);
+
+        grid.add(lblReunion, 0, 0);
+        grid.add(reunionCombo, 1, 0);
+        grid.add(lblContenu, 0, 1);
+        grid.add(contenuArea, 1, 1);
+        grid.add(lblDecisions, 0, 2);
+        grid.add(decisionsArea, 1, 2);
+        grid.add(lblObservations, 0, 3);
+        grid.add(observationsArea, 1, 3);
+
+        dialog.getDialogPane().setContent(grid);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == saveButtonType) {
+                Reunion reunion = reunionCombo.getValue();
+                if (reunion == null) {
+                    showAlert("Erreur", "Veuillez sélectionner une réunion");
+                    return null;
+                }
+                if (contenuArea.getText().trim().isEmpty()) {
+                    showAlert("Erreur", "Le contenu ne peut pas être vide");
+                    return null;
+                }
+                
+                ProcesVerbal pv = new ProcesVerbal();
+                pv.setReunion(reunion);
+                pv.setReunionId(reunion.getId());
+                pv.setContenu(contenuArea.getText().trim());
+                pv.setDecisions(decisionsArea.getText().trim());
+                pv.setObservations(observationsArea.getText().trim());
+                pv.setCreePar(secretaire);
+                pv.setCreeParId(secretaire.getId());
+                
+                return pv;
+            }
+            return null;
+        });
+
+        Optional<ProcesVerbal> result = dialog.showAndWait();
+        result.ifPresent(pv -> {
+            try {
+                ProcesVerbalService pvService = new ProcesVerbalService();
+                pvService.save(pv);
+                showInfo("Succès", "PV créé avec succès!");
+                
+                List<ProcesVerbal> pvs = pvService.getAll();
+                pvTable.setItems(FXCollections.observableArrayList(pvs));
+            } catch (SQLException e) {
+                showAlert("Erreur", "Erreur lors de la création: " + e.getMessage());
+            }
+        });
+    }
+    
+    private void afficherDetailPV(ProcesVerbal pv) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Détails du PV");
+        alert.setHeaderText("Procès-Verbal du " + pv.getDateCreationFormatted());
+        
+        StringBuilder content = new StringBuilder();
+        content.append("Réunion: ").append(pv.getReunion() != null ? 
+            pv.getReunion().getDateFormatted() + " - " + pv.getReunion().getType() : "N/A").append("\n\n");
+        
+        if (pv.getContenu() != null && !pv.getContenu().isEmpty()) {
+            content.append("=== CONTENU ===\n").append(pv.getContenu()).append("\n\n");
+        }
+        
+        if (pv.getDecisions() != null && !pv.getDecisions().isEmpty()) {
+            content.append("=== DÉCISIONS ===\n").append(pv.getDecisions()).append("\n\n");
+        }
+        
+        if (pv.getObservations() != null && !pv.getObservations().isEmpty()) {
+            content.append("=== OBSERVATIONS ===\n").append(pv.getObservations());
+        }
+        
+        TextArea textArea = new TextArea(content.toString());
+        textArea.setEditable(false);
+        textArea.setPrefWidth(500);
+        textArea.setPrefHeight(400);
+        
+        alert.getDialogPane().setContent(textArea);
+        alert.showAndWait();
+    }
+    
+    private void modifierPV(ProcesVerbal pv, TableView<ProcesVerbal> pvTable) {
+        Dialog<ProcesVerbal> dialog = new Dialog<>();
+        dialog.setTitle("Modifier le PV");
+        dialog.setHeaderText("Modifier le procès-verbal");
+
+        ButtonType saveButtonType = new ButtonType("Enregistrer", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(15);
+        grid.setPadding(new Insets(20));
+
+        Label lblContenu = new Label("Contenu:");
+        TextArea contenuArea = new TextArea(pv.getContenu());
+        contenuArea.setPrefRowCount(8);
+        contenuArea.setPrefWidth(400);
+        contenuArea.setStyle(Styles.CHAMP_TEXTE);
+
+        Label lblDecisions = new Label("Décisions:");
+        TextArea decisionsArea = new TextArea(pv.getDecisions());
+        decisionsArea.setPrefRowCount(4);
+        decisionsArea.setPrefWidth(400);
+        decisionsArea.setStyle(Styles.CHAMP_TEXTE);
+
+        Label lblObservations = new Label("Observations:");
+        TextArea observationsArea = new TextArea(pv.getObservations());
+        observationsArea.setPrefRowCount(3);
+        observationsArea.setPrefWidth(400);
+        observationsArea.setStyle(Styles.CHAMP_TEXTE);
+
+        grid.add(lblContenu, 0, 0);
+        grid.add(contenuArea, 1, 0);
+        grid.add(lblDecisions, 0, 1);
+        grid.add(decisionsArea, 1, 1);
+        grid.add(lblObservations, 0, 2);
+        grid.add(observationsArea, 1, 2);
+
+        dialog.getDialogPane().setContent(grid);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == saveButtonType) {
+                pv.setContenu(contenuArea.getText().trim());
+                pv.setDecisions(decisionsArea.getText().trim());
+                pv.setObservations(observationsArea.getText().trim());
+                return pv;
+            }
+            return null;
+        });
+
+        Optional<ProcesVerbal> result = dialog.showAndWait();
+        result.ifPresent(updatedPv -> {
+            try {
+                ProcesVerbalService pvService = new ProcesVerbalService();
+                pvService.save(updatedPv);
+                showInfo("Succès", "PV modifié avec succès!");
+                
+                List<ProcesVerbal> pvs = pvService.getAll();
+                pvTable.setItems(FXCollections.observableArrayList(pvs));
+            } catch (SQLException e) {
+                showAlert("Erreur", "Erreur lors de la modification: " + e.getMessage());
+            }
+});
+    }
+    
+    private void exporterPVEnTexte(ProcesVerbal pv) {
+        try {
+            File pdfFile = new File("PV_" + pv.getId() + ".pdf");
+            
+            Document document = new Document();
+            PdfWriter.getInstance(document, new FileOutputStream(pdfFile));
+            document.open();
+            
+            document.add(new Paragraph("PROCÈS-VERBAL", new com.lowagie.text.Font(com.lowagie.text.Font.HELVETICA, 16, com.lowagie.text.Font.BOLD)));
+            document.add(new Paragraph(" "));
+            document.add(new Paragraph("Date: " + pv.getDateCreationFormatted()));
+
+            if (pv.getReunion() != null) {
+                document.add(new Paragraph("Réunion: " + pv.getReunion().getDateFormatted() + " - " + pv.getReunion().getType()));
+            }
+
+            if (pv.getCreePar() != null) {
+                document.add(new Paragraph("Créé par: " + pv.getCreePar().getNomComplet()));
+            }
+
+            document.add(new Paragraph(" "));
+            document.add(new Paragraph("--------------------------------------------------"));
+            document.add(new Paragraph("CONTENU"));
+            document.add(new Paragraph("--------------------------------------------------"));
+            document.add(new Paragraph(pv.getContenu() != null ? pv.getContenu() : ""));
+            document.add(new Paragraph(" "));
+
+            document.add(new Paragraph("--------------------------------------------------"));
+            document.add(new Paragraph("DÉCISIONS"));
+            document.add(new Paragraph("--------------------------------------------------"));
+            document.add(new Paragraph(pv.getDecisions() != null ? pv.getDecisions() : ""));
+            document.add(new Paragraph(" "));
+
+            document.add(new Paragraph("--------------------------------------------------"));
+            document.add(new Paragraph("OBSERVATIONS"));
+            document.add(new Paragraph("--------------------------------------------------"));
+            document.add(new Paragraph(pv.getObservations() != null ? pv.getObservations() : ""));
+            
+            document.close();
+            
+            Desktop.getDesktop().open(pdfFile);
+            showInfo("Succès", "PDF exporté: " + pdfFile.getAbsolutePath());
+            
+        } catch (Exception e) {
+            showAlert("Erreur", "Erreur export PDF: " + e.getMessage());
+        }
+    }
+     
+    private void supprimerPV(ProcesVerbal pv, TableView<ProcesVerbal> pvTable) {
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Confirmation");
+        confirm.setHeaderText("Supprimer le PV");
+        confirm.setContentText("Êtes-vous sûr de vouloir supprimer ce PV?");
+
+        confirm.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                try {
+                    ProcesVerbalService pvService = new ProcesVerbalService();
+                    pvService.delete(pv.getId());
+                    showInfo("Succès", "PV supprimé!");
+                    
+                    List<ProcesVerbal> pvs = pvService.getAll();
+                    pvTable.setItems(FXCollections.observableArrayList(pvs));
+                } catch (SQLException e) {
+                    showAlert("Erreur", "Erreur lors de la suppression: " + e.getMessage());
+                }
+            }
+        });
+    }
+    
     private void showAmendes() {
         VBox view = new VBox(15);
         view.setPadding(new Insets(20));
@@ -931,6 +1390,7 @@ private static final String ICONE_TABLEAU_BORD = "📊";
         buttonBox.getChildren().add(btnNouvelleDemande);
 
         TableView<Pret> table = new TableView<>();
+        table.setId("table");
         table.setPrefHeight(450);
         
         TableColumn<Pret, String> colNumero = new TableColumn<>("N° Prêt");
@@ -985,38 +1445,55 @@ private static final String ICONE_TABLEAU_BORD = "📊";
             return new SimpleStringProperty("-");
         });
         colDate.setPrefWidth(100);
-        
-        TableColumn<Pret, String> colStatut = new TableColumn<>("Statut");
-        colStatut.setCellValueFactory(new PropertyValueFactory<>("statut"));
-        colStatut.setCellFactory(col -> new TableCell<Pret, String>() {
+
+        TableColumn<Pret, String> colStatut = getPretStringTableColumn();
+
+        table.getColumns().addAll(colNumero, colMembre, colMontant, colRembourse, colRestant, colDuree, colDate, colStatut);
+
+        TableColumn<Pret, Void> colActions = new TableColumn<>("Actions");
+        colActions.setPrefWidth(150);
+        colActions.setCellFactory(col -> new TableCell<Pret, Void>() {
+            private final HBox buttons = new HBox(5);
+            private final Button btnPayer = new Button("💰 Payer");
+            private final Button btnDetails = new Button("👁️");
+
+            {
+                btnPayer.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-padding: 5 10; -fx-font-size: 11px;");
+                btnDetails.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-padding: 5 10; -fx-font-size: 11px;");
+                
+                btnPayer.setOnAction(e -> {
+                    Pret pret = getTableView().getItems().get(getIndex());
+                    afficherDialogPaiementPret(pret, table);
+                });
+                
+                btnDetails.setOnAction(e -> {
+                    Pret pret = getTableView().getItems().get(getIndex());
+                    afficherDetailsPret(pret);
+                });
+                
+                buttons.getChildren().addAll(btnPayer, btnDetails);
+            }
+
             @Override
-            protected void updateItem(String item, boolean empty) {
+            protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setStyle("");
+                if (empty) {
+                    setGraphic(null);
                 } else {
-                    setText(item);
-                    if ("EN_ATTENTE".equals(item)) {
-                        setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
-                    } else if ("ACTIF".equals(item)) {
-                        setStyle("-fx-text-fill: #27ae60;");
-                    } else if ("REMBOURSE".equals(item)) {
-                        setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
-                    } else if ("IMPAYE".equals(item) || "EN_RETARD".equals(item)) {
-                        setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                    Pret pret = getTableView().getItems().get(getIndex());
+                    if (pret != null && pret.getStatut() == com.avec.enums.StatutPret.REMBOURSE) {
+                        setGraphic(btnDetails);
                     } else {
-                        setStyle("");
+                        setGraphic(buttons);
                     }
                 }
             }
         });
-        colStatut.setPrefWidth(100);
 
-        table.getColumns().addAll(colNumero, colMembre, colMontant, colRembourse, colRestant, colDuree, colDate, colStatut);
+        table.getColumns().add(colActions);
 
         try {
-            List<Pret> prets = pretService.listerPretsParAvecId(secretaire.getAvecId());
+            List<Pret> prets = pretService.listerPretsActifsParAvecId(secretaire.getAvecId());
             
             for (Pret pret : prets) {
                 if (pret.getEmprunteurId() != null) {
@@ -1031,9 +1508,50 @@ private static final String ICONE_TABLEAU_BORD = "📊";
         } catch (Exception e) {
             showAlert("Erreur", "Impossible de charger l'historique: " + e.getMessage());
         }
+        
+        Button btnHistoriqueComplet = new Button("📋 Historique complet");
+        btnHistoriqueComplet.setStyle(Styles.BOUTON_SECONDAIRE);
+        btnHistoriqueComplet.setOnAction(e -> afficherHistoriqueComplet());
+        
+        buttonBox.getChildren().add(btnHistoriqueComplet);
 
         view.getChildren().addAll(title, buttonBox, table);
         root.setCenter(view);
+    }
+
+    private static TableColumn<Pret, String> getPretStringTableColumn() {
+        TableColumn<Pret, String> colStatut = new TableColumn<>("Statut");
+        colStatut.setCellValueFactory(cellData -> 
+            new SimpleStringProperty(cellData.getValue().getStatut() != null 
+                ? cellData.getValue().getStatut().name() : ""));
+        colStatut.setPrefWidth(100);
+        return colStatut;
+    }
+
+    private void afficherHistoriqueComplet() {
+        TableView<Pret> table = (TableView<Pret>) root.getCenter().lookup("#table");
+        if (table == null) {
+            showAlert("Erreur", "Tableau introuvable");
+            return;
+        }
+        
+        try {
+            List<Pret> prets = pretService.listerPretsParAvecId(secretaire.getAvecId());
+            
+            for (Pret pret : prets) {
+                if (pret.getEmprunteurId() != null) {
+                    try {
+                        Membre membre = membreService.getMembreById(pret.getEmprunteurId());
+                        pret.setEmprunteur(membre);
+                    } catch (Exception e) {}
+                }
+            }
+            
+            table.setItems(FXCollections.observableArrayList(prets));
+            showInfo("Succès", "Historique complet chargé");
+        } catch (Exception e) {
+            showAlert("Erreur", "Impossible de charger l'historique: " + e.getMessage());
+        }
     }
 
     private void afficherDialogNouvelleDemandePret() {
@@ -1494,6 +2012,182 @@ private static final String ICONE_TABLEAU_BORD = "📊";
         mainApp.getPrimaryStage().getScene().setRoot(loginView.getRoot());
         mainApp.getPrimaryStage().setMaximized(false);
         mainApp.getPrimaryStage().centerOnScreen();
+    }
+    
+    private void afficherDialogPaiementPret(Pret pret, TableView<Pret> table) {
+        if (pret == null) {
+            showAlert("Erreur", "Prêt non sélectionné");
+            return;
+        }
+        
+        if (pret.getStatut() == com.avec.enums.StatutPret.REMBOURSE) {
+            showAlert("Information", "Ce prêt est déjà entièrement remboursé");
+            return;
+        }
+        
+        Dialog<Remboursement> dialog = new Dialog<>();
+        dialog.setTitle("Enregistrer un remboursement");
+        dialog.setHeaderText("Paiement du prêt #" + pret.getNumeroPret());
+
+        ButtonType saveButtonType = new ButtonType("Enregistrer", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(15);
+        grid.setPadding(new Insets(20));
+
+        Label lblEmprunteur = new Label("Emprunteur:");
+        Label lblNomEmprunteur = new Label(pret.getEmprunteur() != null ? pret.getEmprunteur().getNomComplet() : "Inconnu");
+        lblNomEmprunteur.setStyle("-fx-font-weight: bold; -fx-text-fill: #2E7D32;");
+
+        Label lblMontantInitial = new Label("Montant initial:");
+        Label lblMontantInitialValue = new Label(FormatUtils.formatCurrency(pret.getMontantInitial()));
+
+        Label lblRestant = new Label("Restant dû:");
+        Label lblRestantValue = new Label(FormatUtils.formatCurrency(pret.getMontantRestantDu()));
+        lblRestantValue.setStyle("-fx-font-weight: bold; -fx-text-fill: #e74c3c;");
+
+        Label lblMontant = new Label("Montant à payer:");
+        lblMontant.setStyle("-fx-font-weight: bold;");
+        TextField montantField = new TextField();
+        montantField.setPromptText("Montant en FCFA");
+        montantField.setStyle(Styles.CHAMP_TEXTE);
+        
+        montantField.setText(pret.getMontantRestantDu().toString());
+
+        Label lblReunion = new Label("Réunion:");
+        lblReunion.setStyle("-fx-font-weight: bold;");
+        ComboBox<Reunion> reunionCombo = new ComboBox<>();
+        reunionCombo.setPromptText("Sélectionner une réunion...");
+        reunionCombo.setPrefWidth(250);
+        
+        try {
+            List<Reunion> reunions = reunionService.getReunionsApprouveesParAvecId(secretaire.getAvecId());
+            List<Reunion> reunionsCREDIT = reunions.stream()
+                .filter(r -> r.getType() == TypeReunion.CREDIT)
+                .toList();
+            reunionCombo.setItems(FXCollections.observableArrayList(reunionsCREDIT));
+        } catch (Exception e) {
+            showAlert("Erreur", "Impossible de charger les réunions: " + e.getMessage());
+        }
+
+        Label infoLabel = new Label("💡 Laissez le montant par défaut pour payer le restant");
+        infoLabel.setStyle("-fx-text-fill: #7f8c8d; -fx-font-size: 11px;");
+
+        grid.add(lblEmprunteur, 0, 0);
+        grid.add(lblNomEmprunteur, 1, 0);
+        grid.add(lblMontantInitial, 0, 1);
+        grid.add(lblMontantInitialValue, 1, 1);
+        grid.add(lblRestant, 0, 2);
+        grid.add(lblRestantValue, 1, 2);
+        grid.add(lblMontant, 0, 3);
+        grid.add(montantField, 1, 3);
+        grid.add(lblReunion, 0, 4);
+        grid.add(reunionCombo, 1, 4);
+        grid.add(infoLabel, 0, 5, 2, 1);
+
+        dialog.getDialogPane().setContent(grid);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == saveButtonType) {
+                String montantText = montantField.getText().trim();
+                if (montantText.isEmpty()) {
+                    showAlert("Erreur", "Veuillez saisir un montant");
+                    return null;
+                }
+                
+                try {
+                    BigDecimal montant = new BigDecimal(montantText);
+                    if (montant.compareTo(BigDecimal.ZERO) <= 0) {
+                        showAlert("Erreur", "Le montant doit être supérieur à 0");
+                        return null;
+                    }
+                    
+                    if (montant.compareTo(pret.getMontantRestantDu()) > 0) {
+                        showAlert("Erreur", "Le montant ne peut pas dépasser le restant dû (" + 
+                            FormatUtils.formatCurrency(pret.getMontantRestantDu()) + ")");
+                        return null;
+                    }
+                    
+                    Reunion reunion = reunionCombo.getValue();
+                    if (reunion == null) {
+                        showAlert("Erreur", "Veuillez sélectionner une réunion");
+                        return null;
+                    }
+                    
+                    Remboursement remb = new Remboursement();
+                    remb.setMontant(montant);
+                    remb.setPretId(pret.getId());
+                    remb.setReunionId(reunion.getId());
+                    remb.setDateRemboursement(LocalDate.now().atStartOfDay());
+                    
+                    return remb;
+                    
+                } catch (NumberFormatException e) {
+                    showAlert("Erreur", "Montant invalide");
+                    return null;
+                }
+            }
+            return null;
+        });
+
+        Optional<Remboursement> result = dialog.showAndWait();
+        result.ifPresent(remb -> {
+            try {
+                RemboursementService rembService = new RemboursementService();
+                boolean success = rembService.enregistreRemboursement(remb);
+                
+                if (success) {
+                    BigDecimal nouveauRestant = pret.getMontantRestantDu().subtract(remb.getMontant());
+                    
+                    if (nouveauRestant.compareTo(BigDecimal.ZERO) <= 0) {
+                        pret.setStatut(com.avec.enums.StatutPret.REMBOURSE);
+                        pret.setMontantRestantDu(BigDecimal.ZERO);
+                        pretService.modifierPret(pret);
+                        showInfo("Succès", "Prêt entièrement remboursé!");
+                    } else {
+                        pret.setMontantRestantDu(nouveauRestant);
+                        pretService.modifierPret(pret);
+                        showInfo("Succès", "Remboursement enregistré!\nRestant dû: " + 
+                            FormatUtils.formatCurrency(nouveauRestant));
+                    }
+                    
+                    showHistoriquePrets();
+                } else {
+                    showAlert("Erreur", "Échec de l'enregistrement");
+                }
+            } catch (Exception e) {
+                showAlert("Erreur", "Erreur: " + e.getMessage());
+            }
+        });
+    }
+    
+    private void afficherDetailsPret(Pret pret) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Détails du prêt");
+        alert.setHeaderText("Prêt #" + pret.getNumeroPret());
+        
+        StringBuilder content = new StringBuilder();
+        content.append("Emprunteur: ").append(pret.getEmprunteur() != null ? pret.getEmprunteur().getNomComplet() : "Inconnu").append("\n\n");
+        content.append("Montant initial: ").append(FormatUtils.formatCurrency(pret.getMontantInitial())).append("\n");
+        content.append("Montant restant: ").append(FormatUtils.formatCurrency(pret.getMontantRestantDu())).append("\n");
+        content.append("Durée: ").append(pret.getDureeEnSemaines()).append(" semaines\n");
+        content.append("Date échéance: ").append(pret.getDateEcheance() != null ? 
+            pret.getDateEcheance().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "N/A").append("\n");
+        content.append("Statut: ").append(pret.getStatut().getLibelle()).append("\n\n");
+        
+        if (pret.getFraisServiceMensuel() != null) {
+            content.append("Taux frais service: ").append(pret.getFraisServiceMensuel()).append("%/mois\n");
+        }
+        
+        TextArea textArea = new TextArea(content.toString());
+        textArea.setEditable(false);
+        textArea.setPrefWidth(350);
+        textArea.setPrefHeight(250);
+        
+        alert.getDialogPane().setContent(textArea);
+        alert.showAndWait();
     }
     
     private VBox createStatCard(String icon, String label, String value, String color) {

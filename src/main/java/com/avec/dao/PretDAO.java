@@ -456,6 +456,13 @@ public class PretDAO {
             return stmt.executeUpdate() > 0;
         }
     }
+    
+    /**
+     * Trouve les prêts par ID emprunteur
+     */
+    public List<Pret> findByEmprunteurId(Long emprunteurId) throws SQLException {
+        return listerParEmprunteurId(emprunteurId);
+    }
 
     /**
      * Map un ResultSet vers un objet Pret

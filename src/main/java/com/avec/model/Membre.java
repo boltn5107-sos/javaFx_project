@@ -30,6 +30,7 @@ public class Membre {
     private BigDecimal totalEpargne;
     private BigDecimal totalPretEnCours;
     private int nombreParts;
+    private String motDePasse;
 
     // Relations
     private Long avecId;
@@ -194,6 +195,14 @@ public class Membre {
 
     public void setNombreParts(int nombreParts) {
         this.nombreParts = nombreParts;
+    }
+
+    public String getMotDePasse() {
+        return motDePasse;
+    }
+
+    public void setMotDePasse(String motDePasse) {
+        this.motDePasse = motDePasse;
     }
 
     public Long getAvecId() {
