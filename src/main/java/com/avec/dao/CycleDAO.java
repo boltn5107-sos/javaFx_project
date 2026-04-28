@@ -162,6 +162,139 @@ public class CycleDAO {
         }
     }
 
+    public Cycle findById(Long id) throws SQLException {
+        String sql = "SELECT * FROM cycle WHERE id = ?";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setLong(1, id);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return mapResultSetToCycle(rs);
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Trouve tous les cycles d'une AVEC
+     */
+    public List<Cycle> findByAvecId(Long avecId) throws SQLException {
+        List<Cycle> cycles = new ArrayList<>();
+        String sql = "SELECT * FROM cycle WHERE avec_id = ? ORDER BY id DESC";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setLong(1, avecId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    cycles.add(mapResultSetToCycle(rs));
+                }
+            }
+        }
+        return cycles;
+    }
+
+    /**
+     * Trouve le cycle en cours d'une AVEC
+     */
+    public Cycle findCycleEnCours(Long avecId) throws SQLException {
+        String sql = "SELECT * FROM cycle WHERE avec_id = ? AND statut = 'EN_COURS' LIMIT 1";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setLong(1, avecId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return mapResultSetToCycle(rs);
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Trouve le dernier cycle d'une AVEC (pour connaître le numéro du prochain)
+     */
+    public Cycle findLastCycleByAvecId(Long avecId) throws SQLException {
+        String sql = "SELECT * FROM cycle WHERE avec_id = ? ORDER BY id DESC LIMIT 1";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setLong(1, avecId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return mapResultSetToCycle(rs);
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Compte le nombre de cycles pour une AVEC
+     */
+    public int countByAvecId(Long avecId) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM cycle WHERE avec_id = ?";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setLong(1, avecId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * Met à jour le statut d'un cycle
+     */
+    public boolean updateStatut(Long cycleId, StatutCycle statut) throws SQLException {
+        String sql = "UPDATE cycle SET statut = ? WHERE id = ?";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, statut.name());
+            stmt.setLong(2, cycleId);
+
+            return stmt.executeUpdate() > 0;
+        }
+    }
+
+    /**
+     * Clôture un cycle (module 7 - répartition du capital)
+     */
+    public boolean terminerCycle(Long cycleId, LocalDate dateFinReelle, 
+                                  BigDecimal fondsCreditFinal, int totalPartsAchetees) throws SQLException {
+        String sql = "UPDATE cycle SET dateFinReelle = ?, fondsCreditFinal = ?, " +
+                     "totalPartsAchetes = ?, statut = 'TERMINE' WHERE id = ?";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setDate(1, Date.valueOf(dateFinReelle));
+            stmt.setBigDecimal(2, fondsCreditFinal);
+            stmt.setInt(3, totalPartsAchetees);
+            stmt.setLong(4, cycleId);
+
+            return stmt.executeUpdate() > 0;
+        }
+    }
     /**
      * Map un ResultSet vers un objet Cycle
      */

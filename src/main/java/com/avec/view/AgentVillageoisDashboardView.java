@@ -3,6 +3,7 @@ package com.avec.view;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -11,6 +12,7 @@ import com.avec.MainApp;
 import com.avec.config.Styles;
 import com.avec.enums.PhaseCycle;
 import com.avec.enums.RoleComite;
+import com.avec.enums.StatutCycle;
 import com.avec.enums.StatutMembre;
 import com.avec.model.AgentVillageois;
 import com.avec.model.Avec;
@@ -34,6 +36,7 @@ import javafx.scene.control.DatePicker;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.TableCell;
@@ -44,6 +47,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -100,6 +104,7 @@ public class AgentVillageoisDashboardView {
     private static final String ICONE_CALENDRIER = "📅";
     private static final String ICONE_VALIDATION = "✅";
     private static final String ICONE_HONORAIRES = "💰";
+    private static final String ICONE_CYCLE = "🔄";
     private static final String ICONE_DECONNEXION = "🚪";
     
     public AgentVillageoisDashboardView(MainApp mainApp) {
@@ -226,8 +231,12 @@ public class AgentVillageoisDashboardView {
         btnHonoraires.setMaxWidth(Double.MAX_VALUE);
         btnHonoraires.setStyle(STYLE_BOUTON_NORMAL);
         
+        ToggleButton btnCycle = new ToggleButton(ICONE_CYCLE + "  Gestion des cycles");
+        btnCycle.setMaxWidth(Double.MAX_VALUE);
+        btnCycle.setStyle(STYLE_BOUTON_NORMAL);
+        
         // ✅ Ajout des effets de survol
-        ToggleButton[] allButtons = {btnDashboard, btnMesAvec, btnModules, btnPlanning, btnValidation, btnHonoraires};
+        ToggleButton[] allButtons = {btnDashboard, btnMesAvec, btnModules, btnPlanning, btnValidation, btnHonoraires,btnCycle};
         
         for (ToggleButton btn : allButtons) {
             btn.setOnMouseEntered(e -> {
@@ -279,6 +288,13 @@ public class AgentVillageoisDashboardView {
             showHonoraires();
         });
         
+        btnCycle.setOnAction(e -> {
+            resetAllButtonsStyle(allButtons, STYLE_BOUTON_NORMAL);
+            btnCycle.setStyle(STYLE_BOUTON_ACTIF);
+            showGestionCyclesGlobale();
+        });
+
+        
         // ✅ Groupe de toggle (un seul sélectionné à la fois)
         ToggleGroup group = new ToggleGroup();
         for (ToggleButton btn : allButtons) {
@@ -289,7 +305,7 @@ public class AgentVillageoisDashboardView {
         btnDashboard.setSelected(true);
         btnDashboard.setStyle(STYLE_BOUTON_ACTIF);
         
-        menuBox.getChildren().addAll(btnDashboard, btnMesAvec, btnModules, btnPlanning, btnValidation, btnHonoraires);
+        menuBox.getChildren().addAll(btnDashboard, btnMesAvec, btnModules, btnPlanning, btnValidation, btnHonoraires,btnCycle);
         
         // Bouton changer mot de passe
         Button btnChangerMdp = new Button("🔒  Changer mot de passe");
@@ -915,20 +931,32 @@ public class AgentVillageoisDashboardView {
     /**
      * ✅ Démarrer un nouveau cycle pour une AVEC
      */
+    /**
+     * ✅ Démarrer un nouveau cycle pour une AVEC
+     */
     private void demarrerCycle(Avec avec) {
         try {
-            Cycle cycleExist = cycleService.getCycleEnCours(avec.getId());
-            if (cycleExist != null) {
+            // Vérifier si un cycle existe déjà
+            List<Cycle> cyclesExistants = cycleService.getCyclesByAvecId(avec.getId());
+            Cycle cycleEnCours = cycleService.getCycleEnCours(avec.getId());
+            
+            if (cycleEnCours != null && cycleEnCours.getStatut() == StatutCycle.EN_COURS) {
                 showAlert("Information", "Un cycle est déjà en cours pour " + avec.getNom() + 
-                    "\nPhase actuelle: " + cycleExist.getStatut());
+                    "\nN° cycle: " + cycleEnCours.getNumeroCycle() +
+                    "\nDate début: " + cycleEnCours.getDateDebut().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
                 return;
             }
             
+            int nouveauNumero = cyclesExistants.isEmpty() ? 1 : cyclesExistants.size() + 1;
+            String phaseMessage = cyclesExistants.isEmpty() ? 
+                "Ce sera le 1er cycle (période de formation de 36 semaines)" :
+                "Nouveau cycle après répartition";
+            
             String message = String.format(
-                "Démarrer un nouveau cycle pour %s ?\n\n" +
-                "Ce cycle sera automatiquement lié à la phase %s",
+                "Démarrer le cycle %d pour %s ?\n\n%s",
+                nouveauNumero,
                 avec.getNom(),
-                PhaseCycle.PREPARATOIRE.getLibelle()
+                phaseMessage
             );
             
             Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
@@ -938,29 +966,32 @@ public class AgentVillageoisDashboardView {
             
             confirm.showAndWait().ifPresent(response -> {
                 if (response == ButtonType.OK) {
-                    Cycle nouveauCycle = null;
                     try {
-                        nouveauCycle = cycleService.demarrerCycle(avec.getId());
-                    } catch (SQLException e) {
-                        throw new RuntimeException(e);
-                    }
-                    try {
+                        Cycle nouveauCycle = cycleService.creerNouveauCycle(avec);
+                        
+                        // Mettre à jour la phase de l'AVEC
                         avecService.changerPhase(avec.getId(), PhaseCycle.PREPARATOIRE);
-                    } catch (SQLException e) {
-                        throw new RuntimeException(e);
+                        
+                        showInfo("Succès", String.format(
+                            "Cycle %d démarré avec succès pour %s!\n" +
+                            "Date début: %s\n" +
+                            "Phase: %s",
+                            nouveauCycle.getNumeroCycle(),
+                            avec.getNom(),
+                            nouveauCycle.getDateDebut().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                            PhaseCycle.PREPARATOIRE.getLibelle()
+                        ));
+                        
+                        rafraichirListeAvec();
+                        
+                    } catch (Exception e) {
+                        showAlert("Erreur", "Erreur lors du démarrage du cycle: " + e.getMessage());
                     }
-                    showInfo("Succès", String.format(
-                        "Cycle %d démarré avec succès pour %s!\n" +
-                        "Phase: %s",
-                        nouveauCycle.getNumeroCycle(),
-                        avec.getNom(),
-                        PhaseCycle.PREPARATOIRE.getLibelle()
-                    ));
-                    rafraichirListeAvec();
                 }
             });
-        } catch (Exception e) {
-            showAlert("Erreur", "Erreur lors du démarrage du cycle: " + e.getMessage());
+            
+        } catch (SQLException e) {
+            showAlert("Erreur", "Impossible de vérifier les cycles: " + e.getMessage());
         }
     }
     
@@ -1024,7 +1055,7 @@ public class AgentVillageoisDashboardView {
         colMembres.setCellValueFactory(new PropertyValueFactory<>("nombreMembresMax"));
         colMembres.setPrefWidth(80);
         
-        // ✅ Colonne d'action avec bouton de validation de phase
+     // Dans showMesAvec(), modifiez la colonne colAction
         TableColumn<Avec, String> colAction = new TableColumn<>("Action");
         colAction.setCellFactory(col -> new TableCell<Avec, String>() {
             @Override
@@ -1056,6 +1087,14 @@ public class AgentVillageoisDashboardView {
                         gererMembres(avec);
                     });
                     
+                    // ✅ Bouton pour voir les détails du cycle
+                    Button cycleBtn = new Button("🔄 Cycle");
+                    cycleBtn.setStyle("-fx-background-color: #9C27B0; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-padding: 5 10;");
+                    cycleBtn.setOnAction(e -> {
+                        Avec avec = getTableView().getItems().get(getIndex());
+                        showDetailsCycle(avec);
+                    });
+                    
                     // ✅ Bouton de validation de phase
                     Button validerPhaseBtn = new Button("✅ Valider phase");
                     PhaseCycle phase = getTableView().getItems().get(getIndex()).getPhaseCourante();
@@ -1066,32 +1105,32 @@ public class AgentVillageoisDashboardView {
                         validerPhaseBtn.setStyle("-fx-background-color: #2E7D32; -fx-text-fill: white;");
                     } else {
                         validerPhaseBtn.setStyle("-fx-background-color: #2E7D32;" +
-                        	    "-fx-text-fill: white;" +
-                        	    "-fx-font-weight: bold;" +
-                        	    "-fx-font-size: 12px;" +
-                        	    "-fx-padding: 5 10;" +
-                        	    "-fx-background-radius: 5;" +
-                        	    "-fx-cursor: hand;");
+                                    "-fx-text-fill: white;" +
+                                    "-fx-font-weight: bold;" +
+                                    "-fx-font-size: 12px;" +
+                                    "-fx-padding: 5 10;" +
+                                    "-fx-background-radius: 5;" +
+                                    "-fx-cursor: hand;");
                         validerPhaseBtn.setOnAction(e -> {
                             Avec avec = getTableView().getItems().get(getIndex());
                             validerPhase(avec);
                         });
                     }
                     
-                    buttonBox.getChildren().addAll(formationBtn, comiteBtn, membresBtn, validerPhaseBtn);
-                    
+                    // ✅ Bouton démarrer cycle (existant)
                     Button demarrerCycleBtn = new Button("🚀 Démarrer cycle");
-                    demarrerCycleBtn.setStyle("-fx-background-color: #FF9800; -fx-text-fill: white; -fx-font-weight: bold;");
+                    demarrerCycleBtn.setStyle("-fx-background-color: #FF9800; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-padding: 5 10;");
                     demarrerCycleBtn.setOnAction(e -> {
                         Avec avec = getTableView().getItems().get(getIndex());
                         demarrerCycle(avec);
                     });
-                    buttonBox.getChildren().add(demarrerCycleBtn);
+                    
+                    buttonBox.getChildren().addAll(formationBtn, comiteBtn, membresBtn, cycleBtn, validerPhaseBtn, demarrerCycleBtn);
                     setGraphic(buttonBox);
                 }
             }
         });
-        colAction.setPrefWidth(350);
+        colAction.setPrefWidth(500); // Agrandir pour accueillir tous les boutons
         
         avecTable.getColumns().addAll(colId, colNom, colCode, colPhase, colMembres, colAction);
         
@@ -1391,76 +1430,287 @@ public class AgentVillageoisDashboardView {
             showAlert("Erreur", "Impossible de charger les membres: " + e.getMessage());
         }
     }
-    /*
-     * Désignation des gardiens de clés
+    
+    /**
+     * Affiche les détails du cycle en cours pour une AVEC
      */
-    private void showDesignerGardiens(Avec avec) {
+    /**
+     * Affiche les détails du cycle en cours pour une AVEC
+     */
+    private void showDetailsCycle(Avec avec) {
         try {
-            List<Membre> membres = membreService.getMembresByAvecId(avec.getId());
-            List<Membre> eligibles = membres.stream()
-                    .filter(m -> m.getEstActif() == StatutMembre.ACTIF && m.getRoleComite() == RoleComite.AUCUN)
-                    .collect(Collectors.toList());
+            Cycle cycleEnCours = cycleService.getCycleEnCours(avec.getId());
             
-            if (eligibles.size() < 3) {
-                showAlert("Attention", "Il faut au moins 3 membres éligibles (non au comité) pour être gardiens.");
+            if (cycleEnCours == null) {
+                showAlert("Information", "Aucun cycle en cours pour " + avec.getNom());
                 return;
             }
             
-            Dialog<ButtonType> dialog = new Dialog<>();
-            dialog.setTitle("Désignation des gardiens");
-            dialog.setHeaderText("Désigner les 3 gardiens de clés pour " + avec.getNom());
-            
             VBox content = new VBox(10);
             content.setPadding(new Insets(20));
-            content.setPrefWidth(400);
+            content.setPrefWidth(450);
             
-            ComboBox<Membre> gardien1Combo = new ComboBox<>();
-            gardien1Combo.setPromptText("Gardien Clé 1");
-            gardien1Combo.setItems(FXCollections.observableArrayList(eligibles));
+            Label title = new Label("Cycle en cours - " + avec.getNom());
+            title.setStyle(Styles.TITRE_PRINCIPAL);
             
-            ComboBox<Membre> gardien2Combo = new ComboBox<>();
-            gardien2Combo.setPromptText("Gardien Clé 2");
-            gardien2Combo.setItems(FXCollections.observableArrayList(eligibles));
+            GridPane grid = new GridPane();
+            grid.setHgap(15);
+            grid.setVgap(10);
             
-            ComboBox<Membre> gardien3Combo = new ComboBox<>();
-            gardien3Combo.setPromptText("Gardien Clé 3");
-            gardien3Combo.setItems(FXCollections.observableArrayList(eligibles));
+            grid.add(new Label("📅 N° cycle:"), 0, 0);
+            grid.add(new Label(String.valueOf(cycleEnCours.getNumeroCycle())), 1, 0);
+            grid.add(new Label("📅 Date début:"), 0, 1);
+            grid.add(new Label(cycleEnCours.getDateDebut().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))), 1, 1);
+            grid.add(new Label("📅 Date fin prévue:"), 0, 2);
+            grid.add(new Label(cycleEnCours.getDateFinPrevue().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))), 1, 2);
+            grid.add(new Label("📊 Statut:"), 0, 3);
+            grid.add(new Label(cycleEnCours.getStatut().getLibelle()), 1, 3);
+            grid.add(new Label("📚 Réunions effectuées:"), 0, 4);
+            grid.add(new Label(cycleEnCours.getNombreReunionsEffectuees() + " / 36"), 1, 4);
             
-            content.getChildren().addAll(
-                new Label("Gardien Clé 1:"), gardien1Combo,
-                new Label("Gardien Clé 2:"), gardien2Combo,
-                new Label("Gardien Clé 3:"), gardien3Combo
-            );
+            // Barre de progression
+            int progression = (cycleEnCours.getNombreReunionsEffectuees() * 100) / 36;
+            ProgressBar progressBar = new ProgressBar(progression / 100.0);
+            progressBar.setPrefWidth(200);
             
+            content.getChildren().addAll(title, grid, new Label("Progression:"), progressBar);
+            
+            Dialog<ButtonType> dialog = new Dialog<>();
+            dialog.setTitle("Détails du cycle");
             dialog.getDialogPane().setContent(content);
-            dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-            
-            dialog.setResultConverter(button -> {
-                if (button == ButtonType.OK) {
-                    try {
-                        List<Long> ids = new ArrayList<>();
-                        ids.add(gardien1Combo.getValue().getId());
-                        ids.add(gardien2Combo.getValue().getId());
-                        ids.add(gardien3Combo.getValue().getId());
-                        
-                        if (membreService.designerGardiensCles(avec.getId(), ids)) {
-                            showInfo("Succès", "Gardiens de clés désignés avec succès!");
-                            gererMembres(avec);
-                        } else {
-                            showAlert("Erreur", "Échec de la désignation");
-                        }
-                    } catch (Exception e) {
-                        showAlert("Erreur", "Erreur: " + e.getMessage());
-                    }
-                }
-                return null;
-            });
-            
+            dialog.getDialogPane().getButtonTypes().addAll(ButtonType.CLOSE);
             dialog.showAndWait();
             
         } catch (SQLException e) {
-            showAlert("Erreur", "Impossible de charger les membres: " + e.getMessage());
+            showAlert("Erreur", "Impossible de charger le cycle: " + e.getMessage());
         }
+    }
+    /**
+     * Vue globale de tous les cycles de toutes les AVEC
+     */
+    private void showGestionCyclesGlobale() {
+        VBox view = new VBox(15);
+        view.setPadding(new Insets(20));
+        
+        Label title = new Label("Gestion des cycles de formation");
+        title.setStyle(Styles.TITRE_PRINCIPAL);
+        
+        try {
+            List<Avec> avecs = avecService.getAvecsByAgentVillageois(agentVillageois.getId());
+            
+            if (avecs == null || avecs.isEmpty()) {
+                Label emptyLabel = new Label("Aucune AVEC trouvée.");
+                emptyLabel.setStyle("-fx-text-fill: " + Styles.GRIS_FONCE + ";");
+                view.getChildren().addAll(title, emptyLabel);
+                root.setCenter(view);
+                return;
+            }
+            
+            Accordion accordion = new Accordion();
+            
+            for (Avec avec : avecs) {
+                VBox avecContent = new VBox(10);
+                avecContent.setPadding(new Insets(15));
+                
+                // En-tête
+                Label avecTitle = new Label(avec.getNom());
+                avecTitle.setStyle(Styles.TITRE_SECONDAIRE);
+                
+                // Récupérer les cycles
+                List<Cycle> cycles = cycleService.getCyclesByAvecId(avec.getId());
+                Cycle cycleEnCours = cycleService.getCycleEnCours(avec.getId());
+                
+                if (cycles.isEmpty()) {
+                    // Aucun cycle
+                    Button demarrerBtn = new Button("🚀 Démarrer le 1er cycle");
+                    demarrerBtn.setStyle(Styles.BOUTON_PRINCIPAL);
+                    demarrerBtn.setOnAction(e -> demarrerCycle(avec));
+                    avecContent.getChildren().addAll(avecTitle, demarrerBtn);
+                    
+                } else if (cycleEnCours != null) {
+                    // Cycle en cours
+                    GridPane infoGrid = new GridPane();
+                    infoGrid.setHgap(15);
+                    infoGrid.setVgap(10);
+                    infoGrid.setPadding(new Insets(10));
+                    infoGrid.setStyle("-fx-background-color: " + Styles.GRIS_CLAIR + ";" +
+                                     "-fx-background-radius: 10;");
+                    
+                    infoGrid.add(new Label("N° cycle:"), 0, 0);
+                    infoGrid.add(new Label(String.valueOf(cycleEnCours.getNumeroCycle())), 1, 0);
+                    infoGrid.add(new Label("Date début:"), 0, 1);
+                    infoGrid.add(new Label(cycleEnCours.getDateDebut().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))), 1, 1);
+                    infoGrid.add(new Label("Date fin prévue:"), 0, 2);
+                    infoGrid.add(new Label(cycleEnCours.getDateFinPrevue().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))), 1, 2);
+                    infoGrid.add(new Label("Statut:"), 0, 3);
+                    infoGrid.add(new Label(cycleEnCours.getStatut().getLibelle()), 1, 3);
+                    infoGrid.add(new Label("Progression:"), 0, 4);
+                    
+                    int progression = (cycleEnCours.getNombreReunionsEffectuees() * 100) / 36;
+                    ProgressBar progressBar = new ProgressBar(progression / 100.0);
+                    progressBar.setPrefWidth(200);
+                    
+                    // Bouton pour terminer le cycle (Module 7)
+                    Button repartitionBtn = new Button("✅ Organiser la répartition");
+                    repartitionBtn.setStyle(Styles.BOUTON_SUCCES);
+                    repartitionBtn.setOnAction(e -> organiserRepartition(avec, cycleEnCours));
+                    
+                    if (!cycleEnCours.estConforme()) {
+                        repartitionBtn.setDisable(true);
+                        repartitionBtn.setTooltip(new Tooltip("Il faut au moins 36 réunions avant la répartition"));
+                    }
+                    
+                    avecContent.getChildren().addAll(avecTitle, infoGrid, progressBar, repartitionBtn);
+                    
+                } else {
+                    // Cycle terminé - afficher le dernier cycle
+                    Cycle dernierCycle = cycles.get(0);
+                    
+                    GridPane resultGrid = new GridPane();
+                    resultGrid.setHgap(15);
+                    resultGrid.setVgap(10);
+                    resultGrid.setPadding(new Insets(10));
+                    resultGrid.setStyle("-fx-background-color: " + Styles.GRIS_CLAIR + ";" +
+                                       "-fx-background-radius: 10;");
+                    
+                    resultGrid.add(new Label("Dernier cycle:"), 0, 0);
+                    resultGrid.add(new Label("N° " + dernierCycle.getNumeroCycle()), 1, 0);
+                    resultGrid.add(new Label("Date fin:"), 0, 1);
+                    resultGrid.add(new Label(dernierCycle.getDateFinReelle().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))), 1, 1);
+                    resultGrid.add(new Label("Valeur part:"), 0, 2);
+                    resultGrid.add(new Label(formatMontant(dernierCycle.getValeurPart())), 1, 2);
+                    
+                    Button nouveauCycleBtn = new Button("🔄 Démarrer nouveau cycle");
+                    nouveauCycleBtn.setStyle(Styles.BOUTON_PRINCIPAL);
+                    nouveauCycleBtn.setOnAction(e -> demarrerCycle(avec));
+                    
+                    avecContent.getChildren().addAll(avecTitle, resultGrid, nouveauCycleBtn);
+                }
+                
+                TitledPane titledPane = new TitledPane(avec.getNom(), avecContent);
+                titledPane.setExpanded(cycleEnCours != null);
+                accordion.getPanes().add(titledPane);
+            }
+            
+            view.getChildren().addAll(title, accordion);
+            VBox.setVgrow(accordion, Priority.ALWAYS);
+            
+        } catch (SQLException e) {
+            showAlert("Erreur", "Impossible de charger les données: " + e.getMessage());
+        }
+        
+        root.setCenter(view);
+    }
+    
+    /**
+     * Organiser la répartition du capital (Module 7)
+     */
+    private void organiserRepartition(Avec avec, Cycle cycle) {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Module 7 - Répartition du capital");
+        dialog.setHeaderText("Clôture du cycle et répartition du capital");
+        
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(20));
+        content.setPrefWidth(400);
+        
+        Label infoLabel = new Label("Saisissez les données finales du cycle:");
+        infoLabel.setStyle("-fx-font-weight: bold;");
+        
+        Label creditLabel = new Label("Fonds de crédit final (FCFA):");
+        TextField creditField = new TextField();
+        creditField.setStyle(Styles.CHAMP_TEXTE);
+        
+        Label partsLabel = new Label("Total des parts achetées:");
+        TextField partsField = new TextField();
+        partsField.setStyle(Styles.CHAMP_TEXTE);
+        
+        // Calcul automatique de la valeur de la part
+        Label valeurLabel = new Label("Valeur d'une part:");
+        Label valeurValue = new Label("0 FCFA");
+        valeurValue.setStyle("-fx-text-fill: " + Styles.VERT_PRINCIPAL + "; -fx-font-weight: bold;");
+        
+        creditField.textProperty().addListener((obs, oldVal, newVal) -> {
+            try {
+                BigDecimal fonds = new BigDecimal(newVal);
+                int parts = partsField.getText().isEmpty() ? 0 : Integer.parseInt(partsField.getText());
+                if (parts > 0) {
+                    BigDecimal valeur = fonds.divide(BigDecimal.valueOf(parts), 2, BigDecimal.ROUND_HALF_UP);
+                    valeurValue.setText(formatMontant(valeur));
+                }
+            } catch (NumberFormatException e) {
+                valeurValue.setText("0 FCFA");
+            }
+        });
+        
+        partsField.textProperty().addListener((obs, oldVal, newVal) -> {
+            try {
+                BigDecimal fonds = creditField.getText().isEmpty() ? BigDecimal.ZERO : new BigDecimal(creditField.getText());
+                int parts = newVal.isEmpty() ? 0 : Integer.parseInt(newVal);
+                if (parts > 0) {
+                    BigDecimal valeur = fonds.divide(BigDecimal.valueOf(parts), 2, BigDecimal.ROUND_HALF_UP);
+                    valeurValue.setText(formatMontant(valeur));
+                }
+            } catch (NumberFormatException e) {
+                valeurValue.setText("0 FCFA");
+            }
+        });
+        
+        content.getChildren().addAll(infoLabel, creditLabel, creditField, partsLabel, partsField, valeurLabel, valeurValue);
+        
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        
+        dialog.setResultConverter(button -> {
+            if (button == ButtonType.OK) {
+                try {
+                    BigDecimal fondsCredit = new BigDecimal(creditField.getText().trim());
+                    int totalParts = Integer.parseInt(partsField.getText().trim());
+                    
+                    if (fondsCredit.compareTo(BigDecimal.ZERO) <= 0) {
+                        showAlert("Erreur", "Le fonds de crédit doit être supérieur à 0");
+                        return null;
+                    }
+                    
+                    if (totalParts <= 0) {
+                        showAlert("Erreur", "Le nombre de parts doit être supérieur à 0");
+                        return null;
+                    }
+                    
+                    Cycle cycleTermine = cycleService.terminerCycle(cycle.getId(), fondsCredit, totalParts);
+                    
+                    if (cycleTermine != null) {
+                        showInfo("Succès", 
+                            "Cycle terminé avec succès!\n\n" +
+                            "Résultats de la répartition:\n" +
+                            "• Fonds de crédit total: " + formatMontant(fondsCredit) + "\n" +
+                            "• Total parts: " + totalParts + "\n" +
+                            "• Valeur d'une part: " + formatMontant(cycleTermine.getValeurPart()) + "\n\n" +
+                            "Chaque membre recevra: (nombre de parts) × " + formatMontant(cycleTermine.getValeurPart()));
+                        
+                        rafraichirListeAvec();
+                        showGestionCyclesGlobale();
+                    } else {
+                        showAlert("Erreur", "Échec de la clôture du cycle");
+                    }
+                    
+                } catch (NumberFormatException e) {
+                    showAlert("Erreur", "Format de nombre invalide");
+                } catch (Exception e) {
+                    showAlert("Erreur", e.getMessage());
+                }
+            }
+            return null;
+        });
+        
+        dialog.showAndWait();
+    }
+    /**
+     * Formate un montant en FCFA
+     */
+    private String formatMontant(BigDecimal montant) {
+        if (montant == null) return "0 FCFA";
+        return String.format("%,.0f FCFA", montant).replace(',', ' ');
     }
     
     private void showChangerMotDePasse() {

@@ -59,6 +59,24 @@ public class Styles {
 	public static final String BOUTON_ACCENT = "-fx-background-color: " + ACCENT_DORE + ";" + "-fx-text-fill: " + NOIR
 			+ ";" + "-fx-font-weight: bold;" + "-fx-font-size: 14px;" + "-fx-padding: 10 20;"
 			+ "-fx-background-radius: 8;" + "-fx-cursor: hand;";
+	// Ajoutez dans Styles.java
+	public static final String BOUTON_SUCCES = 
+	    "-fx-background-color: #2E7D32;" +
+	    "-fx-text-fill: white;" +
+	    "-fx-font-weight: bold;" +
+	    "-fx-font-size: 12px;" +
+	    "-fx-padding: 5 10;" +
+	    "-fx-background-radius: 5;" +
+	    "-fx-cursor: hand;";
+
+	public static final String BOUTON_SUCCES_HOVER = 
+	    "-fx-background-color: #1B5E20;" +  // Vert plus foncé
+	    "-fx-text-fill: white;" +
+	    "-fx-font-weight: bold;" +
+	    "-fx-font-size: 12px;" +
+	    "-fx-padding: 5 10;" +
+	    "-fx-background-radius: 5;" +
+	    "-fx-cursor: hand;";
 
 	// Styles de champs de texte
 	public static final String CHAMP_TEXTE = "-fx-background-color: " + GRIS_CLAIR + ";" + "-fx-border-color: "

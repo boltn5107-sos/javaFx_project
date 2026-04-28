@@ -1,11 +1,9 @@
 package com.avec.service;
 
 import com.avec.dao.CycleDAO;
-import com.avec.dao.AvecDAO;
-import com.avec.dao.ReunionDAO;
 import com.avec.enums.StatutCycle;
-import com.avec.model.Cycle;
 import com.avec.model.Avec;
+import com.avec.model.Cycle;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -15,83 +13,124 @@ import java.util.List;
 public class CycleService {
 
     private final CycleDAO cycleDAO;
-    private final AvecDAO avecDAO;
-    private final ReunionDAO reunionDAO;
 
     public CycleService() {
         this.cycleDAO = new CycleDAO();
-        this.avecDAO = new AvecDAO();
-        this.reunionDAO = new ReunionDAO();
     }
 
     /**
-     * Démarre un nouveau cycle pour une AVEC
+     * Crée le premier cycle (cycle de formation de 36 semaines)
      */
-    public Cycle demarrerCycle(Long avecId) throws SQLException {
-        // Vérifier que l'AVEC exist
-        Avec avec = avecDAO.findById(avecId);
+    public Cycle creerPremierCycle(Avec avec) throws SQLException {
         if (avec == null) {
-            throw new IllegalArgumentException("AVEC non trouvée avec l'ID: " + avecId);
+            throw new IllegalArgumentException("L'AVEC ne peut pas être null");
         }
-
-        // Vérifier qu'il n'y a pas de cycle en cours
-        Cycle cycleEnCours = cycleDAO.findEnCoursByAvecId(avecId);
-        if (cycleEnCours != null) {
-            throw new IllegalStateException("Un cycle est déjà en cours pour cette AVEC");
+        
+        // Vérifier qu'il n'y a pas déjà un cycle
+        List<Cycle> cyclesExistants = cycleDAO.findByAvecId(avec.getId());
+        if (!cyclesExistants.isEmpty()) {
+            throw new IllegalStateException("Un cycle existe déjà pour cette AVEC");
         }
-
-        // Déterminer le numéro du nouveau cycle
-        List<Cycle> cyclesExistants = cycleDAO.findByAvecId(avecId);
-        int nouveauNumero = cyclesExistants.size() + 1;
-
-        // Créer le nouveau cycle
-        Cycle nouveauCycle = new Cycle(LocalDate.now(), nouveauNumero, avecId);
-        nouveauCycle.setStatut(StatutCycle.EN_COURS);
-
-        return cycleDAO.insert(nouveauCycle);
+        
+        Cycle cycle = new Cycle(LocalDate.now(), 1, avec.getId());
+        cycle.setStatut(StatutCycle.EN_COURS);
+        cycle.setFondsDeCreditFinal(BigDecimal.ZERO);
+        cycle.setTotalPartsAchetees(0);
+        
+        return cycleDAO.insert(cycle);
     }
-
+    
     /**
-     * Clôture un cycle
+     * Crée un nouveau cycle après répartition
      */
-    public boolean cloturerCycle(Long cycleId, BigDecimal fondsFinal, int totalParts) throws SQLException {
+    public Cycle creerNouveauCycle(Avec avec) throws SQLException {
+        if (avec == null) {
+            throw new IllegalArgumentException("L'AVEC ne peut pas être null");
+        }
+        
+        // Trouver le dernier cycle pour connaître le numéro
+        Cycle dernierCycle = cycleDAO.findLastCycleByAvecId(avec.getId());
+        int nouveauNumero = (dernierCycle != null) ? dernierCycle.getNumeroCycle() + 1 : 1;
+        
+        Cycle cycle = new Cycle(LocalDate.now(), nouveauNumero, avec.getId());
+        cycle.setStatut(StatutCycle.EN_COURS);
+        cycle.setFondsDeCreditFinal(BigDecimal.ZERO);
+        cycle.setTotalPartsAchetees(0);
+        
+        return cycleDAO.insert(cycle);
+    }
+    
+    /**
+     * Termine un cycle (module 7 - répartition du capital)
+     */
+    public Cycle terminerCycle(Long cycleId, BigDecimal fondsCreditFinal, int totalPartsAchetees) throws SQLException {
         Cycle cycle = cycleDAO.findById(cycleId);
         if (cycle == null) {
-            throw new IllegalArgumentException("Cycle non trouvé avec l'ID: " + cycleId);
+            throw new IllegalArgumentException("Cycle non trouvé");
         }
-
-        cycle.setFondsDeCreditFinal(fondsFinal);
-        cycle.setTotalPartsAchetees(totalParts);
-        cycle.cloturerCycle();
-
-        return cycleDAO.update(cycle);
+        
+        if (cycle.getStatut() == StatutCycle.TERMINE) {
+            throw new IllegalStateException("Ce cycle est déjà terminé");
+        }
+        
+        cycle.setFondsDeCreditFinal(fondsCreditFinal);
+        cycle.setTotalPartsAchetees(totalPartsAchetees);
+        cycle.cloturerCycle(); // Utilise la méthode de votre modèle
+        
+        boolean updated = cycleDAO.terminerCycle(cycleId, cycle.getDateFinReelle(), 
+                                                   fondsCreditFinal, totalPartsAchetees);
+        
+        if (updated) {
+            return cycle;
+        }
+        return null;
     }
-
-    /**
-     * Récupère un cycle par son ID
-     */
-    public Cycle getCycleById(long id) throws SQLException {
-        return cycleDAO.findById(id);
-    }
-
-    /**
-     * Récupère tous les cycles d'une AVEC
-     */
-    public List<Cycle> getCyclesByAvecId(long avecId) throws SQLException {
-        return cycleDAO.findByAvecId(avecId);
-    }
-
+    
     /**
      * Récupère le cycle en cours d'une AVEC
      */
-    public Cycle getCycleEnCours(long avecId) throws SQLException {
-        return cycleDAO.findEnCoursByAvecId(avecId);
+    public Cycle getCycleEnCours(Long avecId) throws SQLException {
+        if (avecId == null) return null;
+        return cycleDAO.findCycleEnCours(avecId);
     }
-
+    
     /**
-     * Récupère tous les cycles
+     * Récupère tous les cycles d'une AVEC
      */
-    public List<Cycle> getAllCycles() throws SQLException {
-        return cycleDAO.findAll();
+    public List<Cycle> getCyclesByAvecId(Long avecId) throws SQLException {
+        if (avecId == null) return List.of();
+        return cycleDAO.findByAvecId(avecId);
+    }
+    
+    /**
+     * Récupère un cycle par son ID
+     */
+    public Cycle getCycleById(Long id) throws SQLException {
+        if (id == null) return null;
+        return cycleDAO.findById(id);
+    }
+    
+    /**
+     * Met à jour un cycle
+     */
+    public boolean updateCycle(Cycle cycle) throws SQLException {
+        if (cycle == null || cycle.getId() == null) return false;
+        return cycleDAO.update(cycle);
+    }
+    
+    /**
+     * Met à jour le statut d'un cycle
+     */
+    public boolean updateStatutCycle(Long cycleId, StatutCycle statut) throws SQLException {
+        if (cycleId == null || statut == null) return false;
+        return cycleDAO.updateStatut(cycleId, statut);
+    }
+    
+    /**
+     * Calcule le nombre total de cycles pour une AVEC
+     */
+    public int getNombreCycles(Long avecId) throws SQLException {
+        if (avecId == null) return 0;
+        return cycleDAO.countByAvecId(avecId);
     }
 }
