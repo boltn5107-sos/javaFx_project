@@ -13,8 +13,6 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.avec.config.DBConnection;
-import com.avec.dao.CaisseDAO;
 import com.avec.enums.JourReunion;
 import com.avec.enums.PhaseCycle;
 import com.avec.enums.RoleComite;
@@ -585,76 +583,6 @@ public class Avec {
                 prixPart.compareTo(BigDecimal.ZERO) > 0;
     }
 
-    /**
-     * Trouve une AVEC avec sa caisse
-     */
-    public Avec findByIdWithCaisse(long id) throws SQLException {
-        Avec avec = findAvecById(id);
-        if (avec != null) {
-            CaisseDAO caisseDAO = new CaisseDAO();
-            Caisse caisse = caisseDAO.findByAvecId(id);
-            avec.setCaisse(caisse);
-        }
-        return avec;
-    }
-// trouver un Avec per son Id
-    private Avec findAvecById(long id) throws SQLException{
-        String sql = "SELECT * FROM avec WHERE id = ?";
-        try(Connection conn = DBConnection.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)){
-            stmt.setLong(1,id);
-            try(ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()){
-                    Avec avec = new Avec();
-
-                    //Remplir les proprietes
-                    avec.setId(rs.getLong("id"));
-                    avec.setNom(rs.getNString("mom"));
-                    avec.setCodeUnique(rs.getString("codeUnique"));
-                    avec.setStatut(StatutAvec.valueOf(rs.getString("statut")));
-                    avec.setDateCreation(rs.getDate("dateCreation").toLocalDate());
-                    avec.setPrixPart(rs.getBigDecimal("prixPart"));
-                    avec.setTauxFraisServiceMensuel(rs.getBigDecimal("tauxFraisServiceMensuel"));
-                    avec.setPhaseCourante(PhaseCycle.valueOf(rs.getString("phaseCourante")));
-                    Date dateDebutCycle = rs.getDate("dateDebutCycle");
-                    if (dateDebutCycle != null){
-                        avec.setDateDebutCycle(dateDebutCycle.toLocalDate());
-                    }
-                    Date dateFinCyclePrevue = rs.getDate("dateFinCyclePrevue");
-                    if (dateFinCyclePrevue != null){
-                        avec.setDateFinCyclePrevue(dateFinCyclePrevue.toLocalDate());
-                    }
-                    avec.setLieuReunion(rs.getString("lieuReunion"));
-
-                    String jourReunion = rs.getString("jourReunion");
-                    if (jourReunion != null){
-                        avec.setJourReunion(JourReunion.valueOf(jourReunion));
-                    }
-
-                    Time heureReunion =rs.getTime("heureReunion");
-                    if (heureReunion != null){
-                        avec.setHeureReunion(heureReunion.toLocalTime());
-                    }
-
-                    Date prochaineReunion = rs.getDate("prochaineReunion");
-                    if(prochaineReunion != null){
-                        avec.setProchaineReunion(prochaineReunion.toLocalDate());
-                    }
-
-                    avec.setCotisationCaisseSolidarite(rs.getBigDecimal("cotisationCaisseSolidarite"));
-                    avec.setAgentVillageoisId(rs.getLong("agentVillageoisId"));
-
-                    long agentTerrainId = rs.getLong("agentTerrainId");
-                    if ( !rs.wasNull()){
-                        avec.setAgentTerrainId((agentTerrainId));
-                    }
-                    return avec;
-                 }
-
-            }
-        }
-        return null;
-    }
-
     @Override
     public String toString() {
         return nom + " (" + codeUnique + ")";
@@ -672,6 +600,4 @@ public class Avec {
     public int hashCode() {
         return id != null ? id.hashCode() : 0;
     }
-
-
 }

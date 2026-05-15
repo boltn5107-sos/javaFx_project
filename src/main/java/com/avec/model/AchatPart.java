@@ -112,5 +112,17 @@ public void setMembreId(Long membre_id) {
 public boolean isAchat() {
 		return nombreParts > 0;
 	}
-      
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        AchatPart achatPart = (AchatPart) o;
+        return id != null && id.equals(achatPart.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id != null ? id.hashCode() : 0;
+    }
 }

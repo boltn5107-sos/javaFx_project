@@ -51,7 +51,7 @@ public class Pret {
         return id;
     }
 
-    public void setId(long id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
@@ -238,57 +238,14 @@ public class Pret {
 
 
     /**
-     * Calcule le montant total dû avec les intérêts
+     * Récupère le montant restant dû (capital + intérêts - remboursements)
      */
     public BigDecimal getMontantRestantDu() {
-        if (montantInitial == null || fraisServiceMensuel == null) return BigDecimal.ZERO;
-
-        // Nombre de mois (arrondi supérieur)
-        int nombreMois = (int) Math.ceil(dureeEnSemaines / 4.0);
-
-        // Total des intérêts
-        BigDecimal totalInterets = fraisServiceMensuel.multiply(BigDecimal.valueOf(nombreMois));
-
-        return montantInitial.add(totalInterets);
+        if (montantRestantDu != null) {
+            return montantRestantDu;
+        }
+        return getMontantTotalDu();
     }
-
-    /**
-     * Enregistre un remboursement
-     */
-//    public Remboursement rembourser(BigDecimal montant, Reunion reunion) {
-//        if (montant == null || montant.compareTo(BigDecimal.ZERO) <= 0) {
-//            throw new IllegalArgumentException("Le montant du remboursement doit être positif");
-//        }
-//
-//        if (statut == StatutPret.REMBOURSE) {
-//            throw new IllegalStateException("Ce prêt est déjà entièrement remboursé");
-//        }
-//
-//        if (montant.compareTo(montantRestantDu) > 0) {
-//            throw new IllegalArgumentException("Le montant remboursé (" + montant +
-//                    ") dépasse le solde dû (" + montantRestantDu + ")");
-//        }
-//
-//        // Créer le remboursement
-//        Remboursement remboursement = new Remboursement();
-//        remboursement.setMontant(montant);
-//        remboursement.setReunion(reunion);
-//        remboursement.setPret(this);
-//        remboursement.setPretId(this.id);
-//
-//        // Mettre à jour le montant restant dû
-//        BigDecimal nouveauSolde = montantRestantDu.subtract(montant);
-//        this.montantRestantDu = nouveauSolde;
-//
-//        // Vérifier si le prêt est entièrement remboursé
-//        if (this.montantRestantDu.compareTo(BigDecimal.ZERO) == 0) {
-//            this.statut = StatutPret.REMBOURSE;
-//            this.dateRemboursementTotal = reunion.getDate();
-//        }
-//
-//        remboursements.add(remboursement);
-//        return remboursement;
-//    }
 
     /**
      * Vérifie si le prêt est en retard
